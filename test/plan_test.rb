@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "schemas/basic_graph"
+require_relative "test_schemas/basic_graph"
 
 class GraphQL::Stitching::PlanTest < Minitest::Test
   def setup

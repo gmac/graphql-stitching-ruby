@@ -19,6 +19,14 @@ module GraphQL
         GraphQL::Schema::Interface,
       ].freeze
 
+      BUILTIN_SCALAR_TYPES = [
+        GraphQL::Types::Boolean,
+        GraphQL::Types::Float,
+        GraphQL::Types::ID,
+        GraphQL::Types::Int,
+        GraphQL::Types::String,
+      ].freeze
+
       def self.get_named_type(type)
         while type.respond_to?(:of_type)
           type = type.of_type
@@ -26,6 +34,7 @@ module GraphQL
         type
       end
 
+<<<<<<< Updated upstream
       def self.get_list_structure(type)
         structure = []
         while type.respond_to?(:of_type)
@@ -37,6 +46,22 @@ module GraphQL
           type = type.of_type
         end
         structure
+=======
+      def self.is_list_type?(type)
+        while type.respond_to?(:of_type)
+          return true if type.list?
+          type = type.of_type
+        end
+        type.list?
+      end
+
+      def self.is_non_null_list_element?(type)
+        while type.respond_to?(:of_type)
+          return type.of_type.non_null? if type.list?
+          type = type.of_type
+        end
+        type.non_null?
+>>>>>>> Stashed changes
       end
 
       def self.is_leaf_type?(type)
@@ -45,6 +70,10 @@ module GraphQL
 
       def self.is_composite_type?(type)
         COMPOSITE_TYPES.any? { _1 <= type }
+      end
+
+      def self.is_builtin_scalar?(type)
+        BUILTIN_SCALAR_TYPES.any? { _1 <= type }
       end
     end
   end

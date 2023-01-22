@@ -26,6 +26,19 @@ module GraphQL
         type
       end
 
+      def self.get_list_structure(type)
+        structure = []
+        while type.respond_to?(:of_type)
+          if type.is_a?(GraphQL::Schema::List)
+            structure << GraphQL::Schema::List
+          elsif structure.any? && type.is_a?(GraphQL::Schema::NonNull)
+            structure << GraphQL::Schema::NonNull
+          end
+          type = type.of_type
+        end
+        structure
+      end
+
       def self.is_leaf_type?(type)
         LEAF_TYPES.any? { _1 <= type }
       end

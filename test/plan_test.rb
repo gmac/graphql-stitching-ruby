@@ -8,22 +8,42 @@ class GraphQL::Stitching::PlanTest < Minitest::Test
     puts "hello"
   end
 
+  QUERY = "
+    query {
+      storefront(id: 1) {
+        id
+        products {
+          upc
+          name
+          price
+          manufacturer {
+            name
+            address
+            products { upc name }
+          }
+        }
+        ...on Storefront { name }
+        ...SfAttrs
+      }
+    }
+    fragment SfAttrs on Storefront {
+      name
+    }
+  "
+
   def test_works
-    assert_equal 1, 1
+    map = GraphQL::Stitching::Map.new(
+      schema: ::BasicGraph::TestSchema,
+      locations: ::BasicGraph::LOCATIONS_MAP,
+      boundaries: ::BasicGraph::BOUNDARIES_MAP,
+      fields: ::BasicGraph::FIELDS_MAP,
+    )
+
+    plan = GraphQL::Stitching::Plan.new(
+      context: map,
+      document: GraphQL.parse(QUERY),
+    )
+
     byebug
   end
 end
-
-# describe 'Plan Test' do
-#   before do
-#     nil
-#   end
-
-#   it 'works' do
-#     assert_equal 1, 1
-#   end
-
-#   it 'works' do
-#     assert_equal 1, 0
-#   end
-# end

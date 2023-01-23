@@ -17,7 +17,7 @@ module GraphQL
 
       def compose
         # "Typename" => "location" => candidate_type
-        type_candidates_map = @schemas.each_with_object({}) do |(location, schema), memo|
+        types_by_name_location = @schemas.each_with_object({}) do |(location, schema), memo|
           schema.types.each do |type_name, type_candidate|
             next if type_name.start_with?("__")
 
@@ -36,7 +36,7 @@ module GraphQL
         end
 
         # "Typename" => merged_type
-        schema_types = type_candidates_map.each_with_object({}) do |(type_name, types_by_location), memo|
+        schema_types = types_by_name_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
           unless kinds.all? { _1 == kinds.first }
@@ -84,33 +84,31 @@ module GraphQL
 
         Class.new(GraphQL::Schema::Scalar) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
+          description(builder.merge_descriptions(type_name, types_by_location))
         end
       end
 
       def build_enum_type(type_name, types_by_location)
         builder = self
 
+        # "value" => "location" => enum_value
+        enum_values_by_value_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
+          type_candidate.enum_values.each do |enum_value_candidate|
+            memo[enum_value_candidate.value] ||= {}
+            memo[enum_value_candidate.value][location] ||= {}
+            memo[enum_value_candidate.value][location] = enum_value_candidate
+          end
+        end
+
         Class.new(GraphQL::Schema::Enum) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
+          description(builder.merge_descriptions(type_name, types_by_location))
 
-          # locations_by_value = {}
-          enum_values_by_value = {}
-          types_by_location.each do |location, type_candidate|
-            type_candidate.enum_values.each do |enum_value_candidate|
-              # locations_by_value[enum_value.value] ||= []
-              # locations_by_value[enum_value.value] << location
-              enum_values_by_value[enum_value_candidate.value] ||= []
-              enum_values_by_value[enum_value_candidate.value] << enum_value_candidate
-            end
-          end
-
-          enum_values_by_value.each do |value, locations|
+          enum_values_by_value_location.each do |value, enum_values_by_location|
             value(value,
               value: value,
-              # deprecation_reason: "tktk"
-              # description: enum_value_definition.description,
+              description: builder.merge_descriptions(type_name, enum_values_by_location, enum_value: value),
+              deprecation_reason: builder.merge_deprecations(type_name, enum_values_by_location, enum_value: value),
             )
           end
         end
@@ -121,14 +119,14 @@ module GraphQL
 
         Class.new(GraphQL::Schema::Object) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
+          description(builder.merge_descriptions(type_name, types_by_location))
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
           interface_names.uniq.each do |interface_name|
             implements(GraphQL::Schema::LateBoundType.new(interface_name))
           end
 
-          builder.build_merged_fields(self, type_name, types_by_location)
+          builder.build_merged_fields(type_name, types_by_location, self)
         end
       end
 
@@ -138,14 +136,14 @@ module GraphQL
         Module.new do
           include GraphQL::Schema::Interface
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
+          description(builder.merge_descriptions(type_name, types_by_location))
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
           interface_names.uniq.each do |interface_name|
             implements(GraphQL::Schema::LateBoundType.new(interface_name))
           end
 
-          builder.build_merged_fields(self, type_name, types_by_location)
+          builder.build_merged_fields(type_name, types_by_location, self)
         end
       end
 
@@ -154,7 +152,7 @@ module GraphQL
 
         Class.new(GraphQL::Schema::Union) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
+          description(builder.merge_descriptions(type_name, types_by_location))
 
           possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }
           possible_types *possible_names.map { GraphQL::Schema::LateBoundType.new(_1) }
@@ -166,23 +164,12 @@ module GraphQL
 
         Class.new(GraphQL::Schema::InputObject) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(types_by_location, type_name))
-
-          args_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
-            type_candidate.arguments.each do |argument_name, argument|
-              memo[argument_name] ||= {}
-              memo[argument_name][location] ||= {}
-              memo[argument_name][location] = argument
-            end
-          end
-
-          args_by_name_location.each do |argument_name, arguments_by_location|
-            builder.build_merged_arguments(self, type_name, argument_name, arguments_by_location)
-          end
+          description(builder.merge_descriptions(type_name, types_by_location))
+          builder.build_merged_arguments(type_name, types_by_location, self)
         end
       end
 
-      def build_merged_fields(owner, type_name, types_by_location)
+      def build_merged_fields(type_name, types_by_location, owner)
         # "field_name" => "location" => field
         fields_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
           @field_map[type_name] ||= {}
@@ -201,39 +188,39 @@ module GraphQL
 
           schema_field = owner.field(
             field_name,
-            description: merge_descriptions(fields_by_location, type_name, field_name: field_name),
-            deprecation_reason: merge_deprecations(fields_by_location, type_name, field_name: field_name),
-            type: merge_wrapped_types(field_types, type_name, field_name: field_name),
+            description: merge_descriptions(type_name, fields_by_location, field_name: field_name),
+            deprecation_reason: merge_deprecations(type_name, fields_by_location, field_name: field_name),
+            type: merge_wrapable_types(type_name, field_types, field_name: field_name),
             null: !field_types.all?(&:non_null?),
             camelize: false,
           )
 
-          # "argument_name" => "location" => argument
-          args_by_name_location = fields_by_location.each_with_object({}) do |(location, field_candidate), memo|
-            field_candidate.arguments.each do |argument_name, argument|
-              memo[argument_name] ||= {}
-              memo[argument_name][location] ||= {}
-              memo[argument_name][location] = argument
-            end
-          end
-
-          args_by_name_location.each do |argument_name, arguments_by_location|
-            build_merged_arguments(schema_field, type_name, argument_name, arguments_by_location, field_name: field_name)
-          end
+          build_merged_arguments(type_name, fields_by_location, schema_field, field_name: field_name)
         end
       end
 
-      def build_merged_arguments(owner, type_name, argument_name, arguments_by_location, field_name: nil)
-        argument_types = arguments_by_location.values.map(&:type)
+      def build_merged_arguments(type_name, members_by_location, owner, field_name: nil)
+        # "argument_name" => "location" => argument
+        args_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
+          member_candidate.arguments.each do |argument_name, argument|
+            memo[argument_name] ||= {}
+            memo[argument_name][location] ||= {}
+            memo[argument_name][location] = argument
+          end
+        end
 
-        owner.argument(
-          argument_name,
-          description: merge_descriptions(arguments_by_location, type_name, field_name: field_name, argument_name: argument_name),
-          deprecation_reason: merge_deprecations(arguments_by_location, type_name, field_name: field_name, argument_name: argument_name),
-          type: merge_wrapped_types(argument_types, type_name, field_name: field_name, argument_name: argument_name),
-          required: argument_types.any?(&:non_null?),
-          camelize: false,
-        )
+        args_by_name_location.each do |argument_name, arguments_by_location|
+          argument_types = arguments_by_location.values.map(&:type)
+
+          owner.argument(
+            argument_name,
+            description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
+            deprecation_reason: merge_deprecations(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
+            type: merge_wrapable_types(type_name, argument_types, argument_name: argument_name, field_name: field_name),
+            required: argument_types.any?(&:non_null?),
+            camelize: false,
+          )
+        end
       end
 
       def extract_boundaries(type_name, types_by_location)
@@ -266,7 +253,7 @@ module GraphQL
         end
       end
 
-      def merge_wrapped_types(type_candidates, type_name, field_name: nil, argument_name: nil)
+      def merge_wrapable_types(type_name, type_candidates, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].compact.join(".")
         named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
 
@@ -303,11 +290,11 @@ module GraphQL
         type
       end
 
-      def merge_descriptions(members_by_location, type_name, field_name: nil, argument_name: nil)
+      def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         members_by_location.values.map(&:description).find { !_1.nil? }
       end
 
-      def merge_deprecations(members_by_location, type_name, field_name: nil, argument_name: nil)
+      def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         members_by_location.values.map(&:deprecation_reason).find { !_1.nil? }
       end
     end

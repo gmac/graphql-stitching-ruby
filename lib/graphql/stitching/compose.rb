@@ -3,6 +3,8 @@
 module GraphQL
   module Stitching
     class Compose
+      class ComposeError < StandardError; end
+      # class ValidationError < ComposeError; end
 
       attr_reader :query_name, :mutation_name
       attr_reader :field_map, :boundary_map
@@ -13,6 +15,7 @@ module GraphQL
         @mutation_name = mutation_name
         @field_map = {}
         @boundary_map = {}
+        @enum_usage = {}
       end
 
       def compose
@@ -22,9 +25,9 @@ module GraphQL
             next if type_name.start_with?("__")
 
             if type_name == @query_name && type_candidate != schema.query
-              raise "Root query name \"#{@query_name}\" is used by non-query type in #{location} schema."
+              raise ComposeError, "Root query name \"#{@query_name}\" is used by non-query type in #{location} schema."
             elsif type_name == @mutation_name && type_candidate != schema.mutation
-              raise "Root mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+              raise ComposeError, "Root mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             end
 
             type_name = @query_name if type_candidate == schema.query
@@ -35,19 +38,21 @@ module GraphQL
           end
         end
 
+        enum_usage = build_enum_usage_map(@schemas.values)
+
         # "Typename" => merged_type
         schema_types = types_by_name_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
           unless kinds.all? { _1 == kinds.first }
-            raise "Cannot merge different kinds for #{type_name}, found: #{kinds.join(", ")}."
+            raise ComposeError, "Cannot merge different kinds for #{type_name}, found: #{kinds.join(", ")}."
           end
 
           memo[type_name] = case kinds.first
           when "SCALAR"
             build_scalar_type(type_name, types_by_location)
           when "ENUM"
-            build_enum_type(type_name, types_by_location)
+            build_enum_type(type_name, types_by_location, enum_usage)
           when "OBJECT"
             extract_boundaries(type_name, types_by_location)
             build_object_type(type_name, types_by_location)
@@ -58,7 +63,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise "Unexpected kind encountered for #{type_name}, found: #{kind}."
+            raise ComposeError, "Unexpected kind encountered for #{type_name}, found: #{kind}."
           end
         end
 
@@ -88,7 +93,7 @@ module GraphQL
         end
       end
 
-      def build_enum_type(type_name, types_by_location)
+      def build_enum_type(type_name, types_by_location, enum_usage)
         builder = self
 
         # "value" => "location" => enum_value
@@ -97,6 +102,13 @@ module GraphQL
             memo[enum_value_candidate.value] ||= {}
             memo[enum_value_candidate.value][location] ||= {}
             memo[enum_value_candidate.value][location] = enum_value_candidate
+          end
+        end
+
+        # intersect writable enum types
+        if enum_usage.fetch(type_name, []).include?(:write)
+          enum_values_by_value_location.reject! do |value, enum_values_by_location|
+            types_by_location.keys.length != enum_values_by_location.keys.length
           end
         end
 
@@ -212,6 +224,11 @@ module GraphQL
         args_by_name_location.each do |argument_name, arguments_by_location|
           argument_types = arguments_by_location.values.map(&:type)
 
+          if arguments_by_location.length != members_by_location.length && argument_types.any?(&:non_null?)
+            path = [type_name, field_name, argument_name].compact.join(".")
+            raise ComposeError, "Required input `#{path}` must be defined in all locations."
+          end
+
           owner.argument(
             argument_name,
             description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
@@ -233,7 +250,7 @@ module GraphQL
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1
-                raise "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
+                raise ComposeError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
               field_argument = key_selections[0].alias
@@ -258,14 +275,14 @@ module GraphQL
         named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
 
         unless named_types.all? { _1 == named_types.first }
-          raise "Cannot compose mixed types at #{path}, found: #{named_types.join(", ")}."
+          raise ComposeError, "Cannot compose mixed types at `#{path}`, found: #{named_types.join(", ")}."
         end
 
         list_structures = type_candidates.map { Util.get_list_structure(_1) }
         is_list = list_structures.any?(&:any?)
 
         if is_list && list_structures.all? { _1[0..-2] != list_structures.first[0..-2] }
-          raise "Cannot compose mixed list structures at #{path}."
+          raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
         end
 
         type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
@@ -296,6 +313,44 @@ module GraphQL
 
       def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         members_by_location.values.map(&:deprecation_reason).find { !_1.nil? }
+      end
+
+      def build_enum_usage_map(schemas)
+        reads = []
+        writes = []
+
+        schemas.each do |schema|
+          schema.types.values.each do |type|
+            next if type.graphql_name.start_with?("__")
+
+            if type.kind.name == "OBJECT" || type.kind.name == "INTERFACE"
+              type.fields.values.each do |field|
+                field_type = Util.get_named_type(field.type)
+                reads << field_type.graphql_name if field_type.kind.name == "ENUM"
+
+                field.arguments.values.each do |argument|
+                  argument_type = Util.get_named_type(argument.type)
+                  writes << argument_type.graphql_name if argument_type.kind.name == "ENUM"
+                end
+              end
+
+            elsif type.kind.name == "INPUT_OBJECT"
+              type.arguments.values.each do |argument|
+                argument_type = Util.get_named_type(argument.type)
+                writes << argument_type.graphql_name if argument_type.kind.name == "ENUM"
+              end
+            end
+          end
+        end
+
+        usage = reads.uniq.each_with_object({}) do |enum_name, memo|
+          memo[enum_name] ||= []
+          memo[enum_name] << :read
+        end
+        writes.uniq.each_with_object(usage) do |enum_name, memo|
+          memo[enum_name] ||= []
+          memo[enum_name] << :write
+        end
       end
     end
   end

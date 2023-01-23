@@ -11,7 +11,20 @@ module TestSchema
     ]
 
     class Products < GraphQL::Schema
+      module Node
+        include GraphQL::Schema::Interface
+
+        field :upc, ID, null: false
+      end
+
+      class ShippingOption < GraphQL::Schema::Enum
+        value "STANDARD"
+        value "EXPRESS"
+      end
+
       class Product < GraphQL::Schema::Object
+        implements Node
+
         field :upc, ID, null: false
 
         field :name, String, null: false
@@ -23,6 +36,8 @@ module TestSchema
         def manufacturer
           { id: object[:manufacturer_id] }
         end
+
+        field :shipping, [ShippingOption], null: false
       end
 
       class Manufacturer < GraphQL::Schema::Object
@@ -35,7 +50,13 @@ module TestSchema
         end
       end
 
+      class Widget < GraphQL::Schema::Union
+        possible_types Product
+      end
+
       class RootQuery < GraphQL::Schema::Object
+        field :thing1, Widget, null: true
+
         field :product, Product, null: false do
           argument :upc, ID, required: true
         end
@@ -93,7 +114,13 @@ module TestSchema
         field :address, String, null: false
       end
 
+      class Widget < GraphQL::Schema::Union
+        possible_types Manufacturer
+      end
+
       class Query < GraphQL::Schema::Object
+        field :thing2, Widget, null: true
+
         field :manufacturer, Manufacturer, null: true do
           argument :id, ID, required: true
         end

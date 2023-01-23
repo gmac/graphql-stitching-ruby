@@ -34,7 +34,6 @@ module GraphQL
         type
       end
 
-<<<<<<< Updated upstream
       def self.get_list_structure(type)
         structure = []
         while type.respond_to?(:of_type)
@@ -46,22 +45,6 @@ module GraphQL
           type = type.of_type
         end
         structure
-=======
-      def self.is_list_type?(type)
-        while type.respond_to?(:of_type)
-          return true if type.list?
-          type = type.of_type
-        end
-        type.list?
-      end
-
-      def self.is_non_null_list_element?(type)
-        while type.respond_to?(:of_type)
-          return type.of_type.non_null? if type.list?
-          type = type.of_type
-        end
-        type.non_null?
->>>>>>> Stashed changes
       end
 
       def self.is_leaf_type?(type)

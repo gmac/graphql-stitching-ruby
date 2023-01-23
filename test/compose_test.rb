@@ -9,12 +9,13 @@ describe 'Compose Test' do
   end
 
   it 'works' do
-    result = GraphQL::Stitching::Compose.new(schemas: {
+    schema = GraphQL::Stitching::Compose.new(schemas: {
       "products" => TestSchema::Basic::Products,
       "storefronts" => TestSchema::Basic::Storefronts,
       "manufacturers" => TestSchema::Basic::Manufacturers,
     }).compose
 
+    puts GraphQL::Schema::Printer.print_schema(schema)
     byebug
   end
 end

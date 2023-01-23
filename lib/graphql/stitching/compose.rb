@@ -5,12 +5,14 @@ module GraphQL
     class Compose
 
       attr_reader :query_name, :mutation_name
+      attr_reader :field_map, :boundary_map
 
       def initialize(schemas:, query_name: "Query", mutation_name: "Mutation")
         @schemas = schemas
         @query_name = query_name
         @mutation_name = mutation_name
         @field_map = {}
+        @boundary_map = {}
       end
 
       def compose
@@ -45,6 +47,7 @@ module GraphQL
           when "ENUM"
             build_enum_type(typename, types_by_location)
           when "OBJECT"
+            extract_boundaries(typename, types_by_location)
             build_object_type(typename, types_by_location)
           when "INTERFACE"
             build_interface_type(typename, types_by_location)
@@ -65,7 +68,10 @@ module GraphQL
         schema.query(schema.types[@query_name])
         schema.mutation(schema.types[@mutation_name])
         schema.send(:own_orphan_types).clear # cheat
-        schema
+        return schema, {
+          fields: @field_map,
+          boundaries: @boundary_map,
+        }
       end
 
       def build_scalar_type(typename, types_by_location)
@@ -166,12 +172,12 @@ module GraphQL
       def build_merged_fields(typename, types_by_location, owner)
         fields_by_name = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
           @field_map[typename] ||= {}
-          type_candidate.fields.each do |fieldname, field|
-            @field_map[typename][field.name] ||= []
-            @field_map[typename][field.name] << location
+          type_candidate.fields.each do |fieldname, field_candidate|
+            @field_map[typename][field_candidate.name] ||= []
+            @field_map[typename][field_candidate.name] << location
 
             memo[fieldname] ||= []
-            memo[fieldname] << field
+            memo[fieldname] << field_candidate
           end
         end
 
@@ -247,6 +253,37 @@ module GraphQL
         end
 
         type
+      end
+
+      def extract_boundaries(typename, types_by_location)
+        types_by_location.each do |location, type_candidate|
+          type_candidate.fields.each do |fieldname, field_candidate|
+            field_candidate.directives.each do |directive|
+              next unless directive.graphql_name == "boundary"
+
+
+              key = directive.arguments.keyword_arguments.fetch(:key)
+              key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
+
+              if key_selections.length != 1
+                raise "Boundary key at #{typename}.#{fieldname} must specify exactly one key."
+              end
+
+              field_argument = key_selections[0].alias
+              field_argument ||= if field_candidate.arguments.size == 1
+                field_candidate.arguments.keys.first
+              end
+
+              @boundary_map[typename] ||= []
+              @boundary_map[typename] << {
+                "location" => location,
+                "selection" => key_selections[0].name,
+                "field" => field_candidate.name,
+                "arg" => field_argument,
+              }
+            end
+          end
+        end
       end
 
       def merge_descriptions(types_by_location)

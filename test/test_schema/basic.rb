@@ -10,6 +10,13 @@ module TestSchema
       { upc: '5', name: 'iOS Survival Guide', price: 24.99, manufacturer_id: '1' },
     ]
 
+    class Boundary < GraphQL::Schema::Directive
+      graphql_name "boundary"
+      locations FIELD_DEFINITION
+      argument :key, String
+      repeatable true
+    end
+
     class Products < GraphQL::Schema
       module Node
         include GraphQL::Schema::Interface
@@ -58,6 +65,7 @@ module TestSchema
         field :thing1, Widget, null: true
 
         field :product, Product, null: false do
+          directive Boundary, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -91,6 +99,7 @@ module TestSchema
 
       class Query < GraphQL::Schema::Object
         field :storefront, Storefront, null: true do
+          directive Boundary, key: "id"
           argument :id, ID, required: true
         end
 
@@ -122,6 +131,8 @@ module TestSchema
         field :thing2, Widget, null: true
 
         field :manufacturer, Manufacturer, null: true do
+          directive Boundary, key: "id"
+          directive Boundary, key: "upc"
           argument :id, ID, required: true
         end
 

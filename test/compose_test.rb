@@ -9,7 +9,7 @@ describe 'Compose Test' do
   end
 
   it 'works' do
-    schema = GraphQL::Stitching::Compose.new(schemas: {
+    schema, delegation_map = GraphQL::Stitching::Compose.new(schemas: {
       "products" => TestSchema::Basic::Products,
       "storefronts" => TestSchema::Basic::Storefronts,
       "manufacturers" => TestSchema::Basic::Manufacturers,

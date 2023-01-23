@@ -31,8 +31,9 @@ module TestSchema
 
       class Product < GraphQL::Schema::Object
         implements Node
+        description "products desc"
 
-        field :upc, ID, null: false
+        field :upc, ID, null: false, description: "products desc"
 
         field :name, String, null: false
 
@@ -61,12 +62,21 @@ module TestSchema
         possible_types Product
       end
 
+      class ProductHandle < GraphQL::Schema::InputObject
+        description "Handle reference for a product"
+        argument :handle, String, "The handle"
+      end
+
       class RootQuery < GraphQL::Schema::Object
         field :thing1, Widget, null: true
 
         field :product, Product, null: false do
           directive Boundary, key: "upc"
           argument :upc, ID, required: true
+        end
+
+        field :product_by_handle, Product, null: true do
+          argument :handle, ProductHandle, required: true
         end
 
         def product(upc:)
@@ -84,7 +94,9 @@ module TestSchema
 
     class Storefronts < GraphQL::Schema
       class Product < GraphQL::Schema::Object
-        field :upc, ID, null: false
+        description "storefronts desc"
+
+        field :upc, ID, null: false, description: "storefronts desc"
       end
 
       class Storefront < GraphQL::Schema::Object

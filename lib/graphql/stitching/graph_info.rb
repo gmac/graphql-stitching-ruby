@@ -3,7 +3,7 @@
 
 module GraphQL
   module Stitching
-    class Map
+    class GraphInfo
       attr_reader :schema, :locations, :boundaries, :locations_by_field
 
       def initialize(schema:, locations:, boundaries:, fields:)

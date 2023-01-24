@@ -4,10 +4,9 @@ module GraphQL
   module Stitching
     class Compose
       class ComposeError < StandardError; end
-      # class ValidationError < ComposeError; end
+      class ValidationError < ComposeError; end
 
       attr_reader :query_name, :mutation_name
-      attr_reader :field_map, :boundary_map
 
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
 
@@ -89,10 +88,15 @@ module GraphQL
         schema.send(:own_orphan_types).clear # cheat
         expand_abstract_boundaries(schema)
 
-        return schema, {
-          fields: @field_map,
+        graph_info = GraphInfo.new(
+          schema: schema,
+          locations: @schemas,
           boundaries: @boundary_map,
-        }
+          fields: @field_map,
+        )
+
+        validate_graph_info(graph_info)
+        graph_info
       end
 
       def build_scalar_type(type_name, types_by_location)
@@ -393,6 +397,20 @@ module GraphQL
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end
+      end
+
+      VALIDATIONS = []
+
+      def validate_graph_info(graph_info)
+        results = VALIDATIONS.flat_map do |validation|
+          begin
+            validation.new(self, graph_info).validate
+          rescue ValidationError => e
+            e.message
+          end
+        end
+
+        raise results.join("\n") if results.any?
       end
     end
   end

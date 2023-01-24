@@ -31,13 +31,15 @@ module GraphQL
       def compose
         # "Typename" => "location" => candidate_type
         types_by_name_location = @schemas.each_with_object({}) do |(location, schema), memo|
+          raise ComposeError, "The subscription operation is not supported." if schema.subscription
+
           schema.types.each do |type_name, type_candidate|
             next if type_name.start_with?("__")
 
             if type_name == @query_name && type_candidate != schema.query
-              raise ComposeError, "Root query name \"#{@query_name}\" is used by non-query type in #{location} schema."
+              raise ComposeError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
             elsif type_name == @mutation_name && type_candidate != schema.mutation
-              raise ComposeError, "Root mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+              raise ComposeError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             end
 
             type_name = @query_name if type_candidate == schema.query

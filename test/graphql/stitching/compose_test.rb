@@ -1,21 +1,14 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "test_schema/basic"
 
-describe 'Compose Test' do
-  before do
-    nil
-  end
+class GraphQL::Stitching::ComposeTest < Minitest::Test
 
-  it 'works' do
-    schema, delegation_map = GraphQL::Stitching::Compose.new(schemas: {
-      "products" => TestSchema::Basic::Products,
-      "storefronts" => TestSchema::Basic::Storefronts,
-      "manufacturers" => TestSchema::Basic::Manufacturers,
-    }).compose
+  def test_merged_fields_use_common_nullability
+    a = "type Test { field: String! } type Query { test:Test }"
+    b = "type Test { field: String! } type Query { test:Test }"
 
-    puts GraphQL::Schema::Printer.print_schema(schema)
-    byebug
+    schema, _delegation_map = compose_definitions({ "a" => a, "b" => b })
+    assert_equal "String!", print_value_type(schema.types["Test"].fields["field"].type)
   end
 end

@@ -49,3 +49,16 @@ def print_value_type(type)
     end
   end
 end
+
+def assert_error(pattern, klass=nil)
+  begin
+    yield
+  rescue StandardError => e
+    if pattern.is_a?(String)
+      assert e.message.include?(pattern)
+    else
+      assert pattern.match?(e.message)
+    end
+    assert e.is_a?(klass) if klass
+  end
+end

@@ -40,11 +40,10 @@ class GraphQL::Stitching::Compose::MergeRootObjectsTest < Minitest::Test
   end
 
   def test_errors_for_subscription
-    a = "type Query { a:String } type Mutation { a:String }"
-    b = "type Query { b:String } type Mutation { b:String } type Subscription { b:String }"
+    a = "type Query { a:String } type Mutation { a:String } type Subscription { b:String }"
 
     assert_error('subscription operation is not supported', ComposeError) do
-      compose_definitions({ "a" => a, "b" => b })
+      compose_definitions({ "a" => a })
     end
   end
 

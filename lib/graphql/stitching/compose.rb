@@ -57,7 +57,7 @@ module GraphQL
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
           unless kinds.all? { _1 == kinds.first }
-            raise ComposeError, "Cannot merge different kinds for #{type_name}, found: #{kinds.join(", ")}."
+            raise ComposeError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
           memo[type_name] = case kinds.first
@@ -75,7 +75,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise ComposeError, "Unexpected kind encountered for #{type_name}, found: #{kind}."
+            raise ComposeError, "Unexpected kind encountered for `#{type_name}`. Found: #{kind}."
           end
         end
 
@@ -119,7 +119,7 @@ module GraphQL
           end
         end
 
-        # intersect writable enum types
+        # intersect input enum types
         if enum_usage.fetch(type_name, []).include?(:write)
           enum_values_by_value_location.reject! do |value, enum_values_by_location|
             types_by_location.keys.length != enum_values_by_location.keys.length
@@ -259,14 +259,7 @@ module GraphQL
         named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
 
         unless named_types.all? { _1 == named_types.first }
-          raise ComposeError, "Cannot compose mixed types at `#{path}`, found: #{named_types.join(", ")}."
-        end
-
-        list_structures = type_candidates.map { Util.get_list_structure(_1) }
-        is_list = list_structures.any?(&:any?)
-
-        if is_list && list_structures.any? { _1.length != list_structures.first.length }
-          raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
+          raise ComposeError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
         end
 
         type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
@@ -274,18 +267,26 @@ module GraphQL
           GraphQL::Schema::LateBoundType.new(named_types.first)
         )
 
-        if is_list
+        list_structures = type_candidates.map { Util.get_list_structure(_1) }
+
+        if list_structures.any?(&:any?)
+          if list_structures.any? { _1.length != list_structures.first.length }
+            raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
+          end
+
           list_structures.each(&:reverse!)
           list_structures.first.each_with_index do |current, index|
-            all_match = list_structures.all? { _1[index] == current }
+            # input arguments use strongest nullability, readonly fields use weakest
+            non_null = list_structures.public_send(argument_name ? :any? : :all?) do |list_structure|
+              list_structure[index].start_with?("non_null")
+            end
+
             case current
-            when :non_null_element
-              type = type.to_non_null_type if all_match
-            when :non_null_list
+            when "list", "non_null_list"
               type = type.to_list_type
-              type = type.to_non_null_type if all_match
-            when :list
-              type = type.to_list_type
+              type = type.to_non_null_type if non_null
+            when "element", "non_null_element"
+              type = type.to_non_null_type if non_null
             end
           end
         end

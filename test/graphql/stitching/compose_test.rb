@@ -2,13 +2,16 @@
 
 require "test_helper"
 
-class GraphQL::Stitching::ComposeTest < Minitest::Test
+class GraphQL::Stitching::Compose::MergeRootObjectsTest < Minitest::Test
 
-  def test_merged_fields_use_common_nullability
-    a = "type Test { field: String! } type Query { test:Test }"
-    b = "type Test { field: String! } type Query { test:Test }"
+  ComposeError = GraphQL::Stitching::Compose::ComposeError
 
-    schema, _delegation_map = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "String!", print_value_type(schema.types["Test"].fields["field"].type)
+  def test_errors_for_merged_types_of_different_kinds
+    a = "type Query { a:Boom } type Boom { a:String }"
+    b = "type Query { b:Boom } interface Boom { b:String }"
+
+    assert_error('Cannot merge different kinds for `Boom`. Found: OBJECT, INTERFACE', ComposeError) do
+      compose_definitions({ "a" => a, "b" => b })
+    end
   end
 end

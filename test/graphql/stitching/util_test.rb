@@ -47,10 +47,10 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
   end
 
   def test_get_list_structure
-    assert_equal [:list, :element], Util.get_list_structure(field_type("list1"))
-    assert_equal [:list, :non_null_element], Util.get_list_structure(field_type("list2"))
-    assert_equal [:list, :non_null_list, :element], Util.get_list_structure(field_type("list3"))
-    assert_equal [:list, :list, :non_null_element], Util.get_list_structure(field_type("list4"))
+    assert_equal ["list", "element"], Util.get_list_structure(field_type("list1"))
+    assert_equal ["list", "non_null_element"], Util.get_list_structure(field_type("list2"))
+    assert_equal ["list", "non_null_list", "element"], Util.get_list_structure(field_type("list3"))
+    assert_equal ["list", "list", "non_null_element"], Util.get_list_structure(field_type("list4"))
   end
 
   def test_get_implementing_types

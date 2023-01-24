@@ -3,6 +3,27 @@
 require "test_helper"
 
 class GraphQL::Stitching::Compose::MergeObjectTest < Minitest::Test
+
+  def test_merges_object_descriptions
+    a = %{"""a""" type Test { field: String } type Query { test:Test }}
+    b = %{"""b""" type Test { field: String } type Query { test:Test }}
+
+    schema, _delegation_map = compose_definitions({ "a" => a, "b" => b }, {
+      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+    })
+
+    assert_equal "a/b", schema.types["Test"].description
+  end
+
+  def test_merges_interface_memberships
+    a = %{interface A { id:ID } type C implements A { id:ID } type Query { c:C }}
+    b = %{interface B { id:ID } type C implements B { id:ID } type Query { c:C }}
+
+    schema, _delegation_map = compose_definitions({ "a" => a, "b" => b })
+
+    assert_equal ["A", "B"], schema.types["C"].interfaces.map(&:graphql_name).sort
+  end
+
   MOVIES_SCHEMA = %{
     directive @boundary(key: String!) on FIELD_DEFINITION
 

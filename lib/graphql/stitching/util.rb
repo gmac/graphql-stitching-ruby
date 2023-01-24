@@ -16,12 +16,12 @@ module GraphQL
         previous = nil
         while type.respond_to?(:of_type)
           if type.is_a?(GraphQL::Schema::List)
-            structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? :non_null_list : :list)
+            structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? "non_null_list" : "list")
           end
           if structure.any?
             previous = type
             if !type.of_type.respond_to?(:of_type)
-              structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? :non_null_element : :element)
+              structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? "non_null_element" : "element")
             end
           end
           type = type.of_type

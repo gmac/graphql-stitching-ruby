@@ -29,8 +29,23 @@ module GraphQL
         structure
       end
 
+      def self.get_implementing_types(schema, parent_type)
+        result = []
+        schema.types.values.each do |type|
+          next unless type <= GraphQL::Schema::Interface && type != parent_type
+          next unless type.interfaces.include?(parent_type)
+          result << type
+          result.push(*get_implementing_types(schema, type)) if type.kind.name == "INTERFACE"
+        end
+        result.uniq
+      end
+
       def self.is_leaf_type?(type)
         type.kind.name == "SCALAR" || type.kind.name == "ENUM"
+      end
+
+      def self.is_abstract_type?(type)
+        type.kind.name == "INTERFACE" || type.kind.name == "UNION"
       end
     end
   end

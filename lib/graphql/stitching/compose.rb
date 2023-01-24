@@ -85,6 +85,8 @@ module GraphQL
         schema.query(schema.types[@query_name])
         schema.mutation(schema.types[@mutation_name])
         schema.send(:own_orphan_types).clear # cheat
+        expand_abstract_boundaries(schema)
+
         return schema, {
           fields: @field_map,
           boundaries: @boundary_map,
@@ -332,9 +334,22 @@ module GraphQL
                 "location" => location,
                 "selection" => key_selections[0].name,
                 "field" => field_candidate.name,
-                "arg" => field_argument,
+                "args" => { field_argument => key_selections[0].name },
               }
             end
+          end
+        end
+      end
+
+      def expand_abstract_boundaries(schema)
+        @boundary_map.each do |type_name, boundaries|
+          boundary_type = schema.types[type_name]
+          next unless Util.is_abstract_type?(boundary_type)
+
+          boundaries.each { _1["abstract"] = true }
+          Util.get_implementing_types(schema, boundary_type).each do |implementing_type|
+            @boundary_map[implementing_type.graphql_name] ||= []
+            @boundary_map[implementing_type.graphql_name].push(*boundaries)
           end
         end
       end

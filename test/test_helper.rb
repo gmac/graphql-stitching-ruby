@@ -55,9 +55,9 @@ def assert_error(pattern, klass=nil)
     yield
   rescue StandardError => e
     if pattern.is_a?(String)
-      assert e.message.include?(pattern)
+      assert e.message.include?(pattern), "Unexpected error message: #{e.message}"
     else
-      assert pattern.match?(e.message)
+      assert pattern.match?(e.message), "Unexpected error message: #{e.message}"
     end
     assert e.is_a?(klass) if klass
   end

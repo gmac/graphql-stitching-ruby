@@ -240,7 +240,7 @@ module GraphQL
 
           if arguments_by_location.length != members_by_location.length && value_types.any?(&:non_null?)
             path = [type_name, field_name, argument_name].compact.join(".")
-            raise ComposeError, "Required input `#{path}` must be defined in all locations."
+            raise ComposeError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
           end
 
           owner.argument(

@@ -4,29 +4,6 @@
 module GraphQL
   module Stitching
     class Util
-      WRAPPER_TYPES = [
-        GraphQL::Schema::NonNull,
-        GraphQL::Schema::List,
-      ].freeze
-
-      LEAF_TYPES = [
-        GraphQL::Schema::Scalar,
-        GraphQL::Schema::Enum,
-      ].freeze
-
-      COMPOSITE_TYPES = [
-        GraphQL::Schema::Object,
-        GraphQL::Schema::Interface,
-      ].freeze
-
-      BUILTIN_SCALAR_TYPES = [
-        GraphQL::Types::Boolean,
-        GraphQL::Types::Float,
-        GraphQL::Types::ID,
-        GraphQL::Types::Int,
-        GraphQL::Types::String,
-      ].freeze
-
       def self.get_named_type(type)
         while type.respond_to?(:of_type)
           type = type.of_type
@@ -36,11 +13,16 @@ module GraphQL
 
       def self.get_list_structure(type)
         structure = []
+        previous = nil
         while type.respond_to?(:of_type)
           if type.is_a?(GraphQL::Schema::List)
-            structure << GraphQL::Schema::List
-          elsif structure.any? && type.is_a?(GraphQL::Schema::NonNull)
-            structure << GraphQL::Schema::NonNull
+            structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? :non_null_list : :list)
+          end
+          if structure.any?
+            previous = type
+            if !type.of_type.respond_to?(:of_type)
+              structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? :non_null_element : :element)
+            end
           end
           type = type.of_type
         end
@@ -48,15 +30,7 @@ module GraphQL
       end
 
       def self.is_leaf_type?(type)
-        LEAF_TYPES.any? { _1 <= type }
-      end
-
-      def self.is_composite_type?(type)
-        COMPOSITE_TYPES.any? { _1 <= type }
-      end
-
-      def self.is_builtin_scalar?(type)
-        BUILTIN_SCALAR_TYPES.any? { _1 <= type }
+        type.kind.name == "SCALAR" || type.kind.name == "ENUM"
       end
     end
   end

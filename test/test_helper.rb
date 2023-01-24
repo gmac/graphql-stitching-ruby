@@ -15,18 +15,19 @@ require 'minitest/pride'
 require 'minitest/autorun'
 require 'graphql/stitching'
 
-def compose_definitions(schemas)
+def compose_definitions(schemas, options={})
   schemas = schemas.each_with_object({}) do |(location, definition), memo|
     memo[location] = GraphQL::Schema.from_definition(definition)
   end
-  GraphQL::Stitching::Compose.new(schemas: schemas).compose
+  GraphQL::Stitching::Compose.new(schemas: schemas, **options).compose
 end
 
 def extract_types_of_kind(schema, kind)
   schema.types.values.select { _1.kind.name == "OBJECT" && !_1.graphql_name.start_with?("__") }
 end
 
-def print_type(type)
+# prints a wrapped field/argument value type as GraphQL SDL
+def print_value_type(type)
   base_name = GraphQL::Stitching::Util.get_named_type(type).graphql_name
   wrappers = []
 

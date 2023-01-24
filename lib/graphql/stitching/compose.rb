@@ -9,13 +9,23 @@ module GraphQL
       attr_reader :query_name, :mutation_name
       attr_reader :field_map, :boundary_map
 
-      def initialize(schemas:, query_name: "Query", mutation_name: "Mutation")
+      DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
+
+      def initialize(
+        schemas:,
+        query_name: "Query",
+        mutation_name: "Mutation",
+        description_merger: nil,
+        deprecation_merger: nil
+      )
         @schemas = schemas
         @query_name = query_name
         @mutation_name = mutation_name
         @field_map = {}
         @boundary_map = {}
-        @enum_usage = {}
+
+        @description_merger = description_merger || DEFAULT_STRING_MERGER
+        @deprecation_merger = deprecation_merger || DEFAULT_STRING_MERGER
       end
 
       def compose
@@ -167,7 +177,7 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
 
           possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }
-          possible_types *possible_names.map { GraphQL::Schema::LateBoundType.new(_1) }
+          possible_types(*possible_names.map { GraphQL::Schema::LateBoundType.new(_1) })
         end
       end
 
@@ -196,14 +206,14 @@ module GraphQL
         end
 
         fields_by_name_location.each do |field_name, fields_by_location|
-          field_types = fields_by_location.values.map(&:type)
+          value_types = fields_by_location.values.map(&:type)
 
           schema_field = owner.field(
             field_name,
             description: merge_descriptions(type_name, fields_by_location, field_name: field_name),
             deprecation_reason: merge_deprecations(type_name, fields_by_location, field_name: field_name),
-            type: merge_wrapable_types(type_name, field_types, field_name: field_name),
-            null: !field_types.all?(&:non_null?),
+            type: merge_value_types(type_name, value_types, field_name: field_name),
+            null: !value_types.all?(&:non_null?),
             camelize: false,
           )
 
@@ -222,9 +232,9 @@ module GraphQL
         end
 
         args_by_name_location.each do |argument_name, arguments_by_location|
-          argument_types = arguments_by_location.values.map(&:type)
+          value_types = arguments_by_location.values.map(&:type)
 
-          if arguments_by_location.length != members_by_location.length && argument_types.any?(&:non_null?)
+          if arguments_by_location.length != members_by_location.length && value_types.any?(&:non_null?)
             path = [type_name, field_name, argument_name].compact.join(".")
             raise ComposeError, "Required input `#{path}` must be defined in all locations."
           end
@@ -233,11 +243,70 @@ module GraphQL
             argument_name,
             description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
             deprecation_reason: merge_deprecations(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
-            type: merge_wrapable_types(type_name, argument_types, argument_name: argument_name, field_name: field_name),
-            required: argument_types.any?(&:non_null?),
+            type: merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name),
+            required: value_types.any?(&:non_null?),
             camelize: false,
           )
         end
+      end
+
+      def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
+        path = [type_name, field_name, argument_name].compact.join(".")
+        named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
+
+        unless named_types.all? { _1 == named_types.first }
+          raise ComposeError, "Cannot compose mixed types at `#{path}`, found: #{named_types.join(", ")}."
+        end
+
+        list_structures = type_candidates.map { Util.get_list_structure(_1) }
+        is_list = list_structures.any?(&:any?)
+
+        if is_list && list_structures.any? { _1.length != list_structures.first.length }
+          raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
+        end
+
+        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
+          named_types.first,
+          GraphQL::Schema::LateBoundType.new(named_types.first)
+        )
+
+        if is_list
+          list_structures.each(&:reverse!)
+          list_structures.first.each_with_index do |current, index|
+            all_match = list_structures.all? { _1[index] == current }
+            case current
+            when :non_null_element
+              type = type.to_non_null_type if all_match
+            when :non_null_list
+              type = type.to_list_type
+              type = type.to_non_null_type if all_match
+            when :list
+              type = type.to_list_type
+            end
+          end
+        end
+
+        type
+      end
+
+      def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
+        strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.description }
+        @description_merger.call(strings_by_location, {
+          type_name: type_name,
+          field_name: field_name,
+          argument_name: argument_name,
+          enum_value: enum_value,
+        }.compact!)
+      end
+
+      def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
+        strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.deprecation_reason }
+        @deprecation_merger.call(strings_by_location, {
+          type_name: type_name,
+          field_name: field_name,
+          argument_name: argument_name,
+          enum_value: enum_value,
+        }.compact!)
       end
 
       def extract_boundaries(type_name, types_by_location)
@@ -268,51 +337,6 @@ module GraphQL
             end
           end
         end
-      end
-
-      def merge_wrapable_types(type_name, type_candidates, field_name: nil, argument_name: nil)
-        path = [type_name, field_name, argument_name].compact.join(".")
-        named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
-
-        unless named_types.all? { _1 == named_types.first }
-          raise ComposeError, "Cannot compose mixed types at `#{path}`, found: #{named_types.join(", ")}."
-        end
-
-        list_structures = type_candidates.map { Util.get_list_structure(_1) }
-        is_list = list_structures.any?(&:any?)
-
-        if is_list && list_structures.all? { _1[0..-2] != list_structures.first[0..-2] }
-          raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
-        end
-
-        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
-          named_types.first,
-          GraphQL::Schema::LateBoundType.new(named_types.first)
-        )
-
-        if is_list
-          if list_structures.all? { _1.last == GraphQL::Schema::NonNull }
-            type = type.to_non_null_type
-          end
-          list_structures.first[0..-2].reverse!.each do |wrapper|
-            case wrapper.name
-            when "GraphQL::Schema::List"
-              type = type.to_list_type
-            when "GraphQL::Schema::NonNull"
-              type = type.to_non_null_type
-            end
-          end
-        end
-
-        type
-      end
-
-      def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
-        members_by_location.values.map(&:description).find { !_1.nil? }
-      end
-
-      def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
-        members_by_location.values.map(&:deprecation_reason).find { !_1.nil? }
       end
 
       def build_enum_usage_map(schemas)

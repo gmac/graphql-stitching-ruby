@@ -30,7 +30,7 @@ module GraphQL
         end
 
         build_root_operations(document_ops.first)
-        @operations.sort_by!(&:key)
+        @operations.reverse!
         self
       end
 
@@ -193,7 +193,7 @@ module GraphQL
           end
         end
 
-        routes = route_to_locations(parent_type, current_location, selections_by_location.keys)
+        routes = @graph_info.route_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
         routes.values.each_with_object({}) do |route, memo|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
@@ -206,7 +206,9 @@ module GraphQL
               insertion_path: insertion_path,
               boundary: boundary
             ) do |parent_key|
-              extract_selection_sets(parent_key, parent_type, selections, insertion_path, location) if selections
+              if selections
+                extract_selection_sets(parent_key, parent_type, selections, insertion_path, location)
+              end
             end
 
             foreign_key = GraphQL::Language::Nodes::Field.new(
@@ -225,55 +227,6 @@ module GraphQL
         end
 
         parent_selections_result
-      end
-
-      # For a given type, route from one origin service to many remote locations.
-      # Uses A-star, tuned to favor paths with fewest joining locations
-      # (this favors a longer path through target locations
-      # over a shorter path with additional locations added).
-      def route_to_locations(parent_type, from_location, to_locations)
-        boundaries = @graph_info.boundaries[parent_type.graphql_name]
-        possible_keys = boundaries.map { _1["selection"] }
-        possible_keys.uniq!
-
-        location_fields = @graph_info.fields_by_location[parent_type.graphql_name][from_location]
-        location_keys = location_fields & possible_keys
-        paths = location_keys.map { [{ "location" => from_location, "selection" => _1 }] }
-
-        results = {}
-        costs = {}
-        max_cost = 1
-
-        while paths.any?
-          path = paths.pop
-          boundaries.each do |boundary|
-            next unless boundary["selection"] == path.last["selection"] && path.none? { boundary["location"] == _1["location"] }
-
-            cost = path.count { !to_locations.include?(_1["location"]) }
-            next if results.length == to_locations.length && cost > max_cost
-
-            path.last["boundary"] = boundary
-            location = boundary["location"]
-            if to_locations.include?(location)
-              result = results[location]
-              if result.nil? || cost < costs[location] || (cost == costs[location] && path.length < result.length)
-                results[location] = path.map! { _1["boundary"] }
-                costs[location] = cost
-                max_cost = cost if cost > max_cost
-              end
-            end
-
-            location_fields = @graph_info.fields_by_location[parent_type.graphql_name][location]
-            location_keys = location_fields & possible_keys
-            location_keys.each do |key|
-              paths << [*path, { "location" => location, "selection" => key }]
-            end
-          end
-
-          paths.sort_by!(&:length).reverse!
-        end
-
-        results
       end
     end
   end

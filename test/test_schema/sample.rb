@@ -1,7 +1,14 @@
 # frozen_string_literal: true
 
 module TestSchema
-  module Basic
+  module Sample
+    class Boundary < GraphQL::Schema::Directive
+      graphql_name "boundary"
+      locations FIELD_DEFINITION
+      argument :key, String
+      repeatable true
+    end
+
     PRODUCTS = [
       { upc: '1', name: 'iPhone', price: 699.99, manufacturer_id: '1' },
       { upc: '2', name: 'Apple Watch', price: 399.99, manufacturer_id: '1' },
@@ -10,42 +17,19 @@ module TestSchema
       { upc: '5', name: 'iOS Survival Guide', price: 24.99, manufacturer_id: '1' },
     ]
 
-    class Boundary < GraphQL::Schema::Directive
-      graphql_name "boundary"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     class Products < GraphQL::Schema
-      module Node
-        include GraphQL::Schema::Interface
-
-        field :upc, ID, null: false
-      end
-
-      class ShippingOption < GraphQL::Schema::Enum
-        value "STANDARD"
-        value "EXPRESS"
-      end
-
       class Product < GraphQL::Schema::Object
-        implements Node
-        description "products desc"
-
         field :upc, ID, null: false, description: "products desc"
 
         field :name, String, null: false
 
         field :price, Float, null: false
 
-        field :manufacturer, "TestSchema::Basic::Products::Manufacturer", null: false
+        field :manufacturer, "TestSchema::Sample::Products::Manufacturer", null: false
 
         def manufacturer
           { id: object[:manufacturer_id] }
         end
-
-        field :shipping, [ShippingOption], null: false
       end
 
       class Manufacturer < GraphQL::Schema::Object
@@ -58,25 +42,10 @@ module TestSchema
         end
       end
 
-      class Widget < GraphQL::Schema::Union
-        possible_types Product
-      end
-
-      class ProductHandle < GraphQL::Schema::InputObject
-        description "Handle reference for a product"
-        argument :handle, String, "The handle"
-      end
-
       class RootQuery < GraphQL::Schema::Object
-        field :thing1, Widget, null: true
-
         field :product, Product, null: false do
           directive Boundary, key: "upc"
           argument :upc, ID, required: true
-        end
-
-        field :product_by_handle, Product, null: true do
-          argument :handle, ProductHandle, required: true
         end
 
         def product(upc:)
@@ -135,16 +104,9 @@ module TestSchema
         field :address, String, null: false
       end
 
-      class Widget < GraphQL::Schema::Union
-        possible_types Manufacturer
-      end
-
       class Query < GraphQL::Schema::Object
-        field :thing2, Widget, null: true
-
         field :manufacturer, Manufacturer, null: true do
           directive Boundary, key: "id"
-          directive Boundary, key: "upc"
           argument :id, ID, required: true
         end
 

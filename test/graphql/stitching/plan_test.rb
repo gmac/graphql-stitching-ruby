@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "test_schemas/basic_graph"
+require_relative "../../test_schema/sample"
 
-class GraphQL::Stitching::PlanTest < Minitest::Test
-  def setup
-    puts "hello"
-  end
+describe 'GraphQL::Stitching::Plan, make it work' do
 
   QUERY = "
     query {
@@ -32,17 +29,16 @@ class GraphQL::Stitching::PlanTest < Minitest::Test
   "
 
   def test_works
-    map = GraphQL::Stitching::Map.new(
-      schema: ::BasicGraph::TestSchema,
-      locations: ::BasicGraph::LOCATIONS_MAP,
-      boundaries: ::BasicGraph::BOUNDARIES_MAP,
-      fields: ::BasicGraph::FIELDS_MAP,
-    )
+    info = compose_definitions({
+      "products" => TestSchema::Sample::Products,
+      "storefronts" => TestSchema::Sample::Storefronts,
+      "manufacturers" => TestSchema::Sample::Manufacturers,
+    })
 
     plan = GraphQL::Stitching::Plan.new(
-      context: map,
+      graph_info: info,
       document: GraphQL.parse(QUERY),
-    )
+    ).plan
 
     byebug
   end

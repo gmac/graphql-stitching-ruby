@@ -2,9 +2,7 @@
 
 require "test_helper"
 
-class GraphQL::Stitching::Compose::MergeRootObjectsTest < Minitest::Test
-
-  ComposeError = GraphQL::Stitching::Compose::ComposeError
+class GraphQL::Stitching::ComposeTest < Minitest::Test
 
   def test_errors_for_merged_types_of_different_kinds
     a = "type Query { a:Boom } type Boom { a:String }"

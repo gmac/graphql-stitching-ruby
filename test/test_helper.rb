@@ -16,8 +16,12 @@ require 'minitest/autorun'
 require 'graphql/stitching'
 
 def compose_definitions(schemas, options={})
-  schemas = schemas.each_with_object({}) do |(location, definition), memo|
-    memo[location] = GraphQL::Schema.from_definition(definition)
+  schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|
+    memo[location] = if schema_or_sdl.is_a?(String)
+      GraphQL::Schema.from_definition(schema_or_sdl)
+    else
+      schema_or_sdl
+    end
   end
   GraphQL::Stitching::Compose.new(schemas: schemas, **options).compose
 end
@@ -49,6 +53,8 @@ def print_value_type(type)
     end
   end
 end
+
+ComposeError = GraphQL::Stitching::Compose::ComposeError
 
 def assert_error(pattern, klass=nil)
   begin

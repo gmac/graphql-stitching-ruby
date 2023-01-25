@@ -79,7 +79,7 @@ module BasicGraph
     # products
     field :price, Int, null: false
     # products
-    field :manufacturer, "GraphqlStitching::Manufacturer", null: false
+    field :manufacturer, "BasicGraph::Manufacturer", null: false
   end
 
   class Manufacturer < GraphQL::Schema::Object

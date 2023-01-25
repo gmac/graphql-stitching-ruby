@@ -21,6 +21,7 @@ module GraphQL
         @query_name = query_name
         @mutation_name = mutation_name
         @field_map = {}
+        @argument_map = {}
         @boundary_map = {}
 
         @description_merger = description_merger || DEFAULT_STRING_MERGER
@@ -91,8 +92,9 @@ module GraphQL
         graph_info = GraphInfo.new(
           schema: schema,
           locations: @schemas,
-          boundaries: @boundary_map,
           fields: @field_map,
+          arguments: @argument_map,
+          boundaries: @boundary_map,
         )
 
         validate_graph_info(graph_info)
@@ -321,6 +323,8 @@ module GraphQL
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
+            boundary_type_name = Util.get_named_type(field_candidate.type).graphql_name
+
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == "boundary"
 
@@ -336,8 +340,8 @@ module GraphQL
                 field_candidate.arguments.keys.first
               end
 
-              @boundary_map[type_name] ||= []
-              @boundary_map[type_name] << {
+              @boundary_map[boundary_type_name] ||= []
+              @boundary_map[boundary_type_name] << {
                 "location" => location,
                 "selection" => key_selections[0].name,
                 "field" => field_candidate.name,

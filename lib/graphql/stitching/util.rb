@@ -4,6 +4,7 @@
 module GraphQL
   module Stitching
     class Util
+      # gets the named type at the bottom of a non-null/list wrapper chain
       def self.get_named_type(type)
         while type.respond_to?(:of_type)
           type = type.of_type
@@ -11,6 +12,7 @@ module GraphQL
         type
       end
 
+      # gets a deep structural description of a list value type
       def self.get_list_structure(type)
         structure = []
         previous = nil
@@ -29,6 +31,7 @@ module GraphQL
         structure
       end
 
+      # Gets all objects and interfaces that implement a given interface
       def self.get_implementing_types(schema, parent_type)
         result = []
         schema.types.values.each do |type|
@@ -40,10 +43,12 @@ module GraphQL
         result.uniq
       end
 
+      # Specifies if a type is a leaf node (no children)
       def self.is_leaf_type?(type)
         type.kind.name == "SCALAR" || type.kind.name == "ENUM"
       end
 
+      # Specifies if a type is an abstract node
       def self.is_abstract_type?(type)
         type.kind.name == "INTERFACE" || type.kind.name == "UNION"
       end

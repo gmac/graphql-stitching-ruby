@@ -324,6 +324,7 @@ module GraphQL
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
             boundary_type_name = Util.get_named_type(field_candidate.type).graphql_name
+            boundary_list = Util.get_list_structure(field_candidate.type)
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == "boundary"
@@ -335,9 +336,19 @@ module GraphQL
                 raise ComposeError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
-              field_argument = key_selections[0].alias
-              field_argument ||= if field_candidate.arguments.size == 1
+              argument_name = key_selections[0].alias
+              argument_name ||= if field_candidate.arguments.size == 1
                 field_candidate.arguments.keys.first
+              end
+
+              argument = field_candidate.arguments[argument_name]
+              unless argument
+                raise ComposeError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
+              end
+
+              argument_list = Util.get_list_structure(argument.type)
+              if argument_list.length != boundary_list.length
+                raise ComposeError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
               end
 
               @boundary_map[boundary_type_name] ||= []
@@ -345,7 +356,8 @@ module GraphQL
                 "location" => location,
                 "selection" => key_selections[0].name,
                 "field" => field_candidate.name,
-                "args" => { field_argument => key_selections[0].name },
+                "arg" => argument_name,
+                "list" => boundary_list.any?,
               }
             end
           end

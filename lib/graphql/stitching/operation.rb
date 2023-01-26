@@ -30,7 +30,7 @@ module GraphQL
         GraphQL::Language::Printer.new.print(op).gsub(/\s+/, " ")
       end
 
-      def to_h
+      def as_json
         {
           key: @key,
           after_key: @after_key,

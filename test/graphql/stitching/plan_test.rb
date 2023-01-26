@@ -29,16 +29,26 @@ describe 'GraphQL::Stitching::Plan, make it work' do
   "
 
   def test_works
-    info = compose_definitions({
+    subschemas = {
       "products" => TestSchema::Sample::Products,
       "storefronts" => TestSchema::Sample::Storefronts,
       "manufacturers" => TestSchema::Sample::Manufacturers,
-    })
+    }
+
+    info = compose_definitions(subschemas)
 
     plan = GraphQL::Stitching::Plan.new(
       graph_info: info,
       document: GraphQL.parse(QUERY),
     ).plan
+
+    executor = GraphQL::Stitching::Execute.new(graph_info: info, plan: plan.as_json)
+    executor.on_exec do |location, operation, variables|
+      schema = subschemas[location]
+      schema.execute(operation, variables: variables).to_h
+    end
+
+    result = executor.perform
 
     byebug
   end

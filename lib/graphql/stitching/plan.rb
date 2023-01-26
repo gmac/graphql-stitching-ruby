@@ -34,8 +34,8 @@ module GraphQL
         self
       end
 
-      def to_h
-        { ops: @operations.map(&:to_h) }
+      def as_json
+        { ops: @operations.map(&:as_json) }
       end
 
       private

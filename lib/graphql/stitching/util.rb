@@ -4,6 +4,7 @@
 module GraphQL
   module Stitching
     class Util
+
       # gets the named type at the bottom of a non-null/list wrapper chain
       def self.get_named_type(type)
         while type.respond_to?(:of_type)

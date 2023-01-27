@@ -35,19 +35,19 @@ describe 'GraphQL::Stitching::Plan, make it work' do
       "manufacturers" => TestSchema::Sample::Manufacturers,
     }
 
-    info = compose_definitions(subschemas)
-    info.add_client do |document, variables, location|
+    graph_info = compose_definitions(subschemas)
+    graph_info.add_client do |document, variables, location|
       schema = subschemas[location]
       schema.execute(document, variables: variables).to_h
     end
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: info,
+      graph_info: graph_info,
       document: GraphQL.parse(QUERY),
     ).plan
 
     result = GraphQL::Stitching::Execute.new(
-      graph_info: info,
+      graph_info: graph_info,
       plan: plan.as_json,
       variables: { "var" => "1" }
     ).perform

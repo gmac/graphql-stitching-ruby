@@ -19,6 +19,7 @@ module GraphQL
       end
 
       def perform
+        pp @queue
         exec_rec
       end
 
@@ -48,12 +49,8 @@ module GraphQL
       end
 
       def perform_operation(op)
-        if !op[:boundary]
-          result = query_root_location(op)
-          @data.merge!(result["data"]) if result["data"]
-          @errors.concat(result["errors"]) if result["errors"]&.any?
-
-        else
+        if op[:boundary]
+          # query for a merged type via a boundary
           insertion_path = op[:insertion_path]
 
           original_set = insertion_path.reduce([@data]) do |set, path_segment|
@@ -64,6 +61,12 @@ module GraphQL
           original_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
           end
+
+        else
+          # query for root data as a normal graphql request
+          result = query_root_location(op)
+          @data.merge!(result["data"]) if result["data"]
+          @errors.concat(result["errors"]) if result["errors"]&.any?
         end
       end
 
@@ -98,8 +101,10 @@ module GraphQL
           "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
         end
 
+        puts document
         variables = @variables.slice(*op[:variables].keys)
         result = @graph_info.get_client(location).call(document, variables, location)
+        puts result.dig("errors") if result.dig("errors").any?
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

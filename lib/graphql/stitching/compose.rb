@@ -361,6 +361,7 @@ module GraphQL
                 "field" => field_candidate.name,
                 "arg" => argument_name,
                 "list" => boundary_list.any?,
+                "type_name" => boundary_type_name,
               }
             end
           end
@@ -368,14 +369,13 @@ module GraphQL
       end
 
       def expand_abstract_boundaries(schema)
-        @boundary_map.each do |type_name, boundaries|
+        @boundary_map.keys.each do |type_name|
           boundary_type = schema.types[type_name]
           next unless Util.is_abstract_type?(boundary_type)
 
-          boundaries.each { _1["abstract"] = true }
           Util.get_implementing_types(schema, boundary_type).each do |implementing_type|
             @boundary_map[implementing_type.graphql_name] ||= []
-            @boundary_map[implementing_type.graphql_name].push(*boundaries)
+            @boundary_map[implementing_type.graphql_name].push(*@boundary_map[type_name])
           end
         end
       end

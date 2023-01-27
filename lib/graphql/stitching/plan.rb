@@ -11,7 +11,6 @@ module GraphQL
       def initialize(graph_info:, document:, operation_name: nil)
         @graph_info = graph_info
         @document = document
-        @variables = nil
         @operation_name = operation_name
         @sequence_key = 0
         @operations = []
@@ -19,6 +18,7 @@ module GraphQL
 
       def plan
         build_root_operations
+        expand_abstract_boundaries
         @operations.reverse!
         self
       end
@@ -59,13 +59,14 @@ module GraphQL
         end
       end
 
-      def add_operation(location:, operation_type: "query", after_key: nil, boundary: nil, insertion_path: [])
+      def add_operation(location:, parent_type:, operation_type: "query", after_key: nil, boundary: nil, insertion_path: [])
         operation_key = @sequence_key += 1
         selection_set, variables = yield(operation_key)
         @operations << Operation.new(
           key: operation_key,
           after_key: after_key,
           location: location,
+          parent_type: parent_type,
           operation_type: operation_type,
           selections: selection_set,
           variables: variables,
@@ -88,8 +89,8 @@ module GraphQL
           end
 
           selections_by_location.map do |location, selections|
-            add_operation(location: location) do |parent_key|
-              extract_selection_sets(parent_key, parent_type, selections, [], location)
+            add_operation(location: location, parent_type: parent_type) do |parent_key|
+              extract_locale_selections(parent_key, parent_type, selections, [], location)
             end
           end
 
@@ -110,9 +111,9 @@ module GraphQL
             location
           end
 
-          location_groups.reduce(nil) do |sequence_key, g|
-            op = add_operation(location: g[:location], after_key: sequence_key) do |parent_key|
-              extract_selection_sets(parent_key, parent_type, g[:selections], [], g[:location])
+          location_groups.reduce(nil) do |parent_key, g|
+            op = add_operation(location: g[:location], parent_type: parent_type, after_key: parent_key) do |parent_key|
+              extract_locale_selections(parent_key, parent_type, g[:selections], [], g[:location])
             end
             op.key
           end
@@ -122,10 +123,10 @@ module GraphQL
         end
       end
 
-      def extract_selection_sets(parent_key, parent_type, input_selections, insertion_path, current_location)
-        variables_result = {}
-        selections_result = []
+      def extract_locale_selections(parent_key, parent_type, input_selections, insertion_path, current_location)
         remote_selections = []
+        selections_result = []
+        variables_result = {}
 
         input_selections.each do |node|
           case node
@@ -140,7 +141,7 @@ module GraphQL
               selections_result << node
             else
               expanded_path = [*insertion_path, node.alias || node.name]
-              selection_set, variables = extract_selection_sets(parent_key, field_type, node.selections, expanded_path, current_location)
+              selection_set, variables = extract_locale_selections(parent_key, field_type, node.selections, expanded_path, current_location)
               selections_result << node.merge(selections: selection_set)
               variables_result.merge!(variables)
             end
@@ -153,16 +154,19 @@ module GraphQL
 
           when GraphQL::Language::Nodes::InlineFragment
             fragment_type = @graph_info.schema.types[node.type.name]
-            selection_set, variables = extract_selection_sets(parent_key, fragment_type, node.selections, insertion_path, current_location)
+            selection_set, variables = extract_locale_selections(parent_key, fragment_type, node.selections, insertion_path, current_location)
             selections_result << node.merge(selections: selection_set)
             variables_result.merge!(variables)
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = document_fragments[node.name]
             fragment_type = @graph_info.schema.types[fragment.type.name]
-            selection_set, variables = extract_selection_sets(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
+            selection_set, variables = extract_locale_selections(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
             selections_result << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             variables_result.merge!(variables)
+
+          else
+            raise "Unexpected node of type #{node.class.name} in selection set."
           end
         end
 
@@ -170,6 +174,10 @@ module GraphQL
           selection_set = build_child_operations(parent_key, parent_type, remote_selections, insertion_path, current_location)
           selections_result.concat(selection_set)
         end
+
+        # if parent_type.kind.abstract?
+        #   selections_result << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
+        # end
 
         return selections_result, variables_result
       end
@@ -231,9 +239,9 @@ module GraphQL
               location: location,
               insertion_path: insertion_path,
               boundary: boundary
-            ) do |parent_key|
+            ) do |next_parent_key|
               if selections
-                extract_selection_sets(parent_key, parent_type, selections, insertion_path, location)
+                extract_locale_selections(next_parent_key, parent_type, selections, insertion_path, location)
               else
                 [[], {}]
               end
@@ -255,6 +263,20 @@ module GraphQL
         end
 
         parent_selections_result
+      end
+
+      def expand_abstract_boundaries
+        byebug
+        @operations.each do |op|
+          next unless op.boundary
+          boundary_type = op.boundary["type_name"]
+
+          if op.parent_type.kind.abstract?
+
+          elsif boundary_type.kind.abstract?
+
+          end
+        end
       end
     end
   end

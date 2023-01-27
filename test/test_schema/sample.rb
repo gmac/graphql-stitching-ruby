@@ -18,7 +18,15 @@ module TestSchema
     ]
 
     class Products < GraphQL::Schema
+      module Node
+        include GraphQL::Schema::Interface
+
+        field :upc, ID, null: false
+      end
+
       class Product < GraphQL::Schema::Object
+        implements Node
+
         field :upc, ID, null: false, description: "products desc"
 
         field :name, String, null: false
@@ -44,11 +52,20 @@ module TestSchema
 
       class RootQuery < GraphQL::Schema::Object
         field :product, Product, null: false do
-          directive Boundary, key: "upc"
+          # directive Boundary, key: "upc"
           argument :upc, ID, required: true
         end
 
         def product(upc:)
+          PRODUCTS.find { _1[:upc] == upc }
+        end
+
+        field :node, Node, null: false do
+          directive Boundary, key: "upc"
+          argument :upc, ID, required: true
+        end
+
+        def node(upc:)
           PRODUCTS.find { _1[:upc] == upc }
         end
       end

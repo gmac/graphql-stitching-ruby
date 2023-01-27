@@ -14,6 +14,7 @@ module GraphQL
         operation_type: "query",
         insertion_path: [],
         selections: [],
+        variables: [],
         boundary: nil
       )
         @key = key
@@ -22,12 +23,19 @@ module GraphQL
         @operation_type = operation_type
         @insertion_path = insertion_path
         @selections = selections
+        @variables = variables
         @boundary = boundary
       end
 
       def selection_set
         op = GraphQL::Language::Nodes::OperationDefinition.new(selections: @selections)
         GraphQL::Language::Printer.new.print(op).gsub(/\s+/, " ")
+      end
+
+      def variable_set
+        @variables.each_with_object({}) do |(variable_name, value_type), memo|
+          memo[variable_name] = GraphQL::Language::Printer.new.print(value_type)
+        end
       end
 
       def as_json
@@ -38,6 +46,7 @@ module GraphQL
           operation_type: @operation_type,
           insertion_path: @insertion_path,
           selections: selection_set,
+          variables: variable_set,
           boundary: @boundary,
         }
       end

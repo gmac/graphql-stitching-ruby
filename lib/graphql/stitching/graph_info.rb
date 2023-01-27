@@ -6,12 +6,23 @@ module GraphQL
     class GraphInfo
       attr_reader :schema, :locations, :boundaries, :locations_by_field
 
+      DEFAULT_CLIENT = ->(document, variables, location) { raise "Not implemented." }
+
       def initialize(schema:, locations:, boundaries:, fields:, arguments: {})
         @schema = schema
         @locations = locations
         @boundaries = boundaries
         @locations_by_field = fields
         @locations_by_argument = arguments
+        @clients = { DEFAULT_CLIENT => DEFAULT_CLIENT }
+      end
+
+      def add_client(location = DEFAULT_CLIENT, &block)
+        @clients[location] = block
+      end
+
+      def get_client(location = DEFAULT_CLIENT)
+        @clients[location] || @clients[DEFAULT_CLIENT]
       end
 
       def delegation_map

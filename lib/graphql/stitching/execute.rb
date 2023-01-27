@@ -16,11 +16,6 @@ module GraphQL
         @results = {}
         @data = {}
         @errors = []
-        @executor = ->(location, operation, variables) { raise "not implemented" }
-      end
-
-      def on_exec(&block)
-        @executor = block
       end
 
       def perform
@@ -44,12 +39,12 @@ module GraphQL
         next_ops.each do |op|
           @results[op[:key]] = true
           perform_operation(op) #.then { exec_rec }
+          exec_rec
         end
 
+        byebug
         if @results.length == @plan[:ops].length && @results.values.all? #(&:complete?)
           { data: @data, errors: @errors }
-        else
-          exec_rec
         end
       end
 
@@ -61,8 +56,12 @@ module GraphQL
         insertion_path = op[:insertion_path]
 
         if !boundary
-          document = "#{operation_type} #{selections}"
-          result = @executor.call(location, document, {})
+          variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
+          variable_defs = "(#{variable_defs})" if variable_defs.length > 0
+          document = "#{operation_type}#{variable_defs}#{selections}"
+          variables = @variables.slice(*op[:variables].keys)
+
+          result = @graph_info.get_client(location).call(document, variables, location)
           @data.merge!(result["data"]) if result["data"]
           @errors.concat(result["errors"]) if result["errors"]&.any?
         else
@@ -84,19 +83,23 @@ module GraphQL
         operation_type = op[:operation_type]
         key_selection = "_STITCH_#{boundary["selection"]}"
 
+        variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
+        variable_defs = "(#{variables})" if variables.length > 0
+
         document = if boundary["list"]
           input = JSON.generate(origin_set.map { _1[key_selection] })
-          "#{operation_type}{ _STITCH_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{selections} }"
+          "#{operation_type}#{variable_defs}{ _STITCH_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{selections} }"
         else
           result_selections = origin_set.each_with_index.map do |origin_obj, index|
             input = JSON.generate(origin_obj[key_selection])
             "_STITCH_result_#{index}: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{selections}"
           end
 
-          "#{operation_type}{ #{result_selections.join(" ")} }"
+          "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
         end
 
-        result = @executor.call(location, document, {})
+        variables = @variables.slice(*op[:variables].keys)
+        result = @graph_info.get_client(location).call(document, variables, location)
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

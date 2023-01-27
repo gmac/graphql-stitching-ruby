@@ -6,8 +6,8 @@ require_relative "../../test_schema/sample"
 describe 'GraphQL::Stitching::Plan, make it work' do
 
   QUERY = "
-    query {
-      storefront(id: 1) {
+    query ($var:ID!){
+      storefront(id: $var) {
         id
         products {
           upc
@@ -36,19 +36,21 @@ describe 'GraphQL::Stitching::Plan, make it work' do
     }
 
     info = compose_definitions(subschemas)
+    info.add_client do |document, variables, location|
+      schema = subschemas[location]
+      schema.execute(document, variables: variables).to_h
+    end
 
     plan = GraphQL::Stitching::Plan.new(
       graph_info: info,
       document: GraphQL.parse(QUERY),
     ).plan
 
-    executor = GraphQL::Stitching::Execute.new(graph_info: info, plan: plan.as_json)
-    executor.on_exec do |location, operation, variables|
-      schema = subschemas[location]
-      schema.execute(operation, variables: variables).to_h
-    end
-
-    result = executor.perform
+    result = GraphQL::Stitching::Execute.new(
+      graph_info: info,
+      plan: plan.as_json,
+      variables: { "var" => "1" }
+    ).perform
 
     byebug
   end

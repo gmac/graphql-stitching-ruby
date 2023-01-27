@@ -244,9 +244,12 @@ module GraphQL
         args_by_name_location.each do |argument_name, arguments_by_location|
           value_types = arguments_by_location.values.map(&:type)
 
-          if arguments_by_location.length != members_by_location.length && value_types.any?(&:non_null?)
-            path = [type_name, field_name, argument_name].compact.join(".")
-            raise ComposeError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
+          if arguments_by_location.length != members_by_location.length
+            if value_types.any?(&:non_null?)
+              path = [type_name, field_name, argument_name].compact.join(".")
+              raise ComposeError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
+            end
+            next
           end
 
           owner.argument(

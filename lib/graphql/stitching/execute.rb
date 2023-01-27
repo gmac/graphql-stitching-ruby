@@ -24,7 +24,7 @@ module GraphQL
 
       private
 
-      def exec_rec
+      def exec_rec(key=nil)
         next_ops = []
         @queue.reject! do |op|
           after_key = op[:after_key]
@@ -39,44 +39,44 @@ module GraphQL
         next_ops.each do |op|
           @results[op[:key]] = true
           perform_operation(op) #.then { exec_rec }
-          exec_rec
+          exec_rec(op[:key])
         end
 
-        byebug
         if @results.length == @plan[:ops].length && @results.values.all? #(&:complete?)
           { data: @data, errors: @errors }
         end
       end
 
       def perform_operation(op)
-        location = op[:location]
-        boundary = op[:boundary]
-        selections = op[:selections]
-        operation_type = op[:operation_type]
-        insertion_path = op[:insertion_path]
-
-        if !boundary
-          variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
-          variable_defs = "(#{variable_defs})" if variable_defs.length > 0
-          document = "#{operation_type}#{variable_defs}#{selections}"
-          variables = @variables.slice(*op[:variables].keys)
-
-          result = @graph_info.get_client(location).call(document, variables, location)
+        if !op[:boundary]
+          result = query_root_location(op)
           @data.merge!(result["data"]) if result["data"]
           @errors.concat(result["errors"]) if result["errors"]&.any?
+
         else
+          insertion_path = op[:insertion_path]
+
           original_set = insertion_path.reduce([@data]) do |set, path_segment|
             set.flat_map { |obj| obj && obj[path_segment] }.compact
           end
 
-          results, errors = query_boundary_set(op, original_set, insertion_path)
+          results, errors = query_boundary_location(op, original_set, insertion_path)
           original_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
           end
         end
       end
 
-      def query_boundary_set(op, origin_set, insertion_path)
+      def query_root_location(op)
+        variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
+        variable_defs = "(#{variable_defs})" if variable_defs.length > 0
+        document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
+        variables = @variables.slice(*op[:variables].keys)
+
+        @graph_info.get_client(op[:location]).call(document, variables, op[:location])
+      end
+
+      def query_boundary_location(op, origin_set, insertion_path)
         location = op[:location]
         boundary = op[:boundary]
         selections = op[:selections]
@@ -84,7 +84,7 @@ module GraphQL
         key_selection = "_STITCH_#{boundary["selection"]}"
 
         variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
-        variable_defs = "(#{variables})" if variables.length > 0
+        variable_defs = "(#{variables})" if variable_defs.length > 0
 
         document = if boundary["list"]
           input = JSON.generate(origin_set.map { _1[key_selection] })

@@ -60,10 +60,10 @@ module GraphQL
       end
 
       def add_operation(location:, operation_type: "query", after_key: nil, boundary: nil, insertion_path: [])
-        selection_set, variables = yield(@sequence_key)
-        @sequence_key += 1
+        operation_key = @sequence_key += 1
+        selection_set, variables = yield(operation_key)
         @operations << Operation.new(
-          key: @sequence_key,
+          key: operation_key,
           after_key: after_key,
           location: location,
           operation_type: operation_type,
@@ -88,8 +88,8 @@ module GraphQL
           end
 
           selections_by_location.map do |location, selections|
-            add_operation(location: location) do |op_id|
-              extract_selection_sets(op_id, parent_type, selections, [], location)
+            add_operation(location: location) do |parent_key|
+              extract_selection_sets(parent_key, parent_type, selections, [], location)
             end
           end
 

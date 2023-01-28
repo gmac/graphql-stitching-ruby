@@ -104,7 +104,7 @@ module GraphQL
         puts document
         variables = @variables.slice(*op[:variables].keys)
         result = @graph_info.get_client(location).call(document, variables, location)
-        puts result.dig("errors") if result.dig("errors").any?
+        puts result.dig("errors") if result.dig("errors")&.any?
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

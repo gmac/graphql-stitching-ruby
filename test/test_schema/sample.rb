@@ -70,6 +70,10 @@ module TestSchema
         end
       end
 
+      def self.resolve_type(_type, _obj, _ctx)
+        Product
+      end
+
       query RootQuery
     end
 

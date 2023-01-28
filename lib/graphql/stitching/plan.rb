@@ -128,13 +128,41 @@ module GraphQL
         selections_result = []
         variables_result = {}
 
+        if parent_type.kind.name == "INTERFACE"
+          # fields of a merged interface may not belong to the interface at the local level,
+          # so these non-local interface fields get expanded into typed fragments to be resolved
+          local_interface_fields = @graph_info.fields_by_location[parent_type.graphql_name][current_location]
+          extended_selections = []
+
+          input_selections.reject! do |node|
+            if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
+              extended_selections << node
+              true
+            end
+          end
+
+          possible_types = Util.get_possible_types(@graph_info.schema, parent_type)
+          possible_types.each do |possible_type|
+            next if possible_type.kind.abstract? # ignore child interfaces
+
+            # @todo need composer validation for...
+            # possible_type_fields = @graph_info.locations_by_field[possible_type.graphql_name]
+            # fragment_selections = extended_interface_selections.select { possible_type_fields[_1.name] }
+            # if fragment_selections.any?
+
+            # trust that the composer has validated the presence of compatible fields...
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+          end
+        end
+
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
             field_type = Util.get_named_type(parent_type.fields[node.name].type)
-            locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
 
-            if !locations.include?(current_location)
+            if !possible_locations.include?(current_location)
               remote_selections << node
               next
             elsif Util.is_leaf_type?(field_type)
@@ -175,9 +203,9 @@ module GraphQL
           selections_result.concat(selection_set)
         end
 
-        # if parent_type.kind.abstract?
-        #   selections_result << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
-        # end
+        if parent_type.kind.abstract?
+          selections_result << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
+        end
 
         return selections_result, variables_result
       end
@@ -237,6 +265,7 @@ module GraphQL
             child_op = memo[location] = add_operation(
               after_key: parent_key,
               location: location,
+              parent_type: parent_type,
               insertion_path: insertion_path,
               boundary: boundary
             ) do |next_parent_key|
@@ -265,17 +294,30 @@ module GraphQL
         parent_selections_result
       end
 
+      # expand concrete type selections into typed fragments when sending to abstract boundaries
       def expand_abstract_boundaries
-        byebug
         @operations.each do |op|
           next unless op.boundary
-          boundary_type = op.boundary["type_name"]
 
-          if op.parent_type.kind.abstract?
+          boundary_type = @graph_info.schema.get_type(op.boundary["type_name"])
+          next unless boundary_type.kind.abstract?
 
-          elsif boundary_type.kind.abstract?
+          unless op.parent_type.kind.abstract?
+            to_typed_selections = []
+            op.selections.reject! do |node|
+              if node.is_a?(GraphQL::Language::Nodes::Field)
+                to_typed_selections << node
+                true
+              end
+            end
 
+            if to_typed_selections.any?
+              type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
+              op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: to_typed_selections)
+            end
           end
+
+          op.selections << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
         end
       end
     end

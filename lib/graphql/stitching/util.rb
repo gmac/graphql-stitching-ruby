@@ -33,13 +33,16 @@ module GraphQL
       end
 
       # Gets all objects and interfaces that implement a given interface
-      def self.get_implementing_types(schema, parent_type)
+      def self.get_possible_types(schema, parent_type)
+        return [parent_type] unless parent_type.kind.abstract?
+        return parent_type.possible_types if parent_type.kind.name == "UNION"
+
         result = []
         schema.types.values.each do |type|
           next unless type <= GraphQL::Schema::Interface && type != parent_type
           next unless type.interfaces.include?(parent_type)
           result << type
-          result.push(*get_implementing_types(schema, type)) if type.kind.name == "INTERFACE"
+          result.push(*get_possible_types(schema, type)) if type.kind.name == "INTERFACE"
         end
         result.uniq
       end

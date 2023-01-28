@@ -373,9 +373,10 @@ module GraphQL
           boundary_type = schema.types[type_name]
           next unless Util.is_abstract_type?(boundary_type)
 
-          Util.get_implementing_types(schema, boundary_type).each do |implementing_type|
-            @boundary_map[implementing_type.graphql_name] ||= []
-            @boundary_map[implementing_type.graphql_name].push(*@boundary_map[type_name])
+          # @todo Need to filter this to ONLY types that are actually boundaries...
+          Util.get_possible_types(schema, boundary_type).each do |possible_type|
+            @boundary_map[possible_type.graphql_name] ||= []
+            @boundary_map[possible_type.graphql_name].push(*@boundary_map[type_name])
           end
         end
       end

@@ -346,6 +346,7 @@ module GraphQL
 
               argument = field_candidate.arguments[argument_name]
               unless argument
+                # contextualize this... "boundaries with multiple args need mapping aliases."
                 raise ComposeError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
               end
 

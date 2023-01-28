@@ -49,7 +49,7 @@ describe 'GraphQL::Stitching::Plan, make it work' do
     result = GraphQL::Stitching::Execute.new(
       graph_info: graph_info,
       plan: plan.as_json,
-      variables: { "var" => "1" }
+      variables: { "var" => "1", "handle" => { "handle" => "woof" } }
     ).perform
 
     byebug

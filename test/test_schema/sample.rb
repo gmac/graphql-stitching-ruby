@@ -101,7 +101,7 @@ module TestSchema
 
       class Query < GraphQL::Schema::Object
         field :storefront, Storefront, null: true do
-          directive Boundary, key: "id"
+          directive Boundary, key: "id:id"
           argument :id, ID, required: true
         end
 

@@ -164,20 +164,15 @@ module GraphQL
 
             if !possible_locations.include?(current_location)
               remote_selections << node
-              next
             elsif Util.is_leaf_type?(field_type)
+              extract_node_variables!(node, variables_result)
               selections_result << node
             else
+              extract_node_variables!(node, variables_result)
               expanded_path = [*insertion_path, node.alias || node.name]
               selection_set, variables = extract_locale_selections(parent_key, field_type, node.selections, expanded_path, current_location)
               selections_result << node.merge(selections: selection_set)
               variables_result.merge!(variables)
-            end
-
-            node.arguments.each_with_object(variables_result) do |field_variable, memo|
-              if field_variable.value.is_a?(GraphQL::Language::Nodes::VariableIdentifier)
-                memo[field_variable.value.name] = document_variables[field_variable.value.name]
-              end
             end
 
           when GraphQL::Language::Nodes::InlineFragment
@@ -292,6 +287,17 @@ module GraphQL
         end
 
         parent_selections_result
+      end
+
+      def extract_node_variables!(node_with_args, variables={})
+        node_with_args.arguments.each_with_object(variables) do |argument, memo|
+          case argument.value
+          when GraphQL::Language::Nodes::InputObject
+            extract_variables(argument.value, memo)
+          when GraphQL::Language::Nodes::VariableIdentifier
+            memo[argument.value.name] ||= document_variables[argument.value.name]
+          end
+        end
       end
 
       # expand concrete type selections into typed fragments when sending to abstract boundaries

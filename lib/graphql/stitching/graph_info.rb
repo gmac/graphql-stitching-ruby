@@ -76,7 +76,7 @@ module GraphQL
             if goal_locations.include?(location)
               result = results[location]
               if result.nil? || cost < costs[location] || (cost == costs[location] && path.length < result.length)
-                results[location] = path.map! { _1["boundary"] }
+                results[location] = path.map { _1["boundary"] }
                 costs[location] = cost
                 max_cost = cost if cost > max_cost
               end
@@ -93,6 +93,8 @@ module GraphQL
         end
 
         results
+      rescue
+        byebug
       end
     end
   end

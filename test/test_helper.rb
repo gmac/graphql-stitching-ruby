@@ -18,6 +18,8 @@ require 'graphql/stitching'
 def compose_definitions(schemas, options={})
   schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|
     memo[location] = if schema_or_sdl.is_a?(String)
+      boundary = "directive @boundary(key: String!) repeatable on FIELD_DEFINITION\n"
+      schema_or_sdl = boundary + schema_or_sdl if schema_or_sdl.include?("@boundary")
       GraphQL::Schema.from_definition(schema_or_sdl)
     else
       schema_or_sdl

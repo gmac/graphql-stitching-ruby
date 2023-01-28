@@ -159,6 +159,8 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
+            next unless parent_type.kind.fields?
+
             field_type = Util.get_named_type(parent_type.fields[node.name].type)
             possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
 
@@ -191,6 +193,8 @@ module GraphQL
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
           end
+        # rescue
+        #   byebug
         end
 
         if remote_selections.any?

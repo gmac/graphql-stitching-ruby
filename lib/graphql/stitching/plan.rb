@@ -19,7 +19,7 @@ module GraphQL
       def plan
         build_root_operations
         expand_abstract_boundaries
-        @operations.reverse!
+        @operations.sort_by!(&:key)
         self
       end
 
@@ -38,7 +38,7 @@ module GraphQL
           end
 
           if operation_defs.length < 1
-            raise @operation_name ? "Invalid root operation name." : "No root operation."
+            raise "Invalid root operation."
           elsif operation_defs.length > 1
             raise "An operation name is required when sending multiple operations."
           end
@@ -123,7 +123,8 @@ module GraphQL
         end
       end
 
-      def extract_locale_selections(parent_key, parent_type, input_selections, insertion_path, current_location)
+      # def extract_locale_selections(current_location, insertion_path, parent_type, input_selections, parent_key)
+      def extract_locale_selections(parent_key, parent_type, input_selections, insertion_path, current_location, conditional: false)
         remote_selections = []
         selections_result = []
         variables_result = {}
@@ -145,12 +146,6 @@ module GraphQL
           possible_types.each do |possible_type|
             next if possible_type.kind.abstract? # ignore child interfaces
 
-            # @todo need composer validation for...
-            # possible_type_fields = @graph_info.locations_by_field[possible_type.graphql_name]
-            # fragment_selections = extended_interface_selections.select { possible_type_fields[_1.name] }
-            # if fragment_selections.any?
-
-            # trust that the composer has validated the presence of compatible fields...
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
             input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
           end
@@ -178,6 +173,8 @@ module GraphQL
             end
 
           when GraphQL::Language::Nodes::InlineFragment
+            next unless @graph_info.locations_by_type[node.type.name].include?(current_location)
+
             fragment_type = @graph_info.schema.types[node.type.name]
             selection_set, variables = extract_locale_selections(parent_key, fragment_type, node.selections, insertion_path, current_location)
             selections_result << node.merge(selections: selection_set)
@@ -185,6 +182,8 @@ module GraphQL
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = document_fragments[node.name]
+            next unless @graph_info.locations_by_type[fragment.type.name].include?(current_location)
+
             fragment_type = @graph_info.schema.types[fragment.type.name]
             selection_set, variables = extract_locale_selections(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
             selections_result << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
@@ -193,8 +192,6 @@ module GraphQL
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
           end
-        # rescue
-        #   byebug
         end
 
         if remote_selections.any?
@@ -297,7 +294,7 @@ module GraphQL
         node_with_args.arguments.each_with_object(variables) do |argument, memo|
           case argument.value
           when GraphQL::Language::Nodes::InputObject
-            extract_variables(argument.value, memo)
+            extract_node_variables!(argument.value, memo)
           when GraphQL::Language::Nodes::VariableIdentifier
             memo[argument.value.name] ||= document_variables[argument.value.name]
           end

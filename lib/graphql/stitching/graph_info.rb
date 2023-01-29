@@ -36,13 +36,19 @@ module GraphQL
 
       def fields_by_location
         # invert fields map to provide fields for a type/location
-        @fields_by_location ||= locations_by_field.each_with_object({}) do |(typename, fields), memo|
-          memo[typename] = fields.each_with_object({}) do |(fieldname, locations), memo|
+        @fields_by_location ||= locations_by_field.each_with_object({}) do |(type_name, fields), memo|
+          memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
             locations.each do |location|
               memo[location] ||= []
-              memo[location] << fieldname
+              memo[location] << field_name
             end
           end
+        end
+      end
+
+      def locations_by_type
+        @locations_by_type ||= locations_by_field.each_with_object({}) do |(type_name, fields), memo|
+          memo[type_name] = fields.values.flatten.uniq
         end
       end
 

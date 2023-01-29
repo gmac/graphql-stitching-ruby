@@ -19,7 +19,6 @@ module GraphQL
       end
 
       def perform
-        pp @queue
         exec_rec
       end
 
@@ -57,7 +56,7 @@ module GraphQL
             set.flat_map { |obj| obj && obj[path_segment] }.compact
           end
 
-          results, errors = query_boundary_location(op, original_set, insertion_path)
+          results, _errors = query_boundary_location(op, original_set, insertion_path)
           original_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
           end
@@ -104,7 +103,6 @@ module GraphQL
         puts document
         variables = @variables.slice(*op[:variables].keys)
         result = @graph_info.get_client(location).call(document, variables, location)
-        puts result.dig("errors") if result.dig("errors")&.any?
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

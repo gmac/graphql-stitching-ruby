@@ -3,50 +3,54 @@
 
 module GraphQL
   module Stitching
-    class PlanningStep
-      attr_accessor :location, :insertion_path, :selections, :children, :boundary
-
-      def initialize(location:, insertion_path: [], selections: [], children: [], boundary: nil)
-        @location = location
-        @insertion_path = insertion_path
-        @selections = selections
-        @children = children
-        @boundary = boundary
-      end
-
-      def to_h
-        op = GraphQL::Language::Nodes::OperationDefinition.new(selections: @selections)
-        {
-          location: @location,
-          boundary: @boundary,
-          insertion_path: @insertion_path,
-          selections: GraphQL::Language::Printer.new.print(op).gsub(/\s+/, " "),
-          children: @children.map(&:to_h),
-        }
-      end
-    end
-
     class Plan
-      attr_reader :steps
+      attr_reader :operations
 
       SUPPORTED_OPERATIONS = ["query", "mutation"]
 
-      def initialize(context:, document:, operation_name: nil)
+      def initialize(graph_context:, document:, operation_name: nil)
+        @graph_context = graph_context
         @document = document
+        @operation_name = operation_name
+        @sequence_key = 0
+        @operations = []
+      end
 
-        operations = @document.definitions.select do |d|
-          next unless d.is_a?(GraphQL::Language::Nodes::OperationDefinition)
-          next unless SUPPORTED_OPERATIONS.include?(d.operation_type)
-          operation_name ? d.name == operation_name : true
+      def plan
+        build_root_operations
+        expand_abstract_boundaries
+        @operations.sort_by!(&:key)
+        self
+      end
+
+      def as_json
+        { ops: @operations.map(&:as_json) }
+      end
+
+      private
+
+      def document_operation
+        @document_operation ||= begin
+          operation_defs = @document.definitions.select do |d|
+            next unless d.is_a?(GraphQL::Language::Nodes::OperationDefinition)
+            next unless SUPPORTED_OPERATIONS.include?(d.operation_type)
+            @operation_name ? d.name == @operation_name : true
+          end
+
+          if operation_defs.length < 1
+            raise "Invalid root operation."
+          elsif operation_defs.length > 1
+            raise "An operation name is required when sending multiple operations."
+          end
+
+          operation_defs.first
         end
+      end
 
-        if operations.length < 1
-          raise operation_name ? "Invalid root operation name." : "No root operation."
-        elsif operations.length > 1
-          raise "An operation name is required when sending multiple operations."
+      def document_variables
+        @document_variables ||= document_operation.variables.each_with_object({}) do |v, memo|
+          memo[v.name] = v.type
         end
-
-        @steps = create_root_steps(context, operations[0])
       end
 
       def document_fragments
@@ -55,38 +59,48 @@ module GraphQL
         end
       end
 
-      def to_h
-        { steps: @steps.map(&:to_h) }
+      def add_operation(location:, parent_type:, operation_type: "query", after_key: nil, boundary: nil, insertion_path: [])
+        operation_key = @sequence_key += 1
+        selection_set, variables = yield(operation_key)
+        @operations << Operation.new(
+          key: operation_key,
+          after_key: after_key,
+          location: location,
+          parent_type: parent_type,
+          operation_type: operation_type,
+          selections: selection_set,
+          variables: variables,
+          insertion_path: insertion_path,
+          boundary: boundary,
+        )
+        @operations.last
       end
 
-      def create_root_steps(ctx, operation)
-        case operation.operation_type
+      def build_root_operations
+        case document_operation.operation_type
         when "query"
           # plan steps grouping all fields by location for async execution
-          parent_type = ctx.schema.query
+          parent_type = @graph_context.schema.query
 
-          selections_by_location = operation.selections.each_with_object({}) do |node, memo|
-            location = ctx.locations_by_field[parent_type.graphql_name][node.name].last
+          selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
+            location = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             memo[location] ||= []
             memo[location] << node
           end
 
           selections_by_location.map do |location, selections|
-            selection_set, child_steps = extract_selection_sets(ctx, parent_type, selections, [], location)
-            PlanningStep.new(
-              location: location,
-              selections: selection_set,
-              children: child_steps
-            )
+            add_operation(location: location, parent_type: parent_type) do |parent_key|
+              extract_locale_selections(parent_key, parent_type, selections, [], location)
+            end
           end
 
         when "mutation"
           # plan steps grouping sequential fields by location for sync execution
-          parent_type = ctx.schema.mutation
+          parent_type = @graph_context.schema.mutation
           location_groups = []
 
-          operation.selections.reduce(nil) do |last_location, node|
-            location = ctx.locations_by_field[parent_type.graphql_name][node.name].last
+          document_operation.selections.reduce(nil) do |last_location, node|
+            location = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             if location != last_location
               location_groups << {
                 location: location,
@@ -97,13 +111,16 @@ module GraphQL
             location
           end
 
-          location_groups.map do |g|
-            selection_set, child_steps = extract_selection_sets(ctx, parent_type, g[:selections], [], g[:location])
-            PlanningStep.new(
-              location: g[:location],
-              selections: selection_set,
-              children: child_steps
-            )
+          location_groups.reduce(nil) do |parent_key, group|
+            op = add_operation(
+              location: group[:location],
+              operation_type: "mutation",
+              parent_type: parent_type,
+              after_key: parent_key
+            ) do |parent_key|
+              extract_locale_selections(parent_key, parent_type, group[:selections], [], group[:location])
+            end
+            op.key
           end
 
         else
@@ -111,60 +128,96 @@ module GraphQL
         end
       end
 
-      def extract_selection_sets(ctx, parent_type, input_selections, insertion_path, current_location)
-        selections_result = []
-        child_steps_result = []
+      # def extract_locale_selections(current_location, insertion_path, parent_type, input_selections, parent_key)
+      def extract_locale_selections(parent_key, parent_type, input_selections, insertion_path, current_location, conditional: false)
         remote_selections = []
+        selections_result = []
+        variables_result = {}
+
+        if parent_type.kind.name == "INTERFACE"
+          # fields of a merged interface may not belong to the interface at the local level,
+          # so these non-local interface fields get expanded into typed fragments to be resolved
+          local_interface_fields = @graph_context.fields_by_type_and_location[parent_type.graphql_name][current_location]
+          extended_selections = []
+
+          input_selections.reject! do |node|
+            if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
+              extended_selections << node
+              true
+            end
+          end
+
+          possible_types = Util.get_possible_types(@graph_context.schema, parent_type)
+          possible_types.each do |possible_type|
+            next if possible_type.kind.abstract? # ignore child interfaces
+
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+          end
+        end
 
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            field_type = Util.get_named_type(parent_type.fields[node.name].type)
-            locations = ctx.locations_by_field[parent_type.graphql_name][node.name]
+            next unless parent_type.kind.fields?
 
-            if locations.exclude?(current_location)
+            field_type = Util.get_named_type(parent_type.fields[node.name].type)
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
+
+            if !possible_locations.include?(current_location)
               remote_selections << node
             elsif Util.is_leaf_type?(field_type)
+              extract_node_variables!(node, variables_result)
               selections_result << node
             else
+              extract_node_variables!(node, variables_result)
               expanded_path = [*insertion_path, node.alias || node.name]
-              selection_set, child_steps = extract_selection_sets(ctx, field_type, node.selections, expanded_path, current_location)
+              selection_set, variables = extract_locale_selections(parent_key, field_type, node.selections, expanded_path, current_location)
               selections_result << node.merge(selections: selection_set)
-              child_steps_result.concat(child_steps)
+              variables_result.merge!(variables)
             end
 
           when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = ctx.schema.types[node.type.name]
-            selection_set, child_steps = extract_selection_sets(ctx, fragment_type, node.selections, insertion_path, current_location)
+            next unless @graph_context.locations_by_type[node.type.name].include?(current_location)
+
+            fragment_type = @graph_context.schema.types[node.type.name]
+            selection_set, variables = extract_locale_selections(parent_key, fragment_type, node.selections, insertion_path, current_location)
             selections_result << node.merge(selections: selection_set)
-            child_steps_result.concat(child_steps)
+            variables_result.merge!(variables)
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = document_fragments[node.name]
-            fragment_type = ctx.schema.types[fragment.type.name]
-            selection_set, child_steps = extract_selection_sets(ctx, fragment_type, fragment.selections, insertion_path, current_location)
+            next unless @graph_context.locations_by_type[fragment.type.name].include?(current_location)
+
+            fragment_type = @graph_context.schema.types[fragment.type.name]
+            selection_set, variables = extract_locale_selections(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
             selections_result << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
-            child_steps_result.concat(child_steps)
+            variables_result.merge!(variables)
+
+          else
+            raise "Unexpected node of type #{node.class.name} in selection set."
           end
         end
 
         if remote_selections.any?
-          selection_set, child_steps = create_child_steps(ctx, parent_type, remote_selections, insertion_path, current_location)
+          selection_set = build_child_operations(parent_key, parent_type, remote_selections, insertion_path, current_location)
           selections_result.concat(selection_set)
-          child_steps_result.concat(child_steps)
         end
 
-        return selections_result, child_steps_result
+        if parent_type.kind.abstract?
+          selections_result << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
+        end
+
+        return selections_result, variables_result
       end
 
-      def create_child_steps(ctx, parent_type, input_selections, insertion_path, current_location)
+      def build_child_operations(parent_key, parent_type, input_selections, insertion_path, current_location)
         parent_selections_result = []
-        child_steps_result = []
         selections_by_location = {}
 
         # distribute unique fields among locations
         input_selections.reject! do |node|
-          possible_locations = ctx.locations_by_field[parent_type.graphql_name][node.name]
+          possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
           if possible_locations.length == 1
             selections_by_location[possible_locations.first] ||= []
             selections_by_location[possible_locations.first] << node
@@ -175,7 +228,7 @@ module GraphQL
         # distribute non-unique fields among locations
         if input_selections.any?
           location_weights = input_selections.each_with_object({}) do |node, memo|
-            possible_locations = ctx.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
             possible_locations.each do |location|
               memo[location] ||= 0
               memo[location] += 1
@@ -183,7 +236,7 @@ module GraphQL
           end
 
           input_selections.each do |node|
-            possible_locations = ctx.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
 
             preferred_location_score = 0
             preferred_location = possible_locations.reduce(possible_locations.first) do |current, candidate|
@@ -203,94 +256,81 @@ module GraphQL
           end
         end
 
-        routes = route_to_locations(ctx, parent_type, current_location, selections_by_location.keys)
+        routes = @graph_context.route_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
         routes.values.each_with_object({}) do |route, memo|
-          route.reduce(nil) do |parent_step, boundary|
+          route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
             next memo[location] if memo[location]
 
             selections = selections_by_location[location]
-            selection_set, child_steps = if selections
-              extract_selection_sets(ctx, parent_type, selections, insertion_path, location)
-            else
-              [[], []]
-            end
-
-            child_step = memo[location] = PlanningStep.new(
+            child_op = memo[location] = add_operation(
+              after_key: parent_key,
               location: location,
+              parent_type: parent_type,
               insertion_path: insertion_path,
-              selections: selection_set,
-              children: child_steps,
               boundary: boundary
-            )
-
-            foreign_key = GraphQL::Language::Nodes::Field.new(
-              alias: "_GQLS_#{boundary["selection"]}",
-              name: boundary["selection"]
-            )
-
-            if parent_step
-              parent_step.selections << foreign_key
-              parent_step.children << child_step
-            else
-              parent_selections_result << foreign_key
-              child_steps_result << child_step
-            end
-
-            child_step
-          end
-        end
-
-        return parent_selections_result, child_steps_result
-      end
-
-      # For a given type, route from one origin service to many remote locations.
-      # Uses A-star, tuned to favor paths with fewest joining locations
-      # (this favors a longer path through target locations
-      # over a shorter path with additional locations added).
-      def route_to_locations(ctx, parent_type, from_location, to_locations)
-        boundaries = ctx.boundaries[parent_type.graphql_name]
-        possible_keys = boundaries.map { _1["selection"] }
-        possible_keys.uniq!
-
-        location_fields = ctx.fields_by_location[parent_type.graphql_name][from_location]
-        location_keys = location_fields & possible_keys
-        paths = location_keys.map { [{ "location" => from_location, "selection" => _1 }] }
-
-        results = {}
-        costs = {}
-        max_cost = 1
-
-        while paths.any?
-          path = paths.pop
-          boundaries.each do |boundary|
-            next unless boundary["selection"] == path.last["selection"] && path.none? { boundary["location"] == _1["location"] }
-
-            cost = path.count { to_locations.exclude?(_1["location"]) }
-            next if results.length == to_locations.length && cost > max_cost
-
-            path.last["boundary"] = boundary
-            location = boundary["location"]
-            if to_locations.include?(location)
-              result = results[location]
-              if result.nil? || cost < costs[location] || (cost == costs[location] && path.length < result.length)
-                results[location] = path.map! { _1["boundary"] }
-                costs[location] = cost
-                max_cost = cost if cost > max_cost
+            ) do |next_parent_key|
+              if selections
+                extract_locale_selections(next_parent_key, parent_type, selections, insertion_path, location)
+              else
+                [[], {}]
               end
             end
 
-            location_fields = ctx.fields_by_location[parent_type.graphql_name][location]
-            location_keys = location_fields & possible_keys
-            location_keys.each do |key|
-              paths << [*path, { "location" => location, "selection" => key }]
+            foreign_key = GraphQL::Language::Nodes::Field.new(
+              alias: "_STITCH_#{boundary["selection"]}",
+              name: boundary["selection"]
+            )
+
+            if parent_op
+              parent_op.selections << foreign_key
+            else
+              parent_selections_result << foreign_key
+            end
+
+            child_op
+          end
+        end
+
+        parent_selections_result
+      end
+
+      def extract_node_variables!(node_with_args, variables={})
+        node_with_args.arguments.each_with_object(variables) do |argument, memo|
+          case argument.value
+          when GraphQL::Language::Nodes::InputObject
+            extract_node_variables!(argument.value, memo)
+          when GraphQL::Language::Nodes::VariableIdentifier
+            memo[argument.value.name] ||= document_variables[argument.value.name]
+          end
+        end
+      end
+
+      # expand concrete type selections into typed fragments when sending to abstract boundaries
+      def expand_abstract_boundaries
+        @operations.each do |op|
+          next unless op.boundary
+
+          boundary_type = @graph_context.schema.get_type(op.boundary["type_name"])
+          next unless boundary_type.kind.abstract?
+
+          unless op.parent_type.kind.abstract?
+            to_typed_selections = []
+            op.selections.reject! do |node|
+              if node.is_a?(GraphQL::Language::Nodes::Field)
+                to_typed_selections << node
+                true
+              end
+            end
+
+            if to_typed_selections.any?
+              type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
+              op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: to_typed_selections)
             end
           end
 
-          paths.sort_by!(&:length).reverse!
+          op.selections << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
         end
-
-        results
       end
     end
   end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module TestSchema
-  module Basic
+module Schemas
+  module ThreeLocations
     PRODUCTS = [
       { upc: '1', name: 'iPhone', price: 699.99, manufacturer_id: '1' },
       { upc: '2', name: 'Apple Watch', price: 399.99, manufacturer_id: '1' },

@@ -8,8 +8,8 @@ module GraphQL
 
       SUPPORTED_OPERATIONS = ["query", "mutation"]
 
-      def initialize(graph_info:, document:, operation_name: nil)
-        @graph_info = graph_info
+      def initialize(graph_context:, document:, operation_name: nil)
+        @graph_context = graph_context
         @document = document
         @operation_name = operation_name
         @sequence_key = 0
@@ -80,10 +80,10 @@ module GraphQL
         case document_operation.operation_type
         when "query"
           # plan steps grouping all fields by location for async execution
-          parent_type = @graph_info.schema.query
+          parent_type = @graph_context.schema.query
 
           selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
-            location = @graph_info.locations_by_field[parent_type.graphql_name][node.name].last
+            location = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             memo[location] ||= []
             memo[location] << node
           end
@@ -96,11 +96,11 @@ module GraphQL
 
         when "mutation"
           # plan steps grouping sequential fields by location for sync execution
-          parent_type = @graph_info.schema.mutation
+          parent_type = @graph_context.schema.mutation
           location_groups = []
 
           document_operation.selections.reduce(nil) do |last_location, node|
-            location = @graph_info.locations_by_field[parent_type.graphql_name][node.name].last
+            location = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             if location != last_location
               location_groups << {
                 location: location,
@@ -111,9 +111,14 @@ module GraphQL
             location
           end
 
-          location_groups.reduce(nil) do |parent_key, g|
-            op = add_operation(location: g[:location], parent_type: parent_type, after_key: parent_key) do |parent_key|
-              extract_locale_selections(parent_key, parent_type, g[:selections], [], g[:location])
+          location_groups.reduce(nil) do |parent_key, group|
+            op = add_operation(
+              location: group[:location],
+              operation_type: "mutation",
+              parent_type: parent_type,
+              after_key: parent_key
+            ) do |parent_key|
+              extract_locale_selections(parent_key, parent_type, group[:selections], [], group[:location])
             end
             op.key
           end
@@ -132,7 +137,7 @@ module GraphQL
         if parent_type.kind.name == "INTERFACE"
           # fields of a merged interface may not belong to the interface at the local level,
           # so these non-local interface fields get expanded into typed fragments to be resolved
-          local_interface_fields = @graph_info.fields_by_location[parent_type.graphql_name][current_location]
+          local_interface_fields = @graph_context.fields_by_type_and_location[parent_type.graphql_name][current_location]
           extended_selections = []
 
           input_selections.reject! do |node|
@@ -142,7 +147,7 @@ module GraphQL
             end
           end
 
-          possible_types = Util.get_possible_types(@graph_info.schema, parent_type)
+          possible_types = Util.get_possible_types(@graph_context.schema, parent_type)
           possible_types.each do |possible_type|
             next if possible_type.kind.abstract? # ignore child interfaces
 
@@ -157,7 +162,7 @@ module GraphQL
             next unless parent_type.kind.fields?
 
             field_type = Util.get_named_type(parent_type.fields[node.name].type)
-            possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
 
             if !possible_locations.include?(current_location)
               remote_selections << node
@@ -173,18 +178,18 @@ module GraphQL
             end
 
           when GraphQL::Language::Nodes::InlineFragment
-            next unless @graph_info.locations_by_type[node.type.name].include?(current_location)
+            next unless @graph_context.locations_by_type[node.type.name].include?(current_location)
 
-            fragment_type = @graph_info.schema.types[node.type.name]
+            fragment_type = @graph_context.schema.types[node.type.name]
             selection_set, variables = extract_locale_selections(parent_key, fragment_type, node.selections, insertion_path, current_location)
             selections_result << node.merge(selections: selection_set)
             variables_result.merge!(variables)
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = document_fragments[node.name]
-            next unless @graph_info.locations_by_type[fragment.type.name].include?(current_location)
+            next unless @graph_context.locations_by_type[fragment.type.name].include?(current_location)
 
-            fragment_type = @graph_info.schema.types[fragment.type.name]
+            fragment_type = @graph_context.schema.types[fragment.type.name]
             selection_set, variables = extract_locale_selections(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
             selections_result << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             variables_result.merge!(variables)
@@ -212,7 +217,7 @@ module GraphQL
 
         # distribute unique fields among locations
         input_selections.reject! do |node|
-          possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
+          possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
           if possible_locations.length == 1
             selections_by_location[possible_locations.first] ||= []
             selections_by_location[possible_locations.first] << node
@@ -223,7 +228,7 @@ module GraphQL
         # distribute non-unique fields among locations
         if input_selections.any?
           location_weights = input_selections.each_with_object({}) do |node, memo|
-            possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
             possible_locations.each do |location|
               memo[location] ||= 0
               memo[location] += 1
@@ -231,7 +236,7 @@ module GraphQL
           end
 
           input_selections.each do |node|
-            possible_locations = @graph_info.locations_by_field[parent_type.graphql_name][node.name]
+            possible_locations = @graph_context.locations_by_type_and_field[parent_type.graphql_name][node.name]
 
             preferred_location_score = 0
             preferred_location = possible_locations.reduce(possible_locations.first) do |current, candidate|
@@ -251,7 +256,7 @@ module GraphQL
           end
         end
 
-        routes = @graph_info.route_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
+        routes = @graph_context.route_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
         routes.values.each_with_object({}) do |route, memo|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
@@ -306,7 +311,7 @@ module GraphQL
         @operations.each do |op|
           next unless op.boundary
 
-          boundary_type = @graph_info.schema.get_type(op.boundary["type_name"])
+          boundary_type = @graph_context.schema.get_type(op.boundary["type_name"])
           next unless boundary_type.kind.abstract?
 
           unless op.parent_type.kind.abstract?

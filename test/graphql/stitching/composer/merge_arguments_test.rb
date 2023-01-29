@@ -109,16 +109,17 @@ describe 'GraphQL::Stitching::Compose, merging object and field arguments' do
     assert_equal "a/b", info.schema.types["Query"].fields["test"].arguments["arg"].deprecation_reason
   end
 
-  def test_merges_different_sets_of_optional_arguments
-    a = "input Test { arg1:String } type Query { test(arg1:Test):String }"
-    b = "input Test { arg2:String } type Query { test(arg2:Test):String }"
+  # @todo - now uses intersection, so no longer accurate. Needs intersection error for no fields
+  # def test_merges_different_sets_of_optional_arguments
+  #   a = "input Test { arg1:String } type Query { test(arg1:Test):String }"
+  #   b = "input Test { arg2:String } type Query { test(arg2:Test):String }"
 
-    info = compose_definitions({ "a" => a, "b" => b })
-    assert_equal ["arg1", "arg2"], info.schema.types["Test"].arguments.keys.sort
-    assert_equal ["arg1", "arg2"], info.schema.types["Query"].fields["test"].arguments.keys.sort
+  #   info = compose_definitions({ "a" => a, "b" => b })
+  #   assert_equal ["arg1", "arg2"], info.schema.types["Test"].arguments.keys.sort
+  #   assert_equal ["arg1", "arg2"], info.schema.types["Query"].fields["test"].arguments.keys.sort
 
-    # DELEGATION MAP
-  end
+  #   # DELEGATION MAP
+  # end
 
   def test_fails_to_merge_isolated_required_object_arguments
     a = "input Test { arg1:String! } type Query { test(arg:Test):String }"
@@ -138,6 +139,7 @@ describe 'GraphQL::Stitching::Compose, merging object and field arguments' do
     end
   end
 
+  # @todo - test delegation maps
   # def test_creates_delegation_map
 
   # end

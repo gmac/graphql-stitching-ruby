@@ -8,8 +8,8 @@ module GraphQL
 
       attr_reader :results
 
-      def initialize(graph_info:, plan:, variables:{})
-        @graph_info = graph_info
+      def initialize(graph_context:, plan:, variables:{})
+        @graph_context = graph_context
         @plan = plan
         @variables = variables
         @queue = plan[:ops].dup
@@ -75,7 +75,7 @@ module GraphQL
         document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
         variables = @variables.slice(*op[:variables].keys)
 
-        @graph_info.get_client(op[:location]).call(document, variables, op[:location])
+        @graph_context.get_client(op[:location]).call(document, variables, op[:location])
       end
 
       def query_boundary_location(op, origin_set, insertion_path)
@@ -102,7 +102,7 @@ module GraphQL
 
         puts document
         variables = @variables.slice(*op[:variables].keys)
-        result = @graph_info.get_client(location).call(document, variables, location)
+        result = @graph_context.get_client(location).call(document, variables, location)
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

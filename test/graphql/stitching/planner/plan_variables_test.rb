@@ -4,21 +4,26 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Plan, variables" do
 
-  WIDGETS = "
-    input MakeWidgetInput { name: String child: MakeWidgetInput }
-    type Widget { id:ID! name(lang: String): String }
-    type Query { widget(id: ID!): Widget }
-    type Mutation { makeWidget(input: MakeWidgetInput!): Widget }
-  "
+  def setup
+    @widgets_sdl = "
+      input MakeWidgetInput { name: String child: MakeWidgetInput }
+      type Widget { id:ID! name(lang: String): String }
+      type Query { widget(id: ID!): Widget }
+      type Mutation { makeWidget(input: MakeWidgetInput!): Widget }
+    "
 
-  SPROCKETS = "
-    input MakeSprocketInput { name: String! child: MakeSprocketInput }
-    type Sprocket { id:ID! name(lang: String): String }
-    type Query { sprocket(id: ID!): Sprocket }
-    type Mutation { makeSprocket(input: MakeSprocketInput!): Sprocket }
-  "
+    @sprockets_sdl = "
+      input MakeSprocketInput { name: String! child: MakeSprocketInput }
+      type Sprocket { id:ID! name(lang: String): String }
+      type Query { sprocket(id: ID!): Sprocket }
+      type Mutation { makeSprocket(input: MakeSprocketInput!): Sprocket }
+    "
 
-  GRAPH_CONTEXT = compose_definitions({ "widgets" => WIDGETS, "sprockets" => SPROCKETS })
+    @graph_context = compose_definitions({
+      "widgets" => @widgets_sdl,
+      "sprockets" => @sprockets_sdl,
+    })
+  end
 
   def test_extracts_variables_from_field_arguments
     document = "
@@ -29,7 +34,7 @@ describe "GraphQL::Stitching::Plan, variables" do
     "
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
 
@@ -51,7 +56,7 @@ describe "GraphQL::Stitching::Plan, variables" do
     "
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
 
@@ -73,7 +78,7 @@ describe "GraphQL::Stitching::Plan, variables" do
     "
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
 

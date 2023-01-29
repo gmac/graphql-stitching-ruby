@@ -21,7 +21,6 @@ module GraphQL
         @query_name = query_name
         @mutation_name = mutation_name
         @field_map = {}
-        @argument_map = {}
         @boundary_map = {}
 
         @description_merger = description_merger || DEFAULT_STRING_MERGER
@@ -89,16 +88,14 @@ module GraphQL
         schema.send(:own_orphan_types).clear # cheat
         expand_abstract_boundaries(schema)
 
-        graph_info = GraphInfo.new(
+        graph_context = GraphContext.new(
           schema: schema,
-          locations: @schemas,
           fields: @field_map,
-          arguments: @argument_map,
           boundaries: @boundary_map,
         )
 
-        validate_graph_info(graph_info)
-        graph_info
+        validate_graph_context(graph_context)
+        graph_context
       end
 
       def build_scalar_type(type_name, types_by_location)
@@ -422,10 +419,10 @@ module GraphQL
 
       VALIDATIONS = []
 
-      def validate_graph_info(graph_info)
+      def validate_graph_context(graph_context)
         results = VALIDATIONS.flat_map do |validation|
           begin
-            validation.new(self, graph_info).validate
+            validation.new(self, graph_context).validate
           rescue ValidationError => e
             e.message
           end

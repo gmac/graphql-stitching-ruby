@@ -46,7 +46,7 @@ describe 'GraphQL::Stitching::Compose, merging object and interface fields' do
     a = "type Test { field: String } type Query { test:Test }"
     b = "type Test { field: Int } type Query { test:Test }"
 
-    # verify error!
+    # @todo verify error!
     assert_raises do
       compose_definitions({ "a" => a, "b" => b })
     end
@@ -81,12 +81,13 @@ describe 'GraphQL::Stitching::Compose, merging object and interface fields' do
     a = "type Test { field: [[String!]] } type Query { test:Test }"
     b = "type Test { field: [String!] } type Query { test:Test }"
 
-    # verify error!
+    # @todo verify error!
     assert_raises do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
 
+  # @todo - test delegation maps
   def test_creates_delegation_map
 
   end

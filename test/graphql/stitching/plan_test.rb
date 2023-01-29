@@ -1,51 +1,49 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../test_schema/sample"
-require_relative "../../test_schema/unions"
+# require_relative "../../test_schema/sample"
+# require_relative "../../test_schema/unions"
 
 describe 'GraphQL::Stitching::Plan, make it work' do
 
+  # def test_plan_abstract_merged_types
+  #   widgets = "
+  #     type Widget { id:ID! }
+  #     type Query { widget(id: ID!): Widget }
+  #     type Mutation { makeWidget(id: ID!): Widget }
+  #   "
+  #   sprockets = "
+  #     type Sprocket { id:ID! }
+  #     type Query { sprocket(id: ID!): Sprocket }
+  #     type Mutation { makeSprocket(id: ID!): Sprocket }
+  #   "
 
-  def test_plan_abstract_merged_types
-    widgets = "
-      type Widget { id:ID! }
-      type Query { widget(id: ID!): Widget }
-      type Mutation { makeWidget(id: ID!): Widget }
-    "
-    sprockets = "
-      type Sprocket { id:ID! }
-      type Query { sprocket(id: ID!): Sprocket }
-      type Mutation { makeSprocket(id: ID!): Sprocket }
-    "
-
-    graph_info = compose_definitions({ "widgets" => widgets, "sprockets" => sprockets })
-
-  end
+  #   graph_context = compose_definitions({ "widgets" => widgets, "sprockets" => sprockets })
+  # end
 
 
-  QUERY = "
-    query ($var:ID!){
-      storefront(id: $var) {
-        id
-        products {
-          upc
-          name
-          price
-          manufacturer {
-            name
-            address
-            products { upc name }
-          }
-        }
-        ...on Storefront { name }
-        ...SfAttrs
-      }
-    }
-    fragment SfAttrs on Storefront {
-      name
-    }
-  "
+  # QUERY = "
+  #   query ($var:ID!){
+  #     storefront(id: $var) {
+  #       id
+  #       products {
+  #         upc
+  #         name
+  #         price
+  #         manufacturer {
+  #           name
+  #           address
+  #           products { upc name }
+  #         }
+  #       }
+  #       ...on Storefront { name }
+  #       ...SfAttrs
+  #     }
+  #   }
+  #   fragment SfAttrs on Storefront {
+  #     name
+  #   }
+  # "
 
   # def test_works
   #   subschemas = {
@@ -54,19 +52,19 @@ describe 'GraphQL::Stitching::Plan, make it work' do
   #     "manufacturers" => TestSchema::Sample::Manufacturers,
   #   }
 
-  #   graph_info = compose_definitions(subschemas)
-  #   graph_info.add_client do |document, variables, location|
+  #   graph_context = compose_definitions(subschemas)
+  #   graph_context.add_client do |document, variables, location|
   #     schema = subschemas[location]
   #     schema.execute(document, variables: variables).to_h
   #   end
 
   #   plan = GraphQL::Stitching::Plan.new(
-  #     graph_info: graph_info,
+  #     graph_context: graph_context,
   #     document: GraphQL.parse(QUERY),
   #   ).plan
 
   #   result = GraphQL::Stitching::Execute.new(
-  #     graph_info: graph_info,
+  #     graph_context: graph_context,
   #     plan: plan.as_json,
   #     variables: { "var" => "1", "handle" => { "handle" => "woof" } }
   #   ).perform
@@ -105,9 +103,9 @@ describe 'GraphQL::Stitching::Plan, make it work' do
 
   #   query = "{ fruit { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
-  #   graph_info = compose_definitions({ "a" => a, "b" => b, "c" => c })
+  #   graph_context = compose_definitions({ "a" => a, "b" => b, "c" => c })
   #   plan = GraphQL::Stitching::Plan.new(
-  #     graph_info: graph_info,
+  #     graph_context: graph_context,
   #     document: GraphQL.parse(query),
   #   ).plan
 
@@ -115,31 +113,31 @@ describe 'GraphQL::Stitching::Plan, make it work' do
   # end
 
 
-  def test_plan_abstract_merged_types
-    schemas = {
-      "a" => TestSchema::Unions::SchemaA,
-      "b" => TestSchema::Unions::SchemaB,
-      "c" => TestSchema::Unions::SchemaC,
-    }
+  # def test_plan_abstract_merged_types
+  #   schemas = {
+  #     "a" => TestSchema::Unions::SchemaA,
+  #     "b" => TestSchema::Unions::SchemaB,
+  #     "c" => TestSchema::Unions::SchemaC,
+  #   }
 
-    graph_info = compose_definitions(schemas)
-    graph_info.add_client do |document, variables, location|
-       schemas[location].execute(document, variables: variables).to_h
-    end
+  #   graph_context = compose_definitions(schemas)
+  #   graph_context.add_client do |document, variables, location|
+  #      schemas[location].execute(document, variables: variables).to_h
+  #   end
 
-    query = "{ fruitsA(ids: [\"1\", \"3\"]) { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
+  #   query = "{ fruitsA(ids: [\"1\", \"3\"]) { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
-    plan = GraphQL::Stitching::Plan.new(
-      graph_info: graph_info,
-      document: GraphQL.parse(query),
-    ).plan
+  #   plan = GraphQL::Stitching::Plan.new(
+  #     graph_context: graph_context,
+  #     document: GraphQL.parse(query),
+  #   ).plan
 
-    result = GraphQL::Stitching::Execute.new(
-      graph_info: graph_info,
-      plan: plan.as_json,
-    ).perform
+  #   result = GraphQL::Stitching::Execute.new(
+  #     graph_context: graph_context,
+  #     plan: plan.as_json,
+  #   ).perform
 
-    # pp plan.as_json
-    pp result
-  end
+  #   # pp plan.as_json
+  #   pp result
+  # end
 end

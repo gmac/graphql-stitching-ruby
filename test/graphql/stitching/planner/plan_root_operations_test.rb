@@ -4,25 +4,30 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Plan, root operations" do
 
-  WIDGETS = "
-    type Widget { id:ID! }
-    type Query { widget: Widget }
-    type Mutation { makeWidget: Widget }
-  "
+  def setup
+    @widgets_sdl = "
+      type Widget { id:ID! }
+      type Query { widget: Widget }
+      type Mutation { makeWidget: Widget }
+    "
 
-  SPROCKETS = "
-    type Sprocket { id:ID! }
-    type Query { sprocket: Sprocket }
-    type Mutation { makeSprocket: Sprocket }
-  "
+    @sprockets_sdl = "
+      type Sprocket { id:ID! }
+      type Query { sprocket: Sprocket }
+      type Mutation { makeSprocket: Sprocket }
+    "
 
-  GRAPH_CONTEXT = compose_definitions({ "widgets" => WIDGETS, "sprockets" => SPROCKETS })
+    @graph_context = compose_definitions({
+      "widgets" => @widgets_sdl,
+      "sprockets" => @sprockets_sdl,
+    })
+  end
 
   def test_plans_by_given_operation_name
     document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
 
     plan1 = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: document,
       operation_name: "First",
     ).plan
@@ -31,7 +36,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
     assert_equal "widget", plan1.operations.first.selections.first.name
 
     plan2 = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: document,
       operation_name: "Second",
     ).plan
@@ -45,7 +50,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
 
     assert_error "An operation name is required" do
       GraphQL::Stitching::Plan.new(
-        graph_info: GRAPH_CONTEXT,
+        graph_context: @graph_context,
         document: document,
       ).plan
     end
@@ -56,7 +61,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
 
     assert_error "Invalid root operation" do
       GraphQL::Stitching::Plan.new(
-        graph_info: GRAPH_CONTEXT,
+        graph_context: @graph_context,
         document: document,
         operation_name: "Invalid",
       ).plan
@@ -64,13 +69,13 @@ describe "GraphQL::Stitching::Plan, root operations" do
   end
 
   def test_errors_for_invalid_operation_types
-    graph_info = compose_definitions({ "widgets" => WIDGETS, "sprockets" => SPROCKETS })
-    graph_info.schema.subscription(graph_info.schema.get_type("Widget"))
+    graph_context = compose_definitions({ "widgets" => @widgets_sdl, "sprockets" => @sprockets_sdl })
+    graph_context.schema.subscription(graph_context.schema.get_type("Widget"))
     document = GraphQL.parse("subscription { id }")
 
     assert_error "Invalid root operation" do
       GraphQL::Stitching::Plan.new(
-        graph_info: GRAPH_CONTEXT,
+        graph_context: @graph_context,
         document: document,
       ).plan
     end
@@ -87,16 +92,23 @@ describe "GraphQL::Stitching::Plan, root operations" do
     "
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
 
     assert_equal 2, plan.operations.length
-    assert_equal "widgets", plan.operations[0].location
-    assert_equal ["a", "c"], plan.operations[0].selections.map(&:alias)
 
-    assert_equal "sprockets", plan.operations[1].location
-    assert_equal ["b", "d"], plan.operations[1].selections.map(&:alias)
+    first = plan.operations[0]
+    assert_equal "widgets", first.location
+    assert_equal "query", first.operation_type
+    assert_equal "{ a: widget { id } c: widget { id } }", first.selection_set
+    assert_nil first.after_key
+
+    second = plan.operations[1]
+    assert_equal "sprockets", second.location
+    assert_equal "query", second.operation_type
+    assert_equal "{ b: sprocket { id } d: sprocket { id } }", second.selection_set
+    assert_nil second.after_key
   end
 
   def test_plans_mutation_operations_by_serial_location_groups
@@ -111,18 +123,28 @@ describe "GraphQL::Stitching::Plan, root operations" do
     "
 
     plan = GraphQL::Stitching::Plan.new(
-      graph_info: GRAPH_CONTEXT,
+      graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
 
     assert_equal 3, plan.operations.length
-    assert_equal "widgets", plan.operations[0].location
-    assert_equal ["a"], plan.operations[0].selections.map(&:alias)
 
-    assert_equal "sprockets", plan.operations[1].location
-    assert_equal ["b", "c"], plan.operations[1].selections.map(&:alias)
+    first = plan.operations[0]
+    assert_equal "widgets", first.location
+    assert_equal "mutation", first.operation_type
+    assert_equal "{ a: makeWidget { id } }", first.selection_set
+    assert_nil first.after_key
 
-    assert_equal "widgets", plan.operations[2].location
-    assert_equal ["d", "e"], plan.operations[2].selections.map(&:alias)
+    second = plan.operations[1]
+    assert_equal "sprockets", second.location
+    assert_equal "mutation", second.operation_type
+    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selection_set
+    assert_equal first.key, second.after_key
+
+    third = plan.operations[2]
+    assert_equal "widgets", third.location
+    assert_equal "mutation", third.operation_type
+    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selection_set
+    assert_equal second.key, third.after_key
   end
 end

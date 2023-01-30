@@ -64,10 +64,13 @@ module GraphQL
       end
 
       def validate_as_shared(ctx, type, subschema_types_by_location)
-        # expected_fields = type.fields.keys
-        # subschema_types_by_location.each do |location, subschema_type|
-
-        # end
+        expected_fields = type.fields.keys.sort
+        subschema_types_by_location.each do |location, subschema_type|
+          if subschema_type.fields.keys.sort != expected_fields
+            raise "Shared type `#{type.graphql_name}` must have consistent fields across locations,
+            or else define boundary queries so that its unique fields may be accessed remotely."
+          end
+        end
       end
     end
   end

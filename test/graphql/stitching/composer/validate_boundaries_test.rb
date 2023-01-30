@@ -93,4 +93,20 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
       compose_definitions({ "a" => a, "b" => b, "c" => c })
     end
   end
+
+  def test_permits_shared_types_across_services_with_matching_compositions
+    a = %{type T { id:ID! name: String } type Query { a:T }}
+    b = %{type T { id:ID! name: String } type Query { b:T }}
+
+    assert compose_definitions({ "a" => a, "b" => b })
+  end
+
+  def test_validates_shared_types_across_must_have_matching_compositions
+    a = %{type T { id:ID! name: String extra: String } type Query { a:T }}
+    b = %{type T { id:ID! name: String } type Query { b:T }}
+
+    assert_error("Shared type `T` must have consistent fields", ValidationError) do
+      assert compose_definitions({ "a" => a, "b" => b })
+    end
+  end
 end

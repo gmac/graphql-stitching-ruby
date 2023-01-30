@@ -422,7 +422,7 @@ module GraphQL
       ]
 
       def validate_graph_context(graph_context)
-        results = VALIDATIONS.flat_map do |validation|
+        VALIDATIONS.flat_map do |validation|
           begin
             klass = Object.const_get("GraphQL::Stitching::Composer::#{validation}")
             klass.new.perform(graph_context, self)
@@ -431,8 +431,6 @@ module GraphQL
             raise ValidationError, e.message
           end
         end
-
-        raise results.join("\n") if results.any?
       end
     end
   end

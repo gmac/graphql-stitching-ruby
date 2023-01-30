@@ -17,7 +17,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       type Mutation { makeSprocket: Sprocket }
     "
 
-    @graph_context = compose_definitions({
+    @supergraph = compose_definitions({
       "widgets" => @widgets_sdl,
       "sprockets" => @sprockets_sdl,
     })
@@ -27,19 +27,19 @@ describe "GraphQL::Stitching::Planner, root operations" do
     document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
 
     plan1 = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: document,
       operation_name: "First",
-    ).plan
+    ).perform
 
     assert_equal 1, plan1.operations.length
     assert_equal "widget", plan1.operations.first.selections.first.name
 
     plan2 = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: document,
       operation_name: "Second",
-    ).plan
+    ).perform
 
     assert_equal 1, plan2.operations.length
     assert_equal "sprocket", plan2.operations.first.selections.first.name
@@ -50,9 +50,9 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_error "An operation name is required" do
       GraphQL::Stitching::Planner.new(
-        graph_context: @graph_context,
+        supergraph: @supergraph,
         document: document,
-      ).plan
+      ).perform
     end
   end
 
@@ -61,23 +61,23 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_error "Invalid root operation" do
       GraphQL::Stitching::Planner.new(
-        graph_context: @graph_context,
+        supergraph: @supergraph,
         document: document,
         operation_name: "Invalid",
-      ).plan
+      ).perform
     end
   end
 
   def test_errors_for_invalid_operation_types
-    graph_context = compose_definitions({ "widgets" => @widgets_sdl, "sprockets" => @sprockets_sdl })
-    graph_context.schema.subscription(graph_context.schema.get_type("Widget"))
+    supergraph = compose_definitions({ "widgets" => @widgets_sdl, "sprockets" => @sprockets_sdl })
+    supergraph.schema.subscription(supergraph.schema.get_type("Widget"))
     document = GraphQL.parse("subscription { id }")
 
     assert_error "Invalid root operation" do
       GraphQL::Stitching::Planner.new(
-        graph_context: @graph_context,
+        supergraph: @supergraph,
         document: document,
-      ).plan
+      ).perform
     end
   end
 
@@ -92,9 +92,9 @@ describe "GraphQL::Stitching::Planner, root operations" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 2, plan.operations.length
 
@@ -123,9 +123,9 @@ describe "GraphQL::Stitching::Planner, root operations" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 3, plan.operations.length
 

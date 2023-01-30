@@ -48,7 +48,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       }
     "
 
-    @graph_context = compose_definitions({
+    @supergraph = compose_definitions({
       "storefronts" => @storefronts_sdl,
       "products" => @products_sdl,
       "manufacturers" => @manufacturers_sdl,
@@ -74,9 +74,9 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 3, plan.operations.length
 
@@ -109,14 +109,14 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     document2 = "{ productsManufacturer(id: \"1\") { name products { name } } }"
 
     plan1 = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document1),
-    ).plan
+    ).perform
 
     plan2 = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document2),
-    ).plan
+    ).perform
 
     assert_equal 2, plan1.operations.length
     assert_equal 1, plan2.operations.length

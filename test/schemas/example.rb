@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module TestSchema
-  module Sample
+module Schemas
+  module Example
     class Boundary < GraphQL::Schema::Directive
       graphql_name "boundary"
       locations FIELD_DEFINITION
@@ -17,23 +17,27 @@ module TestSchema
       { upc: '5', name: 'iOS Survival Guide', price: 24.99, manufacturer_id: '1' },
     ]
 
+    STOREFRONTS = [
+      { id: '1', name: 'eShoppe', product_upcs: ['1', '2'] },
+      { id: '2', name: 'BestBooks Online', product_upcs: ['3', '4', '5'] },
+    ]
+
+    MANUFACTURERS = [
+      { id: '1', name: 'Apple', address: '123 Main' },
+      { id: '2', name: 'Macmillan', address: '456 Market' },
+    ]
+
+    # Products
+
     class Products < GraphQL::Schema
-      module Node
-        include GraphQL::Schema::Interface
-
-        field :upc, ID, null: false
-      end
-
       class Product < GraphQL::Schema::Object
-        implements Node
-
         field :upc, ID, null: false, description: "products desc"
 
         field :name, String, null: false
 
         field :price, Float, null: false
 
-        field :manufacturer, "TestSchema::Sample::Products::Manufacturer", null: false
+        field :manufacturer, "Schemas::Example::Products::Manufacturer", null: false
 
         def manufacturer
           { id: object[:manufacturer_id] }
@@ -52,7 +56,7 @@ module TestSchema
 
       class RootQuery < GraphQL::Schema::Object
         field :product, Product, null: false do
-          # directive Boundary, key: "upc"
+          directive Boundary, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -60,33 +64,24 @@ module TestSchema
           PRODUCTS.find { _1[:upc] == upc }
         end
 
-        field :node, Node, null: false do
-          directive Boundary, key: "upc"
-          argument :upc, ID, required: true
+        field :manufacturer, Manufacturer, null: false do
+          directive Boundary, key: "id"
+          argument :id, ID, required: true
         end
 
-        def node(upc:)
-          PRODUCTS.find { _1[:upc] == upc }
+        def manufacturer(id:)
+          MANUFACTURERS.find { _1[:id] == id }
         end
-      end
-
-      def self.resolve_type(_type, _obj, _ctx)
-        Product
       end
 
       query RootQuery
     end
 
-    STOREFRONTS = [
-      { id: '1', name: 'eShoppe', product_upcs: ['1', '2'] },
-      { id: '2', name: 'BestBooks Online', product_upcs: ['3', '4', '5'] },
-    ]
+    # Storefronts
 
     class Storefronts < GraphQL::Schema
       class Product < GraphQL::Schema::Object
-        description "storefronts desc"
-
-        field :upc, ID, null: false, description: "storefronts desc"
+        field :upc, ID, null: false
       end
 
       class Storefront < GraphQL::Schema::Object
@@ -101,7 +96,6 @@ module TestSchema
 
       class Query < GraphQL::Schema::Object
         field :storefront, Storefront, null: true do
-          directive Boundary, key: "id:id"
           argument :id, ID, required: true
         end
 
@@ -113,10 +107,7 @@ module TestSchema
       query Query
     end
 
-    MANUFACTURERS = [
-      { id: '1', name: 'Apple', address: '123 Main' },
-      { id: '2', name: 'Macmillan', address: '456 Market' },
-    ]
+    # Manufacturers
 
     class Manufacturers < GraphQL::Schema
       class Manufacturer < GraphQL::Schema::Object

@@ -8,8 +8,8 @@ module GraphQL
 
       attr_reader :results
 
-      def initialize(graph_context:, plan:, variables:{})
-        @graph_context = graph_context
+      def initialize(supergraph:, plan:, variables:{})
+        @supergraph = supergraph
         @plan = plan
         @variables = variables
         @queue = plan[:ops].dup
@@ -69,13 +69,27 @@ module GraphQL
         end
       end
 
+      def execute_at_location(location, document, variables)
+        resource = @supergraph.resources[location]
+
+        if resource.nil?
+          raise "No executable resource assigned for #{location} location."
+        elsif resource.is_a?(Class) && resource <= GraphQL::Schema
+          resource.execute(query: document, variables: variables)
+        elsif resource.is_a?(RemoteClient) || resource.respond_to?(:call)
+          resource.call(location, document, variables)
+        else
+          raise "Unexpected executable resource type for #{location} location."
+        end
+      end
+
       def query_root_location(op)
         variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
         variable_defs = "(#{variable_defs})" if variable_defs.length > 0
         document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
         variables = @variables.slice(*op[:variables].keys)
 
-        @graph_context.get_client(op[:location]).call(document, variables, op[:location])
+        execute_at_location(op[:location], document, variables)
       end
 
       def query_boundary_location(op, origin_set, insertion_path)
@@ -102,7 +116,7 @@ module GraphQL
 
         puts document
         variables = @variables.slice(*op[:variables].keys)
-        result = @graph_context.get_client(location).call(document, variables, location)
+        result = execute_at_location(location, document, variables)
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))

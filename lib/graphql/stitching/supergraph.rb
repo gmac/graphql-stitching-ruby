@@ -1,40 +1,52 @@
 # typed: false
 # frozen_string_literal: true
 
+require "json"
+
 module GraphQL
   module Stitching
-    class GraphContext
-      attr_reader :schema, :boundaries, :locations_by_type_and_field
+    class Supergraph
+      LOCATION = "__super"
 
-      DEFAULT_CLIENT = ->(document, variables, location) { raise "Not implemented." }
+      attr_reader :schema, :boundaries, :locations_by_type_and_field, :resources
 
-      def initialize(schema:, fields:, boundaries:)
+      def initialize(schema:, fields:, boundaries:, resources: {})
         @schema = schema
         @boundaries = boundaries
         @locations_by_type_and_field = fields
         @possible_keys_by_type_and_location = {}
-        @clients = { DEFAULT_CLIENT => DEFAULT_CLIENT }
+        @resources = { LOCATION => @schema }.merge!(resources)
       end
 
-      def add_client(location = DEFAULT_CLIENT, &block)
-        raise "A client block must be provided." unless block_given?
-        @clients[location] = block
-      end
-
-      def get_client(location = nil)
-        if location
-          location_client = @clients[location]
-          raise "No client specified for #{location}." unless location_client
-          return location_client
-        end
-        @clients[DEFAULT_CLIENT]
-      end
-
-      def delegation_map
-        {
-          boundaries: @boundaries,
-          fields: @locations_by_type_and_field,
+      def export
+        return GraphQL::Schema::Printer.print_schema(@schema), {
+          "fields" => @locations_by_type_and_field,
+          "boundaries" => @boundaries,
         }
+      end
+
+      def self.from_export(schema, delegation_map)
+        schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
+        delegation_map = JSON.parse(delegation_map) if delegation_map.is_a?(String)
+        new(
+          schema: schema,
+          fields: delegation_map["fields"],
+          boundaries: delegation_map["boundaries"]
+        )
+      end
+
+      def assign_location_schema(location, schema)
+        raise "Schema must be a `GraphQL::Schema` class." unless schema <= GraphQL::Schema
+        @resources[location] = schema
+      end
+
+      def assign_location_url(location, url, headers={})
+        @resources[location] = RemoteClient.new(url: url, headers: headers)
+      end
+
+      def assign_location_handler(location, handler = nil, &block)
+        raise "A client block must be provided." unless block_given?
+        @resources[location] = handler || block
       end
 
       # inverts fields map to provide fields for a type/location
@@ -64,10 +76,9 @@ module GraphQL
       end
 
       # For a given type, route from one origin service to one or more remote locations.
-      # Tunes a-star search to favor paths with fewest joining locations
-      # (ie: favor a longer paths through target locations
-      # over a shorter paths with additional locations).
-      def route_to_locations(type_name, start_location, goal_locations)
+      # Tunes a-star search to favor paths with fewest joining locations, ie:
+      # favor longer paths through target locations over shorter paths with additional locations.
+      def route_type_to_locations(type_name, start_location, goal_locations)
         results = {}
         costs = {}
 
@@ -100,7 +111,7 @@ module GraphQL
             costs[location] = current_cost if current_cost < best_cost
 
             possible_keys_for_type_and_location(type_name, location).each do |possible_key|
-              paths << [*path, { location: location, selection: possible_key, cost: path.last[:cost] }]
+              paths << [*path, { location: location, selection: possible_key, cost: current_cost }]
             end
           end
 

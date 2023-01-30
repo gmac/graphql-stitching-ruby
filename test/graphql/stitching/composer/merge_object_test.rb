@@ -25,8 +25,6 @@ describe 'GraphQL::Stitching::Composer, merging objects' do
   end
 
   MOVIES_SCHEMA = %{
-    directive @boundary(key: String!) on FIELD_DEFINITION
-
     type Movie {
       id: ID!
       title: String!
@@ -43,8 +41,6 @@ describe 'GraphQL::Stitching::Composer, merging objects' do
   }
 
   SHOWTIMES_SCHEMA = %{
-    directive @boundary(key: String!) on FIELD_DEFINITION
-
     type Movie {
       id: ID!
       title: String

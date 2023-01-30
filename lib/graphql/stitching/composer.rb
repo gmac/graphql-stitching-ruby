@@ -9,9 +9,21 @@ module GraphQL
       attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location
 
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
+
+      INTROSPECTION_TYPES = [
+        "__Schema",
+        "__Type",
+        "__Field",
+        "__Directive",
+        "__EnumValue",
+        "__InputValue",
+        "__TypeKind",
+        "__DirectiveLocation",
+      ].freeze
+
       VALIDATORS = [
         "ValidateBoundaries"
-      ]
+      ].freeze
 
       def initialize(
         schemas:,
@@ -30,13 +42,13 @@ module GraphQL
         @deprecation_merger = deprecation_merger || DEFAULT_STRING_MERGER
       end
 
-      def compose
+      def perform
         # "Typename" => "location" => candidate_type
         @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
           schema.types.each do |type_name, type_candidate|
-            next if type_name.start_with?("__")
+            next if INTROSPECTION_TYPES.include?(type_name)
 
             if type_name == @query_name && type_candidate != schema.query
               raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
@@ -91,18 +103,19 @@ module GraphQL
         schema.send(:own_orphan_types).clear # cheat
         expand_abstract_boundaries(schema)
 
-        graph_context = GraphContext.new(
+        supergraph = Supergraph.new(
           schema: schema,
           fields: @field_map,
           boundaries: @boundary_map,
+          resources: @schemas,
         )
 
         VALIDATORS.each do |validator|
           klass = Object.const_get("GraphQL::Stitching::Composer::#{validator}")
-          klass.new.perform(graph_context, self)
+          klass.new.perform(supergraph, self)
         end
 
-        graph_context
+        supergraph
       end
 
       def build_scalar_type(type_name, types_by_location)
@@ -378,8 +391,8 @@ module GraphQL
           boundary_type = schema.types[type_name]
           next unless Util.is_abstract_type?(boundary_type)
 
-          # @todo Need to filter this to ONLY types that are actually boundaries...
-          Util.get_possible_types(schema, boundary_type).each do |possible_type|
+          possible_types = Util.get_possible_types(schema, boundary_type)
+          possible_types.select { @subschema_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |possible_type|
             @boundary_map[possible_type.graphql_name] ||= []
             @boundary_map[possible_type.graphql_name].push(*@boundary_map[type_name])
           end
@@ -392,7 +405,7 @@ module GraphQL
 
         schemas.each do |schema|
           schema.types.values.each do |type|
-            next if type.graphql_name.start_with?("__")
+            next if INTROSPECTION_TYPES.include?(type.graphql_name)
 
             if type.kind.name == "OBJECT" || type.kind.name == "INTERFACE"
               type.fields.values.each do |field|

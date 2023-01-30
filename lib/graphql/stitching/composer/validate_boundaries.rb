@@ -4,6 +4,9 @@
 module GraphQL
   module Stitching
     class Composer::ValidateBoundaries < Composer::BaseValidator
+
+      ValidationError = GraphQL::Stitching::Composer::ValidationError
+
       def perform(ctx, composer)
         ctx.schema.types.each do |type_name, type|
           # objects and interfaces that are not the root operation types
@@ -55,7 +58,7 @@ module GraphQL
         # verify that all outbound locations can access all inbound locations
         (outbound_access_locations + bidirectional_access_locations).each do |location|
           remote_locations = bidirectional_access_locations.reject { _1 == location }
-          paths = ctx.route_to_locations(type.graphql_name, location, remote_locations)
+          paths = ctx.route_type_to_locations(type.graphql_name, location, remote_locations)
           if paths.length != remote_locations.length || paths.any? { |_loc, path| path.nil? }
             raise ValidationError, "Cannot route `#{type.graphql_name}` boundaries in #{location} to all other locations.
             All locations must provide a boundary accessor that uses a conjoining key."

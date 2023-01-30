@@ -117,4 +117,99 @@ describe "GraphQL::Stitching::GraphContext" do
     assert_equal 1, context.get_client("products").call
     assert_equal 2, context.get_client("manufacturers").call
   end
+
+  def test_route_to_locations_connects_types_across_locations
+    a = %{
+      type T { upc:ID! }
+      type Query { a(upc:ID!):T @boundary(key: "upc") }
+    }
+    b = %{
+      type T { id:ID! upc:ID! }
+      type Query {
+        ba(upc:ID!):T @boundary(key: "upc")
+        bc(id:ID!):T @boundary(key: "id")
+      }
+    }
+    c = %{
+      type T { id:ID! }
+      type Query { c(id:ID!):T @boundary(key: "id") }
+    }
+
+    context = compose_definitions({ "a" => a, "b" => b, "c" => c })
+
+    routes = context.route_to_locations("T", "a", ["b", "c"])
+    assert_equal ["b"], routes["b"].map { _1["location"] }
+    assert_equal ["b", "c"], routes["c"].map { _1["location"] }
+
+    routes = context.route_to_locations("T", "b", ["a", "c"])
+    assert_equal ["a"], routes["a"].map { _1["location"] }
+    assert_equal ["c"], routes["c"].map { _1["location"] }
+
+    routes = context.route_to_locations("T", "c", ["a", "b"])
+    assert_equal ["b", "a"], routes["a"].map { _1["location"] }
+    assert_equal ["b"], routes["b"].map { _1["location"] }
+  end
+
+  def test_route_to_locations_favors_longer_paths_through_necessary_locations
+    a = %{
+      type T { id:ID! }
+      type Query { a(id:ID!):T @boundary(key: "id") }
+    }
+    b = %{
+      type T { id:ID! upc:ID! }
+      type Query {
+        ba(id:ID!):T @boundary(key: "id")
+        bc(upc:ID!):T @boundary(key: "upc")
+      }
+    }
+    c = %{
+      type T { upc:ID! gid:ID! }
+      type Query {
+        cb(upc:ID!):T @boundary(key: "upc")
+        cd(gid:ID!):T @boundary(key: "gid")
+      }
+    }
+    d = %{
+      type T { gid:ID! code:ID! }
+      type Query {
+        dc(gid:ID!):T @boundary(key: "gid")
+        de(code:ID!):T @boundary(key: "code")
+      }
+    }
+    e = %{
+      type T { code:ID! id:ID! }
+      type Query {
+        ed(code:ID!):T @boundary(key: "code")
+        ea(id:ID!):T @boundary(key: "id")
+      }
+    }
+
+    context = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
+
+    # Broken!!
+    routes = context.route_to_locations("T", "a", ["b", "c", "d"])
+    assert_equal ["b", "c", "d"], routes["d"].map { _1["location"] }
+    assert routes.none? { |_key, path| path.any? { _1["location"] == "e" } }
+  end
+
+  def test_route_to_locations_returns_nil_for_unreachable_locations
+    a = %{
+      type T { upc:ID! }
+      type Query { a(upc:ID!):T @boundary(key: "upc") }
+    }
+    b = %{
+      type T { id:ID! }
+      type Query { b(id:ID!):T @boundary(key: "id") }
+    }
+    c = %{
+      type T { id:ID! }
+      type Query { c(id:ID!):T @boundary(key: "id") }
+    }
+
+    context = compose_definitions({ "a" => a, "b" => b, "c" => c })
+
+    routes = context.route_to_locations("T", "b", ["a", "c"])
+    assert_equal ["c"], routes["c"].map { _1["location"] }
+    assert_nil routes["a"]
+  end
 end

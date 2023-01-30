@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Compose, merging input objects' do
+describe 'GraphQL::Stitching::Composer, merging input objects' do
 
   def test_merges_input_object_descriptions
     a = %{"""a""" input Test { field:String } type Query { get(test:Test):String }}

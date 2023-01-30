@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Compose, merging interfaces' do
+describe 'GraphQL::Stitching::Composer, merging interfaces' do
 
   def test_merges_interface_descriptions
     a = %{"""a""" interface Test { field: String } type Query { test:Test }}

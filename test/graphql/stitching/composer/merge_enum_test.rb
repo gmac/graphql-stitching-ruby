@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Compose, merging enums' do
+describe 'GraphQL::Stitching::Composer, merging enums' do
 
   def test_merges_enum_and_value_descriptions
     a = %{"""a""" enum Status { """a""" YES } type Query { status:Status }}

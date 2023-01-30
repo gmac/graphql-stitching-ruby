@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Compose, merging root objects' do
+describe 'GraphQL::Stitching::Composer, merging root objects' do
 
   def test_merges_fields_of_root_scopes
     a = "type Query { a:String } type Mutation { a:String }"
@@ -40,7 +40,7 @@ describe 'GraphQL::Stitching::Compose, merging root objects' do
   def test_errors_for_subscription
     a = "type Query { a:String } type Mutation { a:String } type Subscription { b:String }"
 
-    assert_error('subscription operation is not supported', ComposeError) do
+    assert_error('subscription operation is not supported', ComposerError) do
       compose_definitions({ "a" => a })
     end
   end
@@ -48,7 +48,7 @@ describe 'GraphQL::Stitching::Compose, merging root objects' do
   def test_errors_for_query_type_name_conflict
     a = "type Query { a:String } type Boom { a:String }"
 
-    assert_error('Query name "Boom" is used', ComposeError) do
+    assert_error('Query name "Boom" is used', ComposerError) do
       compose_definitions({ "a" => a }, { query_name: "Boom" })
     end
   end
@@ -56,7 +56,7 @@ describe 'GraphQL::Stitching::Compose, merging root objects' do
   def test_errors_for_mutation_type_name_conflict
     a = "type Query { a:String } type Mutation { a:String } type Boom { a:String }"
 
-    assert_error('Mutation name "Boom" is used', ComposeError) do
+    assert_error('Mutation name "Boom" is used', ComposerError) do
       compose_definitions({ "a" => a }, { mutation_name: "Boom" })
     end
   end

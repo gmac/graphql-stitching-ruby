@@ -2,13 +2,13 @@
 
 require "test_helper"
 
-class GraphQL::Stitching::ComposeTest < Minitest::Test
+class GraphQL::Stitching::ComposerTest < Minitest::Test
 
   def test_errors_for_merged_types_of_different_kinds
     a = "type Query { a:Boom } type Boom { a:String }"
     b = "type Query { b:Boom } interface Boom { b:String }"
 
-    assert_error('Cannot merge different kinds for `Boom`. Found: OBJECT, INTERFACE', ComposeError) do
+    assert_error('Cannot merge different kinds for `Boom`. Found: OBJECT, INTERFACE', ComposerError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end

@@ -25,7 +25,7 @@ def compose_definitions(schemas, options={})
       schema_or_sdl
     end
   end
-  GraphQL::Stitching::Compose.new(schemas: schemas, **options).compose
+  GraphQL::Stitching::Composer.new(schemas: schemas, **options).compose
 end
 
 def extract_types_of_kind(schema, kind)
@@ -56,7 +56,8 @@ def print_value_type(type)
   end
 end
 
-ComposeError = GraphQL::Stitching::Compose::ComposeError
+ComposerError = GraphQL::Stitching::Composer::ComposerError
+ValidationError = GraphQL::Stitching::Composer::ValidationError
 
 def assert_error(pattern, klass=nil)
   begin
@@ -67,6 +68,6 @@ def assert_error(pattern, klass=nil)
     else
       assert pattern.match?(e.message), "Unexpected error message: #{e.message}"
     end
-    assert e.is_a?(klass) if klass
+    assert e.is_a?(klass), "Unexpected error type #{klass.name}" if klass
   end
 end

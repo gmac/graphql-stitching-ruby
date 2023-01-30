@@ -5,7 +5,7 @@ require "test_helper"
 describe "GraphQL::Stitching::Plan, boundaries" do
 
   def setup
-    @storefronts = "
+    @storefronts_sdl = "
       type Storefront {
         id: ID!
         name: String!
@@ -19,7 +19,7 @@ describe "GraphQL::Stitching::Plan, boundaries" do
       }
     "
 
-    @products = "
+    @products_sdl = "
       type Product {
         upc: ID!
         name: String!
@@ -37,7 +37,7 @@ describe "GraphQL::Stitching::Plan, boundaries" do
       }
     "
 
-    @manufacturers = "
+    @manufacturers_sdl = "
       type Manufacturer {
         id: ID!
         name: String!
@@ -49,9 +49,9 @@ describe "GraphQL::Stitching::Plan, boundaries" do
     "
 
     @graph_context = compose_definitions({
-      "storefronts" => @storefronts,
-      "products" => @products,
-      "manufacturers" => @manufacturers,
+      "storefronts" => @storefronts_sdl,
+      "products" => @products_sdl,
+      "manufacturers" => @manufacturers_sdl,
     })
   end
 

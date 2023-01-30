@@ -2,11 +2,11 @@
 
 module GraphQL
   module Stitching
-    class Compose
-      class ComposeError < StandardError; end
-      class ValidationError < ComposeError; end
+    class Composer
+      class ComposerError < StandardError; end
+      class ValidationError < ComposerError; end
 
-      attr_reader :query_name, :mutation_name
+      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location
 
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
 
@@ -29,16 +29,16 @@ module GraphQL
 
       def compose
         # "Typename" => "location" => candidate_type
-        types_by_name_location = @schemas.each_with_object({}) do |(location, schema), memo|
-          raise ComposeError, "The subscription operation is not supported." if schema.subscription
+        @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+          raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
           schema.types.each do |type_name, type_candidate|
             next if type_name.start_with?("__")
 
             if type_name == @query_name && type_candidate != schema.query
-              raise ComposeError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
+              raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
             elsif type_name == @mutation_name && type_candidate != schema.mutation
-              raise ComposeError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+              raise ComposerError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             end
 
             type_name = @query_name if type_candidate == schema.query
@@ -52,11 +52,11 @@ module GraphQL
         enum_usage = build_enum_usage_map(@schemas.values)
 
         # "Typename" => merged_type
-        schema_types = types_by_name_location.each_with_object({}) do |(type_name, types_by_location), memo|
+        schema_types = @subschema_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
           unless kinds.all? { _1 == kinds.first }
-            raise ComposeError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
+            raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
           memo[type_name] = case kinds.first
@@ -74,7 +74,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise ComposeError, "Unexpected kind encountered for `#{type_name}`. Found: #{kind}."
+            raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kind}."
           end
         end
 
@@ -244,7 +244,7 @@ module GraphQL
           if arguments_by_location.length != members_by_location.length
             if value_types.any?(&:non_null?)
               path = [type_name, field_name, argument_name].compact.join(".")
-              raise ComposeError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
+              raise ComposerError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
             end
             next
           end
@@ -265,7 +265,7 @@ module GraphQL
         named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
 
         unless named_types.all? { _1 == named_types.first }
-          raise ComposeError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
+          raise ComposerError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
         end
 
         type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
@@ -277,7 +277,7 @@ module GraphQL
 
         if list_structures.any?(&:any?)
           if list_structures.any? { _1.length != list_structures.first.length }
-            raise ComposeError, "Cannot compose mixed list structures at `#{path}`."
+            raise ComposerError, "Cannot compose mixed list structures at `#{path}`."
           end
 
           list_structures.each(&:reverse!)
@@ -333,7 +333,7 @@ module GraphQL
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1
-                raise ComposeError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
+                raise ComposerError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
               argument_name = key_selections[0].alias
@@ -344,12 +344,12 @@ module GraphQL
               argument = field_candidate.arguments[argument_name]
               unless argument
                 # contextualize this... "boundaries with multiple args need mapping aliases."
-                raise ComposeError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
+                raise ComposerError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
               end
 
               argument_list = Util.get_list_structure(argument.type)
               if argument_list.length != boundary_list.length
-                raise ComposeError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
+                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
               end
 
               @boundary_map[boundary_type_name] ||= []
@@ -417,14 +417,18 @@ module GraphQL
         end
       end
 
-      VALIDATIONS = []
+      VALIDATIONS = [
+        "ValidateBoundaries"
+      ]
 
       def validate_graph_context(graph_context)
         results = VALIDATIONS.flat_map do |validation|
           begin
-            validation.new(self, graph_context).validate
-          rescue ValidationError => e
-            e.message
+            klass = Object.const_get("GraphQL::Stitching::Composer::#{validation}")
+            klass.new.perform(graph_context, self)
+            nil
+          rescue StandardError => e
+            raise ValidationError, e.message
           end
         end
 
@@ -433,3 +437,5 @@ module GraphQL
     end
   end
 end
+
+require_relative "./composer/validate_boundaries"

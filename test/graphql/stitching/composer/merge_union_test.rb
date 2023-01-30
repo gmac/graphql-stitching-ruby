@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Compose, merging unions' do
+describe 'GraphQL::Stitching::Composer, merging unions' do
 
   def test_merges_union_types
     a = %{type A { a:Int } union Thing = A type Query { thing:Thing }}

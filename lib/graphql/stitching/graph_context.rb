@@ -12,6 +12,7 @@ module GraphQL
         @schema = schema
         @boundaries = boundaries
         @locations_by_type_and_field = fields
+        @possible_keys_by_type_and_location = {}
         @clients = { DEFAULT_CLIENT => DEFAULT_CLIENT }
       end
 
@@ -36,8 +37,8 @@ module GraphQL
         }
       end
 
+      # inverts fields map to provide fields for a type/location
       def fields_by_type_and_location
-        # invert fields map to provide fields for a type/location
         @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
             locations.each do |location|
@@ -54,50 +55,60 @@ module GraphQL
         end
       end
 
+      def possible_keys_for_type_and_location(type_name, location)
+        possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
+        possible_keys_by_type[location] ||= begin
+          location_fields = fields_by_type_and_location[type_name][location]
+          location_fields & @boundaries[type_name].map { _1["selection"] }
+        end
+      end
+
       # For a given type, route from one origin service to one or more remote locations.
       # Tunes a-star search to favor paths with fewest joining locations
       # (ie: favor a longer paths through target locations
       # over a shorter paths with additional locations).
       def route_to_locations(type_name, start_location, goal_locations)
-        boundaries_for_type = boundaries[type_name]
-        possible_keys = boundaries_for_type.map { _1["selection"] }
-        possible_keys.uniq!
-
-        location_fields = fields_by_type_and_location[type_name][start_location]
-        location_keys = location_fields & possible_keys
-        paths = location_keys.map { [{ "location" => start_location, "selection" => _1 }] }
-
         results = {}
         costs = {}
-        max_cost = 1
+
+        paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
+          [{ location: start_location, selection: possible_key, cost: 0 }]
+        end
 
         while paths.any?
           path = paths.pop
-          boundaries_for_type.each do |boundary|
-            next unless boundary["selection"] == path.last["selection"] && path.none? { boundary["location"] == _1["location"] }
-
-            cost = path.count { !goal_locations.include?(_1["location"]) }
-            next if results.length == goal_locations.length && cost > max_cost
-
-            path.last["boundary"] = boundary
+          @boundaries[type_name].each do |boundary|
             location = boundary["location"]
+            next if path.last[:selection] != boundary["selection"]
+            next if path.any? { _1[:location] == location }
+
+            best_cost = costs[location] || Float::INFINITY
+            current_cost = path.last[:cost]
+            next if best_cost < current_cost
+
+            path << ({ boundary: boundary }.merge!(path.pop))
+
             if goal_locations.include?(location)
-              result = results[location]
-              if result.nil? || cost < costs[location] || (cost == costs[location] && path.length < result.length)
-                results[location] = path.map { _1["boundary"] }
-                costs[location] = cost
-                max_cost = cost if cost > max_cost
+              current_result = results[location]
+              if current_result.nil? || current_cost < best_cost || (current_cost == best_cost && path.length < current_result.length)
+                results[location] = path.map { _1[:boundary] }
               end
+            else
+              current_cost = path.last[:cost] += 1
             end
 
-            location_fields = fields_by_type_and_location[type_name][location]
-            location_keys = location_fields & possible_keys
-            location_keys.each do |key|
-              paths << [*path, { "location" => location, "selection" => key }]
+            costs[location] = current_cost if current_cost < best_cost
+
+            possible_keys_for_type_and_location(type_name, location).each do |possible_key|
+              paths << [*path, { location: location, selection: possible_key, cost: path.last[:cost] }]
             end
           end
 
-          paths.sort_by!(&:length).reverse!
+          paths.sort! do |a, b|
+            cost_diff = a.last[:cost] - b.last[:cost]
+            next cost_diff unless cost_diff.zero?
+            a.length - b.length
+          end.reverse!
         end
 
         results

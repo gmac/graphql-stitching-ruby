@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Plan, boundaries" do
+describe "GraphQL::Stitching::Planner, boundaries" do
 
   def setup
     @storefronts_sdl = "
@@ -73,7 +73,7 @@ describe "GraphQL::Stitching::Plan, boundaries" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
@@ -108,12 +108,12 @@ describe "GraphQL::Stitching::Plan, boundaries" do
     document1 = "{         manufacturer(id: \"1\") { name products { name } } }"
     document2 = "{ productsManufacturer(id: \"1\") { name products { name } } }"
 
-    plan1 = GraphQL::Stitching::Plan.new(
+    plan1 = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document1),
     ).plan
 
-    plan2 = GraphQL::Stitching::Plan.new(
+    plan2 = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document2),
     ).plan

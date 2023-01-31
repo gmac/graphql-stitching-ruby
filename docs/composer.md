@@ -44,8 +44,10 @@ The strategy used to merge source schemas into the combined schema is based on e
 
 - `Object` and `Interface` types merge their fields together:
   - Common fields across locations must share a value type, and the weakest nullability is used.
-  - Objects with unique fields across locations must implement [`@boundary` accessors](#).
   - Field arguments merge using the same rules as `InputObject`.
+  - Objects with unique fields across locations must implement [`@boundary` accessors](#).
+  - Shared object types without `@boundary` accessors must contain identical fields.
+  - Merged interfaces must remain compatible with all underlying implementations.
 
 - `InputObject` types intersect arguments from across locations (arguments must appear in all locations):
   - Arguments must share a value type, and the strictest nullability across locations is used.

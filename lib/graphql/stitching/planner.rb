@@ -3,7 +3,7 @@
 
 module GraphQL
   module Stitching
-    class Plan
+    class Planner
       attr_reader :operations
 
       SUPPORTED_OPERATIONS = ["query", "mutation"]

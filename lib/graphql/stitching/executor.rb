@@ -4,7 +4,7 @@ require "promise.rb"
 
 module GraphQL
   module Stitching
-    class Execute
+    class Executor
 
       attr_reader :results
 

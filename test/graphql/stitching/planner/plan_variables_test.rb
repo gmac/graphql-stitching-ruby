@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Plan, variables" do
+describe "GraphQL::Stitching::Planner, variables" do
 
   def setup
     @widgets_sdl = "
@@ -33,7 +33,7 @@ describe "GraphQL::Stitching::Plan, variables" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
@@ -55,7 +55,7 @@ describe "GraphQL::Stitching::Plan, variables" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
@@ -77,7 +77,7 @@ describe "GraphQL::Stitching::Plan, variables" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan

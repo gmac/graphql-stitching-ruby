@@ -94,14 +94,14 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     end
   end
 
-  def test_permits_shared_types_across_services_with_matching_compositions
+  def test_permits_shared_types_across_locations_with_matching_compositions
     a = %{type T { id:ID! name: String } type Query { a:T }}
     b = %{type T { id:ID! name: String } type Query { b:T }}
 
     assert compose_definitions({ "a" => a, "b" => b })
   end
 
-  def test_validates_shared_types_across_must_have_matching_compositions
+  def test_validates_shared_types_across_locations_must_have_matching_compositions
     a = %{type T { id:ID! name: String extra: String } type Query { a:T }}
     b = %{type T { id:ID! name: String } type Query { b:T }}
 

@@ -427,4 +427,5 @@ module GraphQL
   end
 end
 
+require_relative "./composer/base_validator"
 require_relative "./composer/validate_boundaries"

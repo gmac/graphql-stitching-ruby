@@ -3,7 +3,7 @@
 
 module GraphQL
   module Stitching
-    class Composer::ValidateBoundaries
+    class Composer::ValidateBoundaries < Composer::BaseValidator
       def perform(ctx, composer)
         ctx.schema.types.each do |type_name, type|
           # objects and interfaces that are not the root operation types

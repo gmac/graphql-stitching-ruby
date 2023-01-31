@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Plan, root operations" do
+describe "GraphQL::Stitching::Planner, root operations" do
 
   def setup
     @widgets_sdl = "
@@ -26,7 +26,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
   def test_plans_by_given_operation_name
     document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
 
-    plan1 = GraphQL::Stitching::Plan.new(
+    plan1 = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: document,
       operation_name: "First",
@@ -35,7 +35,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
     assert_equal 1, plan1.operations.length
     assert_equal "widget", plan1.operations.first.selections.first.name
 
-    plan2 = GraphQL::Stitching::Plan.new(
+    plan2 = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: document,
       operation_name: "Second",
@@ -49,7 +49,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
     document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
 
     assert_error "An operation name is required" do
-      GraphQL::Stitching::Plan.new(
+      GraphQL::Stitching::Planner.new(
         graph_context: @graph_context,
         document: document,
       ).plan
@@ -60,7 +60,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
     document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
 
     assert_error "Invalid root operation" do
-      GraphQL::Stitching::Plan.new(
+      GraphQL::Stitching::Planner.new(
         graph_context: @graph_context,
         document: document,
         operation_name: "Invalid",
@@ -74,7 +74,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
     document = GraphQL.parse("subscription { id }")
 
     assert_error "Invalid root operation" do
-      GraphQL::Stitching::Plan.new(
+      GraphQL::Stitching::Planner.new(
         graph_context: @graph_context,
         document: document,
       ).plan
@@ -91,7 +91,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan
@@ -122,7 +122,7 @@ describe "GraphQL::Stitching::Plan, root operations" do
       }
     "
 
-    plan = GraphQL::Stitching::Plan.new(
+    plan = GraphQL::Stitching::Planner.new(
       graph_context: @graph_context,
       document: GraphQL.parse(document),
     ).plan

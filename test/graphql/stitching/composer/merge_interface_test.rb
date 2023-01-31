@@ -27,8 +27,16 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
   end
 
   def test_merges_interface_fields
-    a = %{interface I { id:ID name:String } type T implements I { id:ID name:String } type Query { t:T }}
-    b = %{interface I { id:ID code:String } type T implements I { id:ID code:String } type Query { t:T }}
+    a = %{
+      interface I { id:ID! name:String }
+      type T implements I { id:ID! name:String }
+      type Query { t(id:ID!):T @boundary(key: "id") }
+    }
+    b = %{
+      interface I { id:ID! code:String }
+      type T implements I { id:ID! code:String }
+      type Query { t(id:ID!):T @boundary(key: "id") }
+    }
 
     info = compose_definitions({ "a" => a, "b" => b })
 

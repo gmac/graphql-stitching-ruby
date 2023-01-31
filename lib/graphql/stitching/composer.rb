@@ -9,6 +9,9 @@ module GraphQL
       attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location
 
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
+      VALIDATORS = [
+        "ValidateBoundaries"
+      ]
 
       def initialize(
         schemas:,
@@ -94,7 +97,11 @@ module GraphQL
           boundaries: @boundary_map,
         )
 
-        validate_graph_context(graph_context)
+        VALIDATORS.each do |validator|
+          klass = Object.const_get("GraphQL::Stitching::Composer::#{validator}")
+          klass.new.perform(graph_context, self)
+        end
+
         graph_context
       end
 
@@ -414,22 +421,6 @@ module GraphQL
         writes.uniq.each_with_object(usage) do |enum_name, memo|
           memo[enum_name] ||= []
           memo[enum_name] << :write
-        end
-      end
-
-      VALIDATIONS = [
-        "ValidateBoundaries"
-      ]
-
-      def validate_graph_context(graph_context)
-        VALIDATIONS.flat_map do |validation|
-          begin
-            klass = Object.const_get("GraphQL::Stitching::Composer::#{validation}")
-            klass.new.perform(graph_context, self)
-            nil
-          # rescue StandardError => e
-          #   raise ValidationError, e.message
-          end
         end
       end
     end

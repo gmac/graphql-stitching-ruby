@@ -4,7 +4,7 @@ require "test_helper"
 # require_relative "../../test_schema/sample"
 # require_relative "../../test_schema/unions"
 
-describe 'GraphQL::Stitching::Plan, make it work' do
+describe 'GraphQL::Stitching::Planner, make it work' do
 
   # def test_plan_abstract_merged_types
   #   widgets = "
@@ -58,7 +58,7 @@ describe 'GraphQL::Stitching::Plan, make it work' do
   #     schema.execute(document, variables: variables).to_h
   #   end
 
-  #   plan = GraphQL::Stitching::Plan.new(
+  #   plan = GraphQL::Stitching::Planner.new(
   #     graph_context: graph_context,
   #     document: GraphQL.parse(QUERY),
   #   ).plan
@@ -104,7 +104,7 @@ describe 'GraphQL::Stitching::Plan, make it work' do
   #   query = "{ fruit { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
   #   graph_context = compose_definitions({ "a" => a, "b" => b, "c" => c })
-  #   plan = GraphQL::Stitching::Plan.new(
+  #   plan = GraphQL::Stitching::Planner.new(
   #     graph_context: graph_context,
   #     document: GraphQL.parse(query),
   #   ).plan
@@ -127,7 +127,7 @@ describe 'GraphQL::Stitching::Plan, make it work' do
 
   #   query = "{ fruitsA(ids: [\"1\", \"3\"]) { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
-  #   plan = GraphQL::Stitching::Plan.new(
+  #   plan = GraphQL::Stitching::Planner.new(
   #     graph_context: graph_context,
   #     document: GraphQL.parse(query),
   #   ).plan

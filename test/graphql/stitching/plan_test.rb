@@ -63,7 +63,7 @@ describe 'GraphQL::Stitching::Planner, make it work' do
   #     document: GraphQL.parse(QUERY),
   #   ).plan
 
-  #   result = GraphQL::Stitching::Execute.new(
+  #   result = GraphQL::Stitching::Executor.new(
   #     graph_context: graph_context,
   #     plan: plan.as_json,
   #     variables: { "var" => "1", "handle" => { "handle" => "woof" } }
@@ -132,7 +132,7 @@ describe 'GraphQL::Stitching::Planner, make it work' do
   #     document: GraphQL.parse(query),
   #   ).plan
 
-  #   result = GraphQL::Stitching::Execute.new(
+  #   result = GraphQL::Stitching::Executor.new(
   #     graph_context: graph_context,
   #     plan: plan.as_json,
   #   ).perform

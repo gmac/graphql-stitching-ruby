@@ -186,7 +186,6 @@ describe "GraphQL::Stitching::GraphContext" do
 
     context = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
 
-    # Broken!!
     routes = context.route_to_locations("T", "a", ["b", "c", "d"])
     assert_equal ["b", "c", "d"], routes["d"].map { _1["location"] }
     assert routes.none? { |_key, path| path.any? { _1["location"] == "e" } }

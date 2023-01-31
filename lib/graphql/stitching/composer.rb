@@ -427,8 +427,8 @@ module GraphQL
             klass = Object.const_get("GraphQL::Stitching::Composer::#{validation}")
             klass.new.perform(graph_context, self)
             nil
-          rescue StandardError => e
-            raise ValidationError, e.message
+          # rescue StandardError => e
+          #   raise ValidationError, e.message
           end
         end
       end

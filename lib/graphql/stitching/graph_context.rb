@@ -37,8 +37,8 @@ module GraphQL
         }
       end
 
+      # inverts fields map to provide fields for a type/location
       def fields_by_type_and_location
-        # invert fields map to provide fields for a type/location
         @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
             locations.each do |location|
@@ -68,39 +68,47 @@ module GraphQL
       # (ie: favor a longer paths through target locations
       # over a shorter paths with additional locations).
       def route_to_locations(type_name, start_location, goal_locations)
-        paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
-          [{ location: start_location, selection: possible_key }]
-        end
-
         results = {}
         costs = {}
-        max_cost = 1
+
+        paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
+          [{ location: start_location, selection: possible_key, cost: 0 }]
+        end
 
         while paths.any?
           path = paths.pop
           @boundaries[type_name].each do |boundary|
-            next unless boundary["selection"] == path.last[:selection] && path.none? { boundary["location"] == _1[:location] }
-
-            cost = path.count { !goal_locations.include?(_1[:location]) }
-            next if results.length == goal_locations.length && cost > max_cost
-
-            path.last[:boundary] = boundary
             location = boundary["location"]
+            next if path.last[:selection] != boundary["selection"]
+            next if path.any? { _1[:location] == location }
+
+            best_cost = costs[location] || Float::INFINITY
+            current_cost = path.last[:cost]
+            next if best_cost < current_cost
+
+            path << ({ boundary: boundary }.merge!(path.pop))
+
             if goal_locations.include?(location)
-              result = results[location]
-              if result.nil? || cost < costs[location] || (cost == costs[location] && path.length < result.length)
+              current_result = results[location]
+              if current_result.nil? || current_cost < best_cost || (current_cost == best_cost && path.length < current_result.length)
                 results[location] = path.map { _1[:boundary] }
-                costs[location] = cost
-                max_cost = cost if cost > max_cost
               end
+            else
+              current_cost = path.last[:cost] += 1
             end
 
+            costs[location] = current_cost if current_cost < best_cost
+
             possible_keys_for_type_and_location(type_name, location).each do |possible_key|
-              paths << [*path, { location: location, selection: possible_key }]
+              paths << [*path, { location: location, selection: possible_key, cost: path.last[:cost] }]
             end
           end
 
-          paths.sort_by!(&:length).reverse!
+          paths.sort! do |a, b|
+            cost_diff = a.last[:cost] - b.last[:cost]
+            next cost_diff unless cost_diff.zero?
+            a.length - b.length
+          end.reverse!
         end
 
         results

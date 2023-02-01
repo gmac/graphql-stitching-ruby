@@ -83,7 +83,8 @@ module GraphQL
           parent_type = @supergraph.schema.query
 
           selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
-            location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].last
+            locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
+            location = locations&.last || Supergraph::LOCATION
             memo[location] ||= []
             memo[location] << node
           end
@@ -161,21 +162,24 @@ module GraphQL
           when GraphQL::Language::Nodes::Field
             next unless parent_type.kind.fields?
 
-            field_type = case node.name
-            when "__typename"
+            if node.name == "__typename"
               selections_result << node
               next
-            when "__schema"
-              @supergraph.schema.get_type("__Schema")
+            end
+
+            possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || [Supergraph::LOCATION]
+            unless possible_locations.include?(current_location)
+              remote_selections << node
+              next
+            end
+
+            field_type = if node.name == "__schema" && parent_type == @supergraph.schema.query
+              @supergraph.schema.get_type("__Schema") # phantom type mapped to phantom field
             else
               Util.get_named_type(parent_type.fields[node.name].type)
             end
 
-            possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
-
-            if !possible_locations.include?(current_location)
-              remote_selections << node
-            elsif Util.is_leaf_type?(field_type)
+            if Util.is_leaf_type?(field_type)
               extract_node_variables!(node, variables_result)
               selections_result << node
             else

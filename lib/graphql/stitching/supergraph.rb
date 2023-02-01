@@ -32,8 +32,6 @@ module GraphQL
           end
         end
 
-        @locations_by_type_and_field[schema.query.graphql_name]["__schema"] = [LOCATION]
-
         @possible_keys_by_type_and_location = {}
         @resources = { LOCATION => @schema }.merge!(resources)
       end

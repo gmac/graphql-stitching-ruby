@@ -192,7 +192,7 @@ module GraphQL
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
 
-          possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }
+          possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.uniq
           possible_types(*possible_names.map { GraphQL::Schema::LateBoundType.new(_1) })
         end
       end

@@ -161,7 +161,16 @@ module GraphQL
           when GraphQL::Language::Nodes::Field
             next unless parent_type.kind.fields?
 
-            field_type = Util.get_named_type(parent_type.fields[node.name].type)
+            field_type = case node.name
+            when "__typename"
+              selections_result << node
+              next
+            when "__schema"
+              @supergraph.schema.get_type("__Schema")
+            else
+              Util.get_named_type(parent_type.fields[node.name].type)
+            end
+
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
 
             if !possible_locations.include?(current_location)

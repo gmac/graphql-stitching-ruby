@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../../schemas/example"
 
 describe "GraphQL::Stitching::Planner, introspection" do
   def setup
@@ -85,6 +86,15 @@ describe "GraphQL::Stitching::Planner, introspection" do
   end
 
   def test_plans_introspection_query
+    a = "input Test { name: String } type Query { test:Test }"
+    supergraph = compose_definitions({ "a" => a })
 
+    plan = GraphQL::Stitching::Planner.new(
+      supergraph: supergraph,
+      document: GraphQL.parse(@introspection),
+      operation_name: "IntrospectionQuery",
+    ).perform
+
+    pp plan.as_json
   end
 end

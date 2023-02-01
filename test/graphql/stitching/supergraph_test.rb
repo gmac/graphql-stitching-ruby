@@ -2,12 +2,57 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::GraphContext" do
+describe "GraphQL::Stitching::Supergraph" do
 
-  class DummySchema < GraphQL::Schema
-    class Query < GraphQL::Schema::Object
-      field :a, String, null: true
+  class ComposedSchema < GraphQL::Schema
+    class Product < GraphQL::Schema::Object
+      # products, storefronts
+      field :upc, ID, null: false
+      # products
+      field :name, String, null: false
+      # products
+      field :price, Int, null: false
+      # products
+      field :manufacturer, "ComposedSchema::Manufacturer", null: false
     end
+
+    class Manufacturer < GraphQL::Schema::Object
+      # products, manufacturers
+      field :id, ID, null: false
+      # manufacturers
+      field :name, String, null: false
+      # manufacturers
+      field :address, String, null: false
+      # products
+      field :products, [Product], null: false
+    end
+
+    class Storefront < GraphQL::Schema::Object
+      # storefronts
+      field :id, ID, null: false
+      # storefronts
+      field :name, String, null: false
+      # storefronts
+      field :products, [Product], null: false
+    end
+
+    class Query < GraphQL::Schema::Object
+      # manufacturers
+      field :manufacturer, Manufacturer, null: true do
+        argument :id, ID, required: true
+      end
+
+      # products
+      field :product, Product, null: true do
+        argument :upc, ID, required: true
+      end
+
+      # storefronts
+      field :storefront, Storefront, null: true do
+        argument :id, ID, required: true
+      end
+    end
+
     query Query
   end
 
@@ -64,61 +109,32 @@ describe "GraphQL::Stitching::GraphContext" do
   }
 
   def test_fields_by_type_and_location
-    context = GraphQL::Stitching::GraphContext.new(
-      schema: DummySchema,
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
       fields: FIELDS_MAP,
       boundaries: BOUNDARIES_MAP,
     )
 
-    mapping = context.fields_by_type_and_location
+    mapping = supergraph.fields_by_type_and_location
     assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort
     assert_equal ["address", "id", "name"], mapping["Manufacturer"]["manufacturers"].sort
     assert_equal ["id", "products"], mapping["Manufacturer"]["products"].sort
   end
 
   def test_locations_by_type
-    context = GraphQL::Stitching::GraphContext.new(
-      schema: DummySchema,
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
       fields: FIELDS_MAP,
       boundaries: BOUNDARIES_MAP,
     )
 
-    mapping = context.locations_by_type
+    mapping = supergraph.locations_by_type
     assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort
     assert_equal ["manufacturers", "products"], mapping["Manufacturer"].sort
     assert_equal ["products", "storefronts"], mapping["Product"].sort
   end
 
-  def test_add_client_and_get_client_default
-    context = GraphQL::Stitching::GraphContext.new(
-      schema: DummySchema,
-      fields: FIELDS_MAP,
-      boundaries: BOUNDARIES_MAP,
-    )
-
-    client = context.add_client { "success" }
-    assert_equal client, context.get_client
-    assert_equal "success", context.get_client.call
-  end
-
-  def test_add_client_and_get_client_with_location
-    context = GraphQL::Stitching::GraphContext.new(
-      schema: DummySchema,
-      fields: FIELDS_MAP,
-      boundaries: BOUNDARIES_MAP,
-    )
-
-    client1 = context.add_client("products") { 1 }
-    client2 = context.add_client("manufacturers") { 2 }
-
-    assert_equal client1, context.get_client("products")
-    assert_equal client2, context.get_client("manufacturers")
-
-    assert_equal 1, context.get_client("products").call
-    assert_equal 2, context.get_client("manufacturers").call
-  end
-
-  def test_route_to_locations_connects_types_across_locations
+  def test_route_type_to_locations_connects_types_across_locations
     a = %{
       type T { upc:ID! }
       type Query { a(upc:ID!):T @boundary(key: "upc") }
@@ -135,22 +151,22 @@ describe "GraphQL::Stitching::GraphContext" do
       type Query { c(id:ID!):T @boundary(key: "id") }
     }
 
-    context = compose_definitions({ "a" => a, "b" => b, "c" => c })
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    routes = context.route_to_locations("T", "a", ["b", "c"])
+    routes = supergraph.route_type_to_locations("T", "a", ["b", "c"])
     assert_equal ["b"], routes["b"].map { _1["location"] }
     assert_equal ["b", "c"], routes["c"].map { _1["location"] }
 
-    routes = context.route_to_locations("T", "b", ["a", "c"])
+    routes = supergraph.route_type_to_locations("T", "b", ["a", "c"])
     assert_equal ["a"], routes["a"].map { _1["location"] }
     assert_equal ["c"], routes["c"].map { _1["location"] }
 
-    routes = context.route_to_locations("T", "c", ["a", "b"])
+    routes = supergraph.route_type_to_locations("T", "c", ["a", "b"])
     assert_equal ["b", "a"], routes["a"].map { _1["location"] }
     assert_equal ["b"], routes["b"].map { _1["location"] }
   end
 
-  def test_route_to_locations_favors_longer_paths_through_necessary_locations
+  def test_route_type_to_locations_favors_longer_paths_through_necessary_locations
     a = %{
       type T { id:ID! }
       type Query { a(id:ID!):T @boundary(key: "id") }
@@ -184,14 +200,14 @@ describe "GraphQL::Stitching::GraphContext" do
       }
     }
 
-    context = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
 
-    routes = context.route_to_locations("T", "a", ["b", "c", "d"])
+    routes = supergraph.route_type_to_locations("T", "a", ["b", "c", "d"])
     assert_equal ["b", "c", "d"], routes["d"].map { _1["location"] }
     assert routes.none? { |_key, path| path.any? { _1["location"] == "e" } }
   end
 
-  def test_route_to_locations_returns_nil_for_unreachable_locations
+  def test_route_type_to_locations_returns_nil_for_unreachable_locations
     a = %{
       type T { upc:ID! }
       type Query { a(upc:ID!):T @boundary(key: "upc") }
@@ -205,9 +221,9 @@ describe "GraphQL::Stitching::GraphContext" do
       type Query { c(id:ID!):T @boundary(key: "id") }
     }
 
-    context = compose_definitions({ "a" => a, "b" => b, "c" => c })
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    routes = context.route_to_locations("T", "b", ["a", "c"])
+    routes = supergraph.route_type_to_locations("T", "b", ["a", "c"])
     assert_equal ["c"], routes["c"].map { _1["location"] }
     assert_nil routes["a"]
   end

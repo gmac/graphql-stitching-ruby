@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-# require_relative "../../test_schema/sample"
+require_relative "../../schemas/example"
 # require_relative "../../test_schema/unions"
 
 describe 'GraphQL::Stitching::Planner, make it work' do
@@ -18,55 +18,50 @@ describe 'GraphQL::Stitching::Planner, make it work' do
   #     type Mutation { makeSprocket(id: ID!): Sprocket }
   #   "
 
-  #   graph_context = compose_definitions({ "widgets" => widgets, "sprockets" => sprockets })
+  #   supergraph = compose_definitions({ "widgets" => widgets, "sprockets" => sprockets })
   # end
 
-
-  # QUERY = "
-  #   query ($var:ID!){
-  #     storefront(id: $var) {
-  #       id
-  #       products {
-  #         upc
-  #         name
-  #         price
-  #         manufacturer {
-  #           name
-  #           address
-  #           products { upc name }
-  #         }
-  #       }
-  #       ...on Storefront { name }
-  #       ...SfAttrs
-  #     }
-  #   }
-  #   fragment SfAttrs on Storefront {
-  #     name
-  #   }
-  # "
+  QUERY = "
+    query ($var:ID!){
+      storefront(id: $var) {
+        id
+        products {
+          upc
+          name
+          price
+          manufacturer {
+            name
+            address
+            products { upc name }
+          }
+        }
+        ...on Storefront { name }
+        ...SfAttrs
+      }
+    }
+    fragment SfAttrs on Storefront {
+      name
+    }
+  "
 
   # def test_works
   #   subschemas = {
-  #     "products" => TestSchema::Sample::Products,
-  #     "storefronts" => TestSchema::Sample::Storefronts,
-  #     "manufacturers" => TestSchema::Sample::Manufacturers,
+  #     "products" => Schemas::Example::Products,
+  #     "storefronts" => Schemas::Example::Storefronts,
+  #     "manufacturers" => Schemas::Example::Manufacturers,
   #   }
 
-  #   graph_context = compose_definitions(subschemas)
-  #   graph_context.add_client do |document, variables, location|
-  #     schema = subschemas[location]
-  #     schema.execute(document, variables: variables).to_h
-  #   end
+  #   supergraph = compose_definitions(subschemas)
 
   #   plan = GraphQL::Stitching::Planner.new(
-  #     graph_context: graph_context,
+  #     supergraph: supergraph,
   #     document: GraphQL.parse(QUERY),
-  #   ).plan
+  #   ).perform
 
   #   result = GraphQL::Stitching::Executor.new(
-  #     graph_context: graph_context,
+  #     supergraph: supergraph,
   #     plan: plan.as_json,
-  #     variables: { "var" => "1", "handle" => { "handle" => "woof" } }
+  #     variables: { "var" => "1" }
   #   ).perform
 
   #   byebug
@@ -103,11 +98,11 @@ describe 'GraphQL::Stitching::Planner, make it work' do
 
   #   query = "{ fruit { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
-  #   graph_context = compose_definitions({ "a" => a, "b" => b, "c" => c })
+  #   supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
   #   plan = GraphQL::Stitching::Planner.new(
-  #     graph_context: graph_context,
+  #     supergraph: supergraph,
   #     document: GraphQL.parse(query),
-  #   ).plan
+  #   ).perform
 
   #   pp plan.as_json
   # end
@@ -120,20 +115,20 @@ describe 'GraphQL::Stitching::Planner, make it work' do
   #     "c" => TestSchema::Unions::SchemaC,
   #   }
 
-  #   graph_context = compose_definitions(schemas)
-  #   graph_context.add_client do |document, variables, location|
+  #   supergraph = compose_definitions(schemas)
+  #   supergraph.add_client do |document, variables, location|
   #      schemas[location].execute(document, variables: variables).to_h
   #   end
 
   #   query = "{ fruitsA(ids: [\"1\", \"3\"]) { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
 
   #   plan = GraphQL::Stitching::Planner.new(
-  #     graph_context: graph_context,
+  #     supergraph: supergraph,
   #     document: GraphQL.parse(query),
-  #   ).plan
+  #   ).perform
 
   #   result = GraphQL::Stitching::Executor.new(
-  #     graph_context: graph_context,
+  #     supergraph: supergraph,
   #     plan: plan.as_json,
   #   ).perform
 

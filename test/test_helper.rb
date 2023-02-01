@@ -25,7 +25,7 @@ def compose_definitions(schemas, options={})
       schema_or_sdl
     end
   end
-  GraphQL::Stitching::Composer.new(schemas: schemas, **options).compose
+  GraphQL::Stitching::Composer.new(schemas: schemas, **options).perform
 end
 
 def extract_types_of_kind(schema, kind)

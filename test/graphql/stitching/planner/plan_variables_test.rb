@@ -19,7 +19,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       type Mutation { makeSprocket(input: MakeSprocketInput!): Sprocket }
     "
 
-    @graph_context = compose_definitions({
+    @supergraph = compose_definitions({
       "widgets" => @widgets_sdl,
       "sprockets" => @sprockets_sdl,
     })
@@ -34,9 +34,9 @@ describe "GraphQL::Stitching::Planner, variables" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 2, plan.operations.length
 
@@ -56,9 +56,9 @@ describe "GraphQL::Stitching::Planner, variables" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 2, plan.operations.length
 
@@ -78,9 +78,9 @@ describe "GraphQL::Stitching::Planner, variables" do
     "
 
     plan = GraphQL::Stitching::Planner.new(
-      graph_context: @graph_context,
+      supergraph: @supergraph,
       document: GraphQL.parse(document),
-    ).plan
+    ).perform
 
     assert_equal 2, plan.operations.length
 

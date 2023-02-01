@@ -7,20 +7,40 @@ module GraphQL
   module Stitching
     class Supergraph
       LOCATION = "__super"
+      INTROSPECTION_TYPES = [
+        "__Schema",
+        "__Type",
+        "__Field",
+        "__Directive",
+        "__EnumValue",
+        "__InputValue",
+        "__TypeKind",
+        "__DirectiveLocation",
+      ].freeze
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :resources
 
       def initialize(schema:, fields:, boundaries:, resources: {})
         @schema = schema
         @boundaries = boundaries
-        @locations_by_type_and_field = fields
+        @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
+          introspection_type = schema.get_type(type_name)
+          next unless introspection_type.kind.fields?
+
+          memo[type_name] = introspection_type.fields.keys.each_with_object({}) do |field_name, m|
+            m[field_name] = [LOCATION]
+          end
+        end
+
+        @locations_by_type_and_field[schema.query.graphql_name]["__schema"] = [LOCATION]
+
         @possible_keys_by_type_and_location = {}
         @resources = { LOCATION => @schema }.merge!(resources)
       end
 
       def export
         return GraphQL::Schema::Printer.print_schema(@schema), {
-          "fields" => @locations_by_type_and_field,
+          "fields" => @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) },
           "boundaries" => @boundaries,
         }
       end

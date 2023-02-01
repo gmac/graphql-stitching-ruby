@@ -10,17 +10,6 @@ module GraphQL
 
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
 
-      INTROSPECTION_TYPES = [
-        "__Schema",
-        "__Type",
-        "__Field",
-        "__Directive",
-        "__EnumValue",
-        "__InputValue",
-        "__TypeKind",
-        "__DirectiveLocation",
-      ].freeze
-
       VALIDATORS = [
         "ValidateBoundaries"
       ].freeze
@@ -48,7 +37,7 @@ module GraphQL
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
           schema.types.each do |type_name, type_candidate|
-            next if INTROSPECTION_TYPES.include?(type_name)
+            next if Supergraph::INTROSPECTION_TYPES.include?(type_name)
 
             if type_name == @query_name && type_candidate != schema.query
               raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
@@ -405,7 +394,7 @@ module GraphQL
 
         schemas.each do |schema|
           schema.types.values.each do |type|
-            next if INTROSPECTION_TYPES.include?(type.graphql_name)
+            next if Supergraph::INTROSPECTION_TYPES.include?(type.graphql_name)
 
             if type.kind.name == "OBJECT" || type.kind.name == "INTERFACE"
               type.fields.values.each do |field|

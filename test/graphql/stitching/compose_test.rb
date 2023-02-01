@@ -2,8 +2,7 @@
 
 require "test_helper"
 
-class GraphQL::Stitching::ComposerTest < Minitest::Test
-
+describe 'GraphQL::Stitching::Composer, general concerns' do
   def test_errors_for_merged_types_of_different_kinds
     a = "type Query { a:Boom } type Boom { a:String }"
     b = "type Query { b:Boom } interface Boom { b:String }"

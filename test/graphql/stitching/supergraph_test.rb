@@ -134,6 +134,13 @@ describe "GraphQL::Stitching::Supergraph" do
     assert_equal ["products", "storefronts"], mapping["Product"].sort
   end
 
+  # def test_adds_supergraph_location_for_introspection_types
+  #   a = "type Query { a:Widget } type Widget { a:String }"
+  #   b = "type Query { b:Sprocket } type Sprocket { a:String }"
+
+  #   supergraph = compose_definitions({ "a" => a, "b" => b })
+  # end
+
   def test_route_type_to_locations_connects_types_across_locations
     a = %{
       type T { upc:ID! }

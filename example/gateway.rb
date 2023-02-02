@@ -48,7 +48,7 @@ class StitchedApp
 
       result = GraphQL::Stitching::Executor.new(
         supergraph: @supergraph,
-        plan: plan.as_json,
+        plan: plan.to_h,
         variables: params["variables"] || {},
       ).perform
 

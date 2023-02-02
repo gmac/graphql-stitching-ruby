@@ -7,6 +7,7 @@ module GraphQL
       attr_reader :operations
 
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
+      SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
 
       def initialize(supergraph:, document:, operation_name: nil)
         @supergraph = supergraph
@@ -23,8 +24,8 @@ module GraphQL
         self
       end
 
-      def as_json
-        { ops: @operations.map(&:as_json) }
+      def to_h
+        { ops: @operations.map(&:to_h) }
       end
 
       private
@@ -83,8 +84,8 @@ module GraphQL
           parent_type = @supergraph.schema.query
 
           selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
-            locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
-            location = locations&.last || Supergraph::LOCATION
+            locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
+            location = locations.last
             memo[location] ||= []
             memo[location] << node
           end
@@ -148,12 +149,14 @@ module GraphQL
             end
           end
 
-          possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
-          possible_types.each do |possible_type|
-            next if possible_type.kind.abstract? # ignore child interfaces
+          if extended_selections.any?
+            possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
+            possible_types.each do |possible_type|
+              next if possible_type.kind.abstract? # ignore child interfaces
 
-            type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
-            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+              type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
+              input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+            end
           end
         end
 
@@ -167,14 +170,14 @@ module GraphQL
               next
             end
 
-            possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || [Supergraph::LOCATION]
+            possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             unless possible_locations.include?(current_location)
               remote_selections << node
               next
             end
 
             field_type = if node.name == "__schema" && parent_type == @supergraph.schema.query
-              @supergraph.schema.get_type("__Schema") # phantom type mapped to phantom field
+              @supergraph.schema.types["__Schema"] # type mapped to phantom query field
             else
               Util.get_named_type(parent_type.fields[node.name].type)
             end
@@ -327,7 +330,7 @@ module GraphQL
           boundary_type = @supergraph.schema.get_type(op.boundary["type_name"])
           next unless boundary_type.kind.abstract?
 
-          unless op.parent_type.kind.abstract?
+          unless op.parent_type == boundary_type
             to_typed_selections = []
             op.selections.reject! do |node|
               if node.is_a?(GraphQL::Language::Nodes::Field)
@@ -341,8 +344,6 @@ module GraphQL
               op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: to_typed_selections)
             end
           end
-
-          op.selections << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
         end
       end
     end

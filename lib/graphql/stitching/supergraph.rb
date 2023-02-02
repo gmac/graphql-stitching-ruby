@@ -1,8 +1,6 @@
 # typed: false
 # frozen_string_literal: true
 
-require "json"
-
 module GraphQL
   module Stitching
     class Supergraph
@@ -45,7 +43,6 @@ module GraphQL
 
       def self.from_export(schema, delegation_map)
         schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
-        delegation_map = JSON.parse(delegation_map) if delegation_map.is_a?(String)
         new(
           schema: schema,
           fields: delegation_map["fields"],
@@ -88,7 +85,7 @@ module GraphQL
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= begin
-          location_fields = fields_by_type_and_location[type_name][location]
+          location_fields = fields_by_type_and_location[type_name][location] || []
           location_fields & @boundaries[type_name].map { _1["selection"] }
         end
       end

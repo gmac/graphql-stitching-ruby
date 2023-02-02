@@ -60,7 +60,7 @@ describe 'GraphQL::Stitching::Planner, make it work' do
 
   #   result = GraphQL::Stitching::Executor.new(
   #     supergraph: supergraph,
-  #     plan: plan.as_json,
+  #     plan: plan.to_h,
   #     variables: { "var" => "1" }
   #   ).perform
 
@@ -104,7 +104,7 @@ describe 'GraphQL::Stitching::Planner, make it work' do
   #     document: GraphQL.parse(query),
   #   ).perform
 
-  #   pp plan.as_json
+  #   pp plan.to_h
   # end
 
 
@@ -129,10 +129,10 @@ describe 'GraphQL::Stitching::Planner, make it work' do
 
   #   result = GraphQL::Stitching::Executor.new(
   #     supergraph: supergraph,
-  #     plan: plan.as_json,
+  #     plan: plan.to_h,
   #   ).perform
 
-  #   # pp plan.as_json
+  #   # pp plan.to_h
   #   pp result
   # end
 end

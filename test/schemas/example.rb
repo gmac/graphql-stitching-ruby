@@ -15,28 +15,25 @@ module Schemas
       { upc: '3', name: 'Super Baking Cookbook', price: 15.99, manufacturer_id: '2' },
       { upc: '4', name: 'Best Selling Novel', price: 7.99, manufacturer_id: '2' },
       { upc: '5', name: 'iOS Survival Guide', price: 24.99, manufacturer_id: '1' },
-    ]
+    ].freeze
 
     STOREFRONTS = [
       { id: '1', name: 'eShoppe', product_upcs: ['1', '2'] },
       { id: '2', name: 'BestBooks Online', product_upcs: ['3', '4', '5'] },
-    ]
+    ].freeze
 
     MANUFACTURERS = [
       { id: '1', name: 'Apple', address: '123 Main' },
       { id: '2', name: 'Macmillan', address: '456 Market' },
-    ]
+    ].freeze
 
     # Products
 
     class Products < GraphQL::Schema
       class Product < GraphQL::Schema::Object
-        field :upc, ID, null: false, description: "products desc"
-
+        field :upc, ID, null: false
         field :name, String, null: false
-
         field :price, Float, null: false
-
         field :manufacturer, "Schemas::Example::Products::Manufacturer", null: false
 
         def manufacturer
@@ -46,7 +43,6 @@ module Schemas
 
       class Manufacturer < GraphQL::Schema::Object
         field :id, ID, null: false
-
         field :products, [Product], null: false
 
         def products

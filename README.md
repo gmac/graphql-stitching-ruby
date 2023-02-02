@@ -1,8 +1,30 @@
-# GraphQL Stitching for Ruby
+## Ruby GraphQL Stitching
 
 GraphQL Stitching is the process of composing a single GraphQL schema from multiple underlying GraphQL resources, then smartly delegating portions of incoming requests to their respective service locations, and returning the merged results. This allows an entire service graph to be queried through one combined surface area.
 
-## Boundary types
+This Ruby implementation borrows ideas from [GraphQL Tools stitching](https://the-guild.dev/graphql/stitching) and [Bramble](https://movio.github.io/bramble/), and splits the difference between them with its capabilities. GraphQL stitching as a whole is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), but is much more generic.
+
+**Supports:**
+- Merged types via scalar key exchanges.
+- Multiple merge keys allowed per type.
+- Merged interfaces across locations.
+- Enums and inputs may be shared across locations.
+
+**NOT Supported:**
+- Computed fields (ie: federation-style `@requires`)
+- Subscriptions
+
+## Getting Started
+
+```ruby
+gem "graphql-stitching"
+```
+
+```shell
+bundle install
+```
+
+## Merged Boundary Types
 
 GraphQL `Object` and `Interface` types may exist with different fields in different graph locations, and get merged together into one type in the gateway. These merged types are called "boundary types", for example:
 
@@ -112,7 +134,7 @@ type Query {
 
 This repo includes a working example of three stitched schemas running across Rack servers. Try running it:
 
-```
+```shell
 bundle install
 foreman start
 ```
@@ -137,4 +159,11 @@ query {
 }
 ```
 
-The above query collects data from all three services. Two schemas are accessed remotely via HTTP, while the third is a local schema embedded within the gateway server itself.
+The above query collects data from all three services, plus introspects the combined schema. Two schemas are accessed remotely via HTTP, while the third is a local schema embedded within the gateway server itself.
+
+## Tests
+
+```shell
+bundle install
+bundle exec rake test [TEST=path/to/test.rb]
+```

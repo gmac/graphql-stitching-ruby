@@ -11,6 +11,7 @@ module GraphQL
       DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
 
       VALIDATORS = [
+        "ValidateInterfaces",
         "ValidateBoundaries"
       ].freeze
 
@@ -378,7 +379,7 @@ module GraphQL
       def expand_abstract_boundaries(schema)
         @boundary_map.keys.each do |type_name|
           boundary_type = schema.types[type_name]
-          next unless Util.is_abstract_type?(boundary_type)
+          next unless boundary_type.kind.abstract?
 
           possible_types = Util.get_possible_types(schema, boundary_type)
           possible_types.select { @subschema_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |possible_type|
@@ -396,21 +397,21 @@ module GraphQL
           schema.types.values.each do |type|
             next if Supergraph::INTROSPECTION_TYPES.include?(type.graphql_name)
 
-            if type.kind.name == "OBJECT" || type.kind.name == "INTERFACE"
+            if type.kind.object? || type.kind.interface?
               type.fields.values.each do |field|
                 field_type = Util.get_named_type(field.type)
-                reads << field_type.graphql_name if field_type.kind.name == "ENUM"
+                reads << field_type.graphql_name if field_type.kind.enum?
 
                 field.arguments.values.each do |argument|
                   argument_type = Util.get_named_type(argument.type)
-                  writes << argument_type.graphql_name if argument_type.kind.name == "ENUM"
+                  writes << argument_type.graphql_name if argument_type.kind.enum?
                 end
               end
 
-            elsif type.kind.name == "INPUT_OBJECT"
+            elsif type.kind.input_object?
               type.arguments.values.each do |argument|
                 argument_type = Util.get_named_type(argument.type)
-                writes << argument_type.graphql_name if argument_type.kind.name == "ENUM"
+                writes << argument_type.graphql_name if argument_type.kind.enum?
               end
             end
           end
@@ -430,4 +431,5 @@ module GraphQL
 end
 
 require_relative "./composer/base_validator"
+require_relative "./composer/validate_interfaces"
 require_relative "./composer/validate_boundaries"

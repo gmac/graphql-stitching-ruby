@@ -40,7 +40,7 @@ module GraphQL
         end
       end
 
-      def as_json
+      def to_h
         {
           key: @key,
           after_key: @after_key,

@@ -31,6 +31,9 @@ superschema = GraphQL::Stitching::Composer.new({
   "products" => GraphQL::Schema.from_definition(products_schema),
   "shipping" => GraphQL::Schema.from_definition(shipping_schema),
 })
+
+superschema.assign_location_url("products", "http://localhost:3001")
+superschema.assign_location_url("shipping", "http://localhost:3002")
 ```
 
 In the composed superschema, the `Product` type will have the fields of both locations:

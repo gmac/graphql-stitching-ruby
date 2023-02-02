@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../schemas/example"
 
 describe "GraphQL::Stitching::Supergraph" do
 
@@ -111,12 +112,12 @@ describe "GraphQL::Stitching::Supergraph" do
   def test_fields_by_type_and_location
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
-      fields: FIELDS_MAP,
+      fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
     )
 
     mapping = supergraph.fields_by_type_and_location
-    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort
+    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - GraphQL::Stitching::Supergraph::INTROSPECTION_TYPES
     assert_equal ["address", "id", "name"], mapping["Manufacturer"]["manufacturers"].sort
     assert_equal ["id", "products"], mapping["Manufacturer"]["products"].sort
   end
@@ -124,14 +125,68 @@ describe "GraphQL::Stitching::Supergraph" do
   def test_locations_by_type
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
-      fields: FIELDS_MAP,
+      fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
     )
 
     mapping = supergraph.locations_by_type
-    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort
+    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - GraphQL::Stitching::Supergraph::INTROSPECTION_TYPES
     assert_equal ["manufacturers", "products"], mapping["Manufacturer"].sort
     assert_equal ["products", "storefronts"], mapping["Product"].sort
+  end
+
+  def test_possible_keys_for_type_and_location
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
+      fields: FIELDS_MAP.dup,
+      boundaries: BOUNDARIES_MAP,
+    )
+
+    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products")
+    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "storefronts")
+    assert_equal [], supergraph.possible_keys_for_type_and_location("Product", "manufacturers")
+  end
+
+  def test_adds_supergraph_location_for_expected_introspection_types
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
+      fields: FIELDS_MAP.dup,
+      boundaries: BOUNDARIES_MAP,
+    )
+
+    ["__Schema", "__Type", "__Field"].each do |introspection_type|
+      assert supergraph.locations_by_type_and_field[introspection_type], "Missing introspection type"
+      assert_equal ["__super"], supergraph.locations_by_type_and_field[introspection_type].values.first
+    end
+  end
+
+  def test_assign_location_schema
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
+      fields: FIELDS_MAP.dup,
+      boundaries: BOUNDARIES_MAP,
+    )
+
+    assert_equal 1, supergraph.resources.length
+    subschema = Schemas::Example::Products
+    supergraph.assign_location_schema("products", subschema)
+
+    assert_equal 2, supergraph.resources.length
+    assert_equal subschema, supergraph.resources["products"]
+  end
+
+  def test_assign_location_url
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: ComposedSchema,
+      fields: FIELDS_MAP.dup,
+      boundaries: BOUNDARIES_MAP,
+    )
+
+    assert_equal 1, supergraph.resources.length
+    supergraph.assign_location_url("products", "http://localhost:3000")
+
+    assert_equal 2, supergraph.resources.length
+    assert supergraph.resources["products"].is_a?(GraphQL::Stitching::RemoteClient)
   end
 
   def test_route_type_to_locations_connects_types_across_locations

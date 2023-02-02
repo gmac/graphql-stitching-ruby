@@ -1,33 +1,48 @@
 # typed: false
 # frozen_string_literal: true
 
-require "json"
-
 module GraphQL
   module Stitching
     class Supergraph
       LOCATION = "__super"
+      INTROSPECTION_TYPES = [
+        "__Schema",
+        "__Type",
+        "__Field",
+        "__Directive",
+        "__EnumValue",
+        "__InputValue",
+        "__TypeKind",
+        "__DirectiveLocation",
+      ].freeze
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :resources
 
       def initialize(schema:, fields:, boundaries:, resources: {})
         @schema = schema
         @boundaries = boundaries
-        @locations_by_type_and_field = fields
+        @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
+          introspection_type = schema.get_type(type_name)
+          next unless introspection_type.kind.fields?
+
+          memo[type_name] = introspection_type.fields.keys.each_with_object({}) do |field_name, m|
+            m[field_name] = [LOCATION]
+          end
+        end
+
         @possible_keys_by_type_and_location = {}
         @resources = { LOCATION => @schema }.merge!(resources)
       end
 
       def export
         return GraphQL::Schema::Printer.print_schema(@schema), {
-          "fields" => @locations_by_type_and_field,
+          "fields" => @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) },
           "boundaries" => @boundaries,
         }
       end
 
       def self.from_export(schema, delegation_map)
         schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
-        delegation_map = JSON.parse(delegation_map) if delegation_map.is_a?(String)
         new(
           schema: schema,
           fields: delegation_map["fields"],
@@ -70,7 +85,7 @@ module GraphQL
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= begin
-          location_fields = fields_by_type_and_location[type_name][location]
+          location_fields = fields_by_type_and_location[type_name][location] || []
           location_fields & @boundaries[type_name].map { _1["selection"] }
         end
       end

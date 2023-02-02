@@ -30,6 +30,9 @@ module GraphQL
       private
 
       def validate_as_boundary(ctx, type, subschema_types_by_location, boundaries)
+        # abstract boundaries are expanded with their concrete implementations, which each get validated. Ignore the abstract itself.
+        return if type.kind.abstract?
+
         # only one boundary allowed per type/location/key
         boundaries_by_location_and_key = boundaries.each_with_object({}) do |boundary, memo|
           if memo.dig(boundary["location"], boundary["selection"])
@@ -48,7 +51,7 @@ module GraphQL
         # all locations have a boundary, or else are key-only
         subschema_types_by_location.each do |location, subschema_type|
           unless boundaries_by_location_and_key[location] || key_only_types_by_location[location]
-            raise ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{location} to share its unique fields across locations."
+            raise ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{location} because it provides unique fields."
           end
         end
 

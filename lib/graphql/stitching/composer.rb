@@ -12,7 +12,7 @@ module GraphQL
 
       VALIDATORS = [
         "ValidateInterfaces",
-        "ValidateBoundaries"
+        "ValidateBoundaries",
       ].freeze
 
       def initialize(

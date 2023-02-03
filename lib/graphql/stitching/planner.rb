@@ -25,7 +25,9 @@ module GraphQL
       end
 
       def to_h
-        { ops: @operations.map(&:to_h) }
+        {
+          ops: @operations.map(&:to_h)
+        }
       end
 
       private
@@ -96,7 +98,7 @@ module GraphQL
           end
 
         when "mutation"
-          # plan steps grouping sequential fields by location for sync execution
+          # plan steps grouping sequential fields by location for serial execution
           parent_type = @supergraph.schema.mutation
           location_groups = []
 
@@ -176,7 +178,7 @@ module GraphQL
             end
 
             field_type = if node.name == "__schema" && parent_type == @supergraph.schema.query
-              @supergraph.schema.types["__Schema"] # type mapped to phantom query field
+              @supergraph.schema.types["__Schema"] # type mapped to phantom introspection field
             else
               Util.get_named_type(parent_type.fields[node.name].type)
             end

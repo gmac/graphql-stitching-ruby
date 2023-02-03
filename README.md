@@ -45,7 +45,7 @@ showtimes_schema = "
 
 gateway = GraphQL::Stitching::Gateway.new({
   products: {
-    schema: GraphQL::Schema.from_definition(products_schema),
+    schema: GraphQL::Schema.from_definition(movies_schema),
     url: "http://localhost:3000"
   },
   showtimes: {

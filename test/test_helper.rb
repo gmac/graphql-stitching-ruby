@@ -28,6 +28,21 @@ def compose_definitions(schemas, options={})
   GraphQL::Stitching::Composer.new(schemas: schemas, **options).perform
 end
 
+def plan_and_execute(supergraph, query, variables={})
+  document = GraphQL::Stitching::Document.new(query)
+
+  plan = GraphQL::Stitching::Planner.new(
+    supergraph: supergraph,
+    document: document,
+  ).perform
+
+  GraphQL::Stitching::Executor.new(
+    supergraph: supergraph,
+    plan: plan.to_h,
+    variables: variables
+  ).perform(document)
+end
+
 def extract_types_of_kind(schema, kind)
   schema.types.values.select { _1.kind.object? && !_1.graphql_name.start_with?("__") }
 end

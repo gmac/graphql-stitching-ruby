@@ -27,9 +27,9 @@ class StitchedApp
     when /graphql/
       # @todo extract composition + this workflow into some kind of "Gateway" convenience
       params = JSON.parse(req.body.read)
-      document = GraphQL.parse(params["query"])
+      document = GraphQL::Stitching::Document.new(params["query"], operation_name: params["operationName"])
 
-      validation_errors = @supergraph.schema.validate(document)
+      validation_errors = @supergraph.schema.validate(document.ast)
       if validation_errors.any?
         result = { errors: [validation_errors.map { |e| { message: e.message, path: e.path } }]}
         return [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
@@ -43,7 +43,6 @@ class StitchedApp
       plan = GraphQL::Stitching::Planner.new(
         supergraph: @supergraph,
         document: document,
-        operation_name: params["operationName"],
       ).perform
 
       # cache generated plan... (nice to have)
@@ -52,10 +51,7 @@ class StitchedApp
         supergraph: @supergraph,
         plan: plan.to_h,
         variables: params["variables"] || {},
-      ).perform
-
-      # @todo need this resolver...
-      # result = Resolver.perform(@supergraph.schema, document, result)
+      ).perform(document)
 
       [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
     else

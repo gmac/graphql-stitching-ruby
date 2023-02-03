@@ -40,7 +40,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse("{ buyable(id:\"1\") { id name price } }"),
+      document: GraphQL::Stitching::Document.new("{ buyable(id:\"1\") { id name price } }"),
     ).perform
 
     first = plan.operations[0]
@@ -66,7 +66,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse("{ products(ids:[\"1\"]) { id name price } }"),
+      document: GraphQL::Stitching::Document.new("{ products(ids:[\"1\"]) { id name price } }"),
     ).perform
 
     first = plan.operations[0]
@@ -111,7 +111,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   #   supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
   #   plan = GraphQL::Stitching::Planner.new(
   #     supergraph: supergraph,
-  #     document: GraphQL.parse(query),
+  #     document: GraphQL::Stitching::Document.new(query),
   #   ).perform
 
   #   pp plan.to_h

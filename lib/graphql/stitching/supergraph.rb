@@ -64,6 +64,24 @@ module GraphQL
         @resources[location] = handler || block
       end
 
+      def execute_at_location(location, query, variables)
+        resource = resources[location]
+
+        if resource.nil?
+          raise "No executable resource assigned for #{location} location."
+        elsif resource.is_a?(Class) && resource <= GraphQL::Schema
+          resource.execute(
+            query: query,
+            variables: variables,
+            validate: false,
+          )
+        elsif resource.is_a?(RemoteClient) || resource.respond_to?(:call)
+          resource.call(location, query, variables)
+        else
+          raise "Unexpected executable resource type for #{location} location."
+        end
+      end
+
       # inverts fields map to provide fields for a type/location
       def fields_by_type_and_location
         @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|

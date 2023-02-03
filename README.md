@@ -1,6 +1,6 @@
 ## GraphQL Stitching for Ruby
 
-GraphQL Stitching composes a single GraphQL schema from multiple underlying GraphQL resources, then smartly delegates portions of incoming requests to their respective service locations in dependency order and returns the merged results. This allows an entire location graph to be queried through one combined GraphQL surface area.
+GraphQL Stitching composes a single schema from multiple underlying GraphQL resources, then smartly delegates portions of incoming requests to their respective service locations in dependency order and returns the merged results. This allows an entire location graph to be queried through one combined GraphQL surface area.
 
 ![Stitching Graph](./docs/images/stitching.png)
 
@@ -18,17 +18,15 @@ This Ruby implementation borrows ideas from [GraphQL Tools](https://the-guild.de
 
 ## Getting Started
 
-Add to your Gemfile:
+Add to your Gemfile, then `bundle install`:
 
 ```ruby
 gem "graphql-stitching"
 ```
 
-Then run `bundle install`.
-
 ## Usage
 
-The quickest way start is to use the provided `Gateway` component that assembles a stitched graph ready to execute requests:
+The quickest way to start is to use the provided `Gateway` component that assembles a stitched graph ready to execute requests:
 
 **@todo - need to actually build this `Gateway` component...**
 
@@ -73,7 +71,7 @@ While the `Gateway` component is an easy quick start, this library has several d
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one graph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.
-- [Planner](./docs/planner.md) - builds a cacheable query plan for a parsed GraphQL request.
+- [Planner](./docs/planner.md) - builds a cacheable query plan for a GraphQL request.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
 - [Resolver](./docs/resolver.md) - shapes an execution result to match the original request.
 
@@ -83,21 +81,23 @@ While the `Gateway` component is an easy quick start, this library has several d
 
 ![Merging Types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching needs to know how to cross-reference and fetch each version of a type from its source location. This is done using the `@boundary` directive:
+To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location. This is done using the `@boundary` directive:
 
 ```graphql
 directive @boundary(key: String!) repeatable on FIELD_DEFINITION
 ```
 
-The boundary directive is applied to root queries where a boundary type may be accessed in each service, and a `key` argument specifies a field needed from other services to be used as a query argument.
+The boundary directive is applied to root queries where a boundary type may be accessed in each location, and a `key` argument specifies a field needed from other services to be used as a query argument.
 
 ```ruby
 products_schema = <<~GRAPHQL
   directive @boundary(key: String!) repeatable on FIELD_DEFINITION
+
   type Product {
     id: ID!
     name: String!
   }
+
   type Query {
     product(id: ID!): Product @boundary(key: "id")
   }
@@ -105,10 +105,12 @@ GRAPHQL
 
 shipping_schema = <<~GRAPHQL
   directive @boundary(key: String!) repeatable on FIELD_DEFINITION
+
   type Product {
     id: ID!
     weight: Float!
   }
+
   type Query {
     products(ids: [ID!]!): [Product]! @boundary(key: "id")
   }
@@ -150,7 +152,7 @@ The above representation of a `Product` type provides no unique data beyond a ke
 
 #### List boundaries
 
-It's okay (even preferable in many circumstances) to provide a list accessor as a boundary query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
+It's okay ([even preferable](https://www.youtube.com/watch?v=VmK0KBHTcWs) in many circumstances) to provide a list accessor as a boundary query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
 
 ```graphql
 type Query {
@@ -160,7 +162,7 @@ type Query {
 
 #### Abstract boundaries
 
-It's okay for boundary queries to be implemented through abstract types. An abstract query will provide boundaries for all of its possible types. For interfaces, the key selection should match a field within the interface, and must be implemented by all locations. For unions, all possible types must implement the key selection individually.
+It's okay for boundary queries to be implemented through abstract types. An abstract query will provide boundaries for all of its possible types. For interfaces, the key selection should match a field within the interface. For unions, all possible types must implement the key selection individually.
 
 ```graphql
 interface Node {

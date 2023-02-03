@@ -18,8 +18,26 @@ module GraphQL
         @errors = []
       end
 
-      def perform
+      def perform(document=nil)
         exec_rec
+
+        if document
+          resolved = @supergraph.schema.execute(
+            operation_name: document.operation_name,
+            document: document.ast,
+            variables: @variables,
+            root_value: @data,
+            validate: false,
+          ).to_h
+
+          @data = resolved.dig("data")
+          @errors.concat(resolved.dig("errors")) if resolved.dig("errors")&.any?
+        end
+
+        result = {}
+        result["data"] = @data if @data.length > 0
+        result["errors"] = @errors if @errors.length > 0
+        result
       end
 
       private
@@ -42,10 +60,6 @@ module GraphQL
           perform_operation(op) #.then { exec_rec }
           exec_rec(op[:key])
         end
-
-        if @results.length == @plan[:ops].length && @results.values.all? #(&:complete?)
-          { "data" => @data, "errors" => @errors }
-        end
       end
 
       def perform_operation(op)
@@ -58,10 +72,12 @@ module GraphQL
           end
 
           # @todo - need to prune conditional planning steps added by unused fragments
-          results, _errors = query_boundary_location(op, origin_set, insertion_path)
+          results, errors = query_boundary_location(op, origin_set, insertion_path)
           origin_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
           end
+
+          @errors.concat(errors) if errors&.any?
 
         else
           # query for root data as a normal graphql request
@@ -71,27 +87,13 @@ module GraphQL
         end
       end
 
-      def execute_at_location(location, document, variables)
-        resource = @supergraph.resources[location]
-
-        if resource.nil?
-          raise "No executable resource assigned for #{location} location."
-        elsif resource.is_a?(Class) && resource <= GraphQL::Schema
-          resource.execute(query: document, variables: variables)
-        elsif resource.is_a?(RemoteClient) || resource.respond_to?(:call)
-          resource.call(location, document, variables)
-        else
-          raise "Unexpected executable resource type for #{location} location."
-        end
-      end
-
       def query_root_location(op)
         variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
         variable_defs = "(#{variable_defs})" if variable_defs.length > 0
         document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
         variables = @variables.slice(*op[:variables].keys)
 
-        execute_at_location(op[:location], document, variables)
+        @supergraph.execute_at_location(op[:location], document, variables)
       end
 
       def query_boundary_location(op, origin_set, insertion_path)
@@ -116,9 +118,8 @@ module GraphQL
           "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
         end
 
-        # puts document
         variables = @variables.slice(*op[:variables].keys)
-        result = execute_at_location(location, document, variables)
+        result = @supergraph.execute_at_location(location, document, variables)
 
         if boundary["list"]
           errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))
@@ -141,7 +142,8 @@ module GraphQL
         errors.each do |err|
           path = err["path"]
           if path && path.first == "_STITCH_result"
-            path.shift
+            err.delete("locations")
+            path = err["path"] = path[1..-1]
             if path.first && /^\d+$/.match?(path.first.to_s)
               index = path.shift
               origin = origin_set[index.to_i]
@@ -172,7 +174,8 @@ module GraphQL
           if path && path.length > 0
             result_index = /^_STITCH_result_(\d+)$/.match(path.first.to_s)
             if result_index
-              path.shift
+              err.delete("locations")
+              err["path"] = path[1..-1]
               origin = origin_set[result_index[1].to_i]
               if origin
                 pathed_errors_by_object_id[origin.object_id] ||= []
@@ -214,13 +217,13 @@ module GraphQL
             inner_elements = element.is_a?(Array) ? element.flatten : [element]
             inner_elements.each do |inner_element|
               errors = pathed_errors_by_object_id[inner_element.object_id]
-              errors.each { _1.path = [*current_path, index, *_1.path] } if errors
+              errors.each { _1["path"] = [*current_path, index, *_1["path"]] } if errors
             end
           end
 
         else
           errors = pathed_errors_by_object_id[scope.object_id]
-          errors.each { _1.path = [*current_path, *_1.path] } if errors
+          errors.each { _1["path"] = [*current_path, *_1["path"]] } if errors
         end
       end
     end

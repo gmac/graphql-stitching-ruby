@@ -35,7 +35,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -57,7 +57,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -79,7 +79,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -89,5 +89,13 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     expected_vars = { "newSprocket" => "MakeSprocketInput!", "lang" => "String" }
     assert_equal expected_vars, plan.operations[1].variable_set
+  end
+
+  def test_extracts_variables_from_inline_fragments
+    # @todo
+  end
+
+  def test_extracts_variables_from_fragment_spreads
+    # @todo
   end
 end

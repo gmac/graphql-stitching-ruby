@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Planner, merged interfaces" do
+describe "GraphQL::Stitching::Planner, abstract merged types" do
   def build_supergraph
     a = "
       interface Buyable {
@@ -76,4 +76,44 @@ describe "GraphQL::Stitching::Planner, merged interfaces" do
     assert_nil first.boundary
     assert_nil first.after_key
   end
+
+  # def test_plan_abstract_merged_types
+  #   a = "
+  #     type Apple { id: ID! a: String }
+  #     type Banana { id: ID! a: String }
+  #     union Fruit = Apple | Banana
+  #     type Query {
+  #       fruit: Fruit
+  #       apple(id: ID!): Apple @boundary(key: \"id\")
+  #       banana(id: ID!): Banana @boundary(key: \"id\")
+  #     }
+  #   "
+  #   b = "
+  #     type Apple { id: ID! b: String }
+  #     type Banana { id: ID! b: String }
+  #     type Query {
+  #       apple(id: ID!): Apple @boundary(key: \"id\")
+  #       banana(id: ID!): Banana @boundary(key: \"id\")
+  #     }
+  #   "
+  #   c = "
+  #     type Apple { id: ID! c: String }
+  #     type Coconut { id: ID! c: String }
+  #     union Fruit = Apple | Coconut
+  #     type Query {
+  #       apple(id: ID!): Apple @boundary(key: \"id\")
+  #       coconut(id: ID!): Coconut @boundary(key: \"id\")
+  #     }
+  #   "
+
+  #   query = "{ fruit { ...on Apple { a b c } ...on Banana { a b } ...on Coconut { c } } }"
+
+  #   supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
+  #   plan = GraphQL::Stitching::Planner.new(
+  #     supergraph: supergraph,
+  #     document: GraphQL.parse(query),
+  #   ).perform
+
+  #   pp plan.to_h
+  # end
 end

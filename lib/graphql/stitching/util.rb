@@ -35,26 +35,21 @@ module GraphQL
       # Gets all objects and interfaces that implement a given interface
       def self.get_possible_types(schema, parent_type)
         return [parent_type] unless parent_type.kind.abstract?
-        return parent_type.possible_types if parent_type.kind.name == "UNION"
+        return parent_type.possible_types if parent_type.kind.union?
 
         result = []
         schema.types.values.each do |type|
           next unless type <= GraphQL::Schema::Interface && type != parent_type
           next unless type.interfaces.include?(parent_type)
           result << type
-          result.push(*get_possible_types(schema, type)) if type.kind.name == "INTERFACE"
+          result.push(*get_possible_types(schema, type)) if type.kind.interface?
         end
         result.uniq
       end
 
       # Specifies if a type is a leaf node (no children)
       def self.is_leaf_type?(type)
-        type.kind.name == "SCALAR" || type.kind.name == "ENUM"
-      end
-
-      # Specifies if a type is an abstract node
-      def self.is_abstract_type?(type)
-        type.kind.name == "INTERFACE" || type.kind.name == "UNION"
+        type.kind.scalar? || type.kind.enum?
       end
     end
   end

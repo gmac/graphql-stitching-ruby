@@ -25,6 +25,7 @@ module GraphQL
       private
 
       def exec_rec(key=nil)
+        # @todo make this async
         next_ops = []
         @queue.reject! do |op|
           after_key = op[:after_key]
@@ -43,7 +44,7 @@ module GraphQL
         end
 
         if @results.length == @plan[:ops].length && @results.values.all? #(&:complete?)
-          { data: @data, errors: @errors }
+          { "data" => @data, "errors" => @errors }
         end
       end
 
@@ -52,12 +53,13 @@ module GraphQL
           # query for a merged type via a boundary
           insertion_path = op[:insertion_path]
 
-          original_set = insertion_path.reduce([@data]) do |set, path_segment|
+          origin_set = insertion_path.reduce([@data]) do |set, path_segment|
             set.flat_map { |obj| obj && obj[path_segment] }.compact
           end
 
-          results, _errors = query_boundary_location(op, original_set, insertion_path)
-          original_set.each_with_index do |origin_obj, index|
+          # @todo - need to prune conditional planning steps added by unused fragments
+          results, _errors = query_boundary_location(op, origin_set, insertion_path)
+          origin_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
           end
 
@@ -114,7 +116,7 @@ module GraphQL
           "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
         end
 
-        puts document
+        # puts document
         variables = @variables.slice(*op[:variables].keys)
         result = execute_at_location(location, document, variables)
 

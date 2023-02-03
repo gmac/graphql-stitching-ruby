@@ -25,6 +25,7 @@ class StitchedApp
     req = Rack::Request.new(env)
     case req.path_info
     when /graphql/
+      # @todo extract composition + this workflow into some kind of "Gateway" convenience
       params = JSON.parse(req.body.read)
       document = GraphQL.parse(params["query"])
 
@@ -34,9 +35,10 @@ class StitchedApp
         return [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
       end
 
-      # hoist variables...
-      # generate document hash...
-      # check for cached plan...
+      # @todo
+      # hoist variables... (nice to have)
+      # generate document hash... (nice to have)
+      # check for cached plan... (nice to have)
 
       plan = GraphQL::Stitching::Planner.new(
         supergraph: @supergraph,
@@ -44,13 +46,16 @@ class StitchedApp
         operation_name: params["operationName"],
       ).perform
 
-      # cache generated plan...
+      # cache generated plan... (nice to have)
 
       result = GraphQL::Stitching::Executor.new(
         supergraph: @supergraph,
         plan: plan.to_h,
         variables: params["variables"] || {},
       ).perform
+
+      # @todo need this resolver...
+      # result = Resolver.perform(@supergraph.schema, document, result)
 
       [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
     else

@@ -5,12 +5,10 @@ module GraphQL
   module Stitching
     class Composer::ValidateBoundaries < Composer::BaseValidator
 
-      ValidationError = GraphQL::Stitching::Composer::ValidationError
-
       def perform(ctx, composer)
         ctx.schema.types.each do |type_name, type|
           # objects and interfaces that are not the root operation types
-          next unless type.kind.name == "OBJECT" || type.kind.name == "INTERFACE"
+          next unless type.kind.object? || type.kind.interface?
           next if ctx.schema.query == type || ctx.schema.mutation == type
           next if type.graphql_name.start_with?("__")
 
@@ -21,7 +19,7 @@ module GraphQL
           boundaries = ctx.boundaries[type_name]
           if boundaries&.any?
             validate_as_boundary(ctx, type, subschema_types_by_location, boundaries)
-          elsif type.kind.name == "OBJECT"
+          elsif type.kind.object?
             validate_as_shared(ctx, type, subschema_types_by_location)
           end
         end
@@ -36,7 +34,7 @@ module GraphQL
         # only one boundary allowed per type/location/key
         boundaries_by_location_and_key = boundaries.each_with_object({}) do |boundary, memo|
           if memo.dig(boundary["location"], boundary["selection"])
-            raise ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["selection"]}` found in #{boundary["location"]}.
+            raise Composer::ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["selection"]}` found in #{boundary["location"]}.
             Limit one boundary query per type and key in each location. Abstract boundaries provide all possible types."
           end
           memo[boundary["location"]] ||= {}
@@ -51,7 +49,7 @@ module GraphQL
         # all locations have a boundary, or else are key-only
         subschema_types_by_location.each do |location, subschema_type|
           unless boundaries_by_location_and_key[location] || key_only_types_by_location[location]
-            raise ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{location} because it provides unique fields."
+            raise Composer::ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{location} because it provides unique fields."
           end
         end
 
@@ -63,7 +61,7 @@ module GraphQL
           remote_locations = bidirectional_access_locations.reject { _1 == location }
           paths = ctx.route_type_to_locations(type.graphql_name, location, remote_locations)
           if paths.length != remote_locations.length || paths.any? { |_loc, path| path.nil? }
-            raise ValidationError, "Cannot route `#{type.graphql_name}` boundaries in #{location} to all other locations.
+            raise Composer::ValidationError, "Cannot route `#{type.graphql_name}` boundaries in #{location} to all other locations.
             All locations must provide a boundary accessor that uses a conjoining key."
           end
         end
@@ -73,7 +71,7 @@ module GraphQL
         expected_fields = type.fields.keys.sort
         subschema_types_by_location.each do |location, subschema_type|
           if subschema_type.fields.keys.sort != expected_fields
-            raise ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations,
+            raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations,
             or else define boundary queries so that its unique fields may be accessed remotely."
           end
         end

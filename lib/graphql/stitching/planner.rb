@@ -85,9 +85,8 @@ module GraphQL
 
           selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            location = locations.last
-            memo[location] ||= []
-            memo[location] << node
+            memo[locations.last] ||= []
+            memo[locations.last] << node
           end
 
           selections_by_location.map do |location, selections|
@@ -136,9 +135,9 @@ module GraphQL
         selections_result = []
         variables_result = {}
 
-        if parent_type.kind.name == "INTERFACE"
+        if parent_type.kind.interface?
           # fields of a merged interface may not belong to the interface at the local level,
-          # so these non-local interface fields get expanded into typed fragments to be resolved
+          # so these non-local interface fields get expanded into typed fragments for planning
           local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
           extended_selections = []
 
@@ -163,7 +162,7 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next unless parent_type.kind.fields?
+            next unless parent_type.kind.fields? # @todo ... still needed? Why was this necessary?
 
             if node.name == "__typename"
               selections_result << node

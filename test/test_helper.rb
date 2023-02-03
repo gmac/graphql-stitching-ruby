@@ -29,7 +29,7 @@ def compose_definitions(schemas, options={})
 end
 
 def extract_types_of_kind(schema, kind)
-  schema.types.values.select { _1.kind.name == "OBJECT" && !_1.graphql_name.start_with?("__") }
+  schema.types.values.select { _1.kind.object? && !_1.graphql_name.start_with?("__") }
 end
 
 # prints a wrapped field/argument value type as GraphQL SDL

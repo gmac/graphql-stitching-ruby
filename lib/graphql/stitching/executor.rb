@@ -35,7 +35,7 @@ module GraphQL
         end
 
         result = {}
-        result["data"] = @data if @data.length > 0
+        result["data"] = @data if @data && @data.length > 0
         result["errors"] = @errors if @errors.length > 0
         result
       end

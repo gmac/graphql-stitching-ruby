@@ -23,64 +23,6 @@ describe "GraphQL::Stitching::Planner, root operations" do
     })
   end
 
-  def test_plans_by_given_operation_name
-    document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
-
-    plan1 = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      document: document,
-      operation_name: "First",
-    ).perform
-
-    assert_equal 1, plan1.operations.length
-    assert_equal "widget", plan1.operations.first.selections.first.name
-
-    plan2 = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      document: document,
-      operation_name: "Second",
-    ).perform
-
-    assert_equal 1, plan2.operations.length
-    assert_equal "sprocket", plan2.operations.first.selections.first.name
-  end
-
-  def test_errors_for_multiple_operations_given_without_operation_name
-    document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
-
-    assert_error "An operation name is required" do
-      GraphQL::Stitching::Planner.new(
-        supergraph: @supergraph,
-        document: document,
-      ).perform
-    end
-  end
-
-  def test_errors_for_invalid_operation_names
-    document = GraphQL.parse("query First { widget { id } } query Second { sprocket { id } }")
-
-    assert_error "Invalid root operation" do
-      GraphQL::Stitching::Planner.new(
-        supergraph: @supergraph,
-        document: document,
-        operation_name: "Invalid",
-      ).perform
-    end
-  end
-
-  def test_errors_for_invalid_operation_types
-    supergraph = compose_definitions({ "widgets" => @widgets_sdl, "sprockets" => @sprockets_sdl })
-    supergraph.schema.subscription(supergraph.schema.get_type("Widget"))
-    document = GraphQL.parse("subscription { id }")
-
-    assert_error "Invalid root operation" do
-      GraphQL::Stitching::Planner.new(
-        supergraph: @supergraph,
-        document: document,
-      ).perform
-    end
-  end
-
   def test_plans_query_operations_by_async_location_groups
     document = "
       query {
@@ -93,7 +35,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -124,7 +66,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 3, plan.operations.length

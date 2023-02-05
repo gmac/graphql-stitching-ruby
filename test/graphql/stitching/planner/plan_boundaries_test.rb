@@ -74,7 +74,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: build_sample_graph,
-      document: GraphQL.parse(document),
+      document: GraphQL::Stitching::Document.new(document),
     ).perform
 
     assert_equal 3, plan.operations.length
@@ -113,12 +113,12 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan1 = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse(document1),
+      document: GraphQL::Stitching::Document.new(document1),
     ).perform
 
     plan2 = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse(document2),
+      document: GraphQL::Stitching::Document.new(document2),
     ).perform
 
     assert_equal 2, plan1.operations.length
@@ -165,7 +165,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse("{ apple(id:\"1\") { id name weight } }"),
+      document: GraphQL::Stitching::Document.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
     first = plan.operations[0]
@@ -199,7 +199,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse("{ apple(id:\"1\") { id name weight } }"),
+      document: GraphQL::Stitching::Document.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
     first = plan.operations[0]
@@ -234,7 +234,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL.parse("{ node(id:\"1\") { id ...on Apple { name weight } } }"),
+      document: GraphQL::Stitching::Document.new("{ node(id:\"1\") { id ...on Apple { name weight } } }"),
     ).perform
 
     first = plan.operations[0]

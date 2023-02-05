@@ -6,13 +6,11 @@ module GraphQL
     class Planner
       attr_reader :operations
 
-      SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
 
-      def initialize(supergraph:, document:, operation_name: nil)
+      def initialize(supergraph:, document:)
         @supergraph = supergraph
         @document = document
-        @operation_name = operation_name
         @sequence_key = 0
         @operations = []
       end
@@ -32,47 +30,20 @@ module GraphQL
 
       private
 
-      def document_operation
-        @document_operation ||= begin
-          operation_defs = @document.definitions.select do |d|
-            next unless d.is_a?(GraphQL::Language::Nodes::OperationDefinition)
-            next unless SUPPORTED_OPERATIONS.include?(d.operation_type)
-            @operation_name ? d.name == @operation_name : true
-          end
-
-          if operation_defs.length < 1
-            raise "Invalid root operation."
-          elsif operation_defs.length > 1
-            raise "An operation name is required when sending multiple operations."
-          end
-
-          operation_defs.first
+      def add_operation(location:, parent_type:, selections: nil, insertion_path: [], operation_type: "query", after_key: nil, boundary: nil)
+        parent_key = @sequence_key += 1
+        selection_set, variables = if selections&.any?
+          extract_locale_selections(location, parent_type, selections, insertion_path, parent_key)
         end
-      end
 
-      def document_variables
-        @document_variables ||= document_operation.variables.each_with_object({}) do |v, memo|
-          memo[v.name] = v.type
-        end
-      end
-
-      def document_fragments
-        @document_fragments ||= @document.definitions.each_with_object({}) do |d, memo|
-          memo[d.name] = d if d.is_a?(GraphQL::Language::Nodes::FragmentDefinition)
-        end
-      end
-
-      def add_operation(location:, parent_type:, operation_type: "query", after_key: nil, boundary: nil, insertion_path: [])
-        operation_key = @sequence_key += 1
-        selection_set, variables = yield(operation_key)
         @operations << Operation.new(
-          key: operation_key,
+          key: parent_key,
           after_key: after_key,
           location: location,
           parent_type: parent_type,
           operation_type: operation_type,
-          selections: selection_set,
-          variables: variables,
+          selections: selection_set || [],
+          variables: variables || {},
           insertion_path: insertion_path,
           boundary: boundary,
         )
@@ -80,21 +51,19 @@ module GraphQL
       end
 
       def build_root_operations
-        case document_operation.operation_type
+        case @document.operation.operation_type
         when "query"
           # plan steps grouping all fields by location for async execution
           parent_type = @supergraph.schema.query
 
-          selections_by_location = document_operation.selections.each_with_object({}) do |node, memo|
+          selections_by_location = @document.operation.selections.each_with_object({}) do |node, memo|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             memo[locations.last] ||= []
             memo[locations.last] << node
           end
 
           selections_by_location.map do |location, selections|
-            add_operation(location: location, parent_type: parent_type) do |parent_key|
-              extract_locale_selections(parent_key, parent_type, selections, [], location)
-            end
+            add_operation(location: location, parent_type: parent_type, selections: selections)
           end
 
         when "mutation"
@@ -102,7 +71,7 @@ module GraphQL
           parent_type = @supergraph.schema.mutation
           location_groups = []
 
-          document_operation.selections.reduce(nil) do |last_location, node|
+          @document.operation.selections.reduce(nil) do |last_location, node|
             location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             if location != last_location
               location_groups << {
@@ -114,16 +83,14 @@ module GraphQL
             location
           end
 
-          location_groups.reduce(nil) do |parent_key, group|
-            op = add_operation(
+          location_groups.reduce(nil) do |after_key, group|
+            add_operation(
               location: group[:location],
+              selections: group[:selections],
               operation_type: "mutation",
               parent_type: parent_type,
-              after_key: parent_key
-            ) do |parent_key|
-              extract_locale_selections(parent_key, parent_type, group[:selections], [], group[:location])
-            end
-            op.key
+              after_key: after_key
+            ).key
           end
 
         else
@@ -131,11 +98,11 @@ module GraphQL
         end
       end
 
-      # def extract_locale_selections(current_location, insertion_path, parent_type, input_selections, parent_key)
-      def extract_locale_selections(parent_key, parent_type, input_selections, insertion_path, current_location, conditional: false)
+      def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after_key)
         remote_selections = []
         selections_result = []
         variables_result = {}
+        implements_fragments = false
 
         if parent_type.kind.interface?
           # fields of a merged interface may not belong to the interface at the local level,
@@ -164,8 +131,6 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next unless parent_type.kind.fields? # @todo ... still needed? Why was this necessary?
-
             if node.name == "__typename"
               selections_result << node
               next
@@ -183,13 +148,13 @@ module GraphQL
               Util.get_named_type(parent_type.fields[node.name].type)
             end
 
+            extract_node_variables!(node, variables_result)
+
             if Util.is_leaf_type?(field_type)
-              extract_node_variables!(node, variables_result)
               selections_result << node
             else
-              extract_node_variables!(node, variables_result)
               expanded_path = [*insertion_path, node.alias || node.name]
-              selection_set, variables = extract_locale_selections(parent_key, field_type, node.selections, expanded_path, current_location)
+              selection_set, variables = extract_locale_selections(current_location, field_type, node.selections, expanded_path, after_key)
               selections_result << node.merge(selections: selection_set)
               variables_result.merge!(variables)
             end
@@ -198,18 +163,20 @@ module GraphQL
             next unless @supergraph.locations_by_type[node.type.name].include?(current_location)
 
             fragment_type = @supergraph.schema.types[node.type.name]
-            selection_set, variables = extract_locale_selections(parent_key, fragment_type, node.selections, insertion_path, current_location)
+            selection_set, variables = extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, after_key)
             selections_result << node.merge(selections: selection_set)
             variables_result.merge!(variables)
+            implements_fragments = true
 
           when GraphQL::Language::Nodes::FragmentSpread
-            fragment = document_fragments[node.name]
+            fragment = @document.fragments[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
             fragment_type = @supergraph.schema.types[fragment.type.name]
-            selection_set, variables = extract_locale_selections(parent_key, fragment_type, fragment.selections, insertion_path, current_location)
+            selection_set, variables = extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, after_key)
             selections_result << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             variables_result.merge!(variables)
+            implements_fragments = true
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
@@ -217,18 +184,18 @@ module GraphQL
         end
 
         if remote_selections.any?
-          selection_set = build_child_operations(parent_key, parent_type, remote_selections, insertion_path, current_location)
+          selection_set = build_child_operations(current_location, parent_type, remote_selections, insertion_path, after_key)
           selections_result.concat(selection_set)
         end
 
-        if parent_type.kind.abstract?
+        if parent_type.kind.abstract? || implements_fragments
           selections_result << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
         end
 
         return selections_result, variables_result
       end
 
-      def build_child_operations(parent_key, parent_type, input_selections, insertion_path, current_location)
+      def build_child_operations(current_location, parent_type, input_selections, insertion_path, after_key)
         parent_selections_result = []
         selections_by_location = {}
 
@@ -242,8 +209,9 @@ module GraphQL
           end
         end
 
-        # distribute non-unique fields among locations
+        # distribute non-unique fields among locations, preferring used locations
         if input_selections.any?
+          # weight locations by number of needed fields available, prefer greater availability
           location_weights = input_selections.each_with_object({}) do |node, memo|
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
             possible_locations.each do |location|
@@ -256,15 +224,15 @@ module GraphQL
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name]
 
             preferred_location_score = 0
-            preferred_location = possible_locations.reduce(possible_locations.first) do |current, candidate|
+            preferred_location = possible_locations.reduce(possible_locations.first) do |current_loc, candidate_loc|
               score = selections_by_location[location] ? input_selections.length : 0
-              score += location_weights.fetch(candidate, 0)
+              score += location_weights.fetch(candidate_loc, 0)
 
               if score > preferred_location_score
                 preferred_location_score = score
-                candidate
+                candidate_loc
               else
-                current
+                current_loc
               end
             end
 
@@ -279,20 +247,14 @@ module GraphQL
             location = boundary["location"]
             next memo[location] if memo[location]
 
-            selections = selections_by_location[location]
             child_op = memo[location] = add_operation(
-              after_key: parent_key,
               location: location,
+              selections: selections_by_location[location],
               parent_type: parent_type,
               insertion_path: insertion_path,
-              boundary: boundary
-            ) do |next_parent_key|
-              if selections
-                extract_locale_selections(next_parent_key, parent_type, selections, insertion_path, location)
-              else
-                [[], {}]
-              end
-            end
+              boundary: boundary,
+              after_key: after_key,
+            )
 
             foreign_key = GraphQL::Language::Nodes::Field.new(
               alias: "_STITCH_#{boundary["selection"]}",
@@ -318,7 +280,7 @@ module GraphQL
           when GraphQL::Language::Nodes::InputObject
             extract_node_variables!(argument.value, memo)
           when GraphQL::Language::Nodes::VariableIdentifier
-            memo[argument.value.name] ||= document_variables[argument.value.name]
+            memo[argument.value.name] ||= @document.variables[argument.value.name]
           end
         end
       end

@@ -48,21 +48,21 @@ module TestSchema
           ids.map { |id| FRUITS.find { _1[:id] == id && /Apple|Banana/.match(_1[:__typename]) } }
         end
 
-        field :apple, Apple, null: true do
+        field :apple_a, Apple, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
 
-        def apple(id:)
+        def apple_a(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Apple' }
         end
 
-        field :banana, Banana, null: true do
+        field :banana_b, Banana, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
 
-        def banana(id:)
+        def banana_b(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Banana' }
         end
       end
@@ -90,28 +90,38 @@ module TestSchema
         field :b, String, null: false
       end
 
+      class Coconut < GraphQL::Schema::Object
+        field :id, ID, null: false
+        field :b, String, null: false
+      end
+
       class Query < GraphQL::Schema::Object
-        field :apple, Apple, null: true do
+        field :apple_b, Apple, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
 
-        def apple(id:)
+        def apple_b(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Apple' }
         end
 
-        field :banana, Banana, null: true do
+        field :banana_b, Banana, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
 
-        def banana(id:)
+        def banana_b(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Banana' }
         end
-      end
 
-      def self.resolve_type(_type, obj, _ctx)
-        obj[:__typename]
+        field :coconut_b, Coconut, null: true do
+          directive Boundary, key: "id"
+          argument :id, ID, required: true
+        end
+
+        def coconut_b(id:)
+          FRUITS.find { _1[:id] == id && _1[:__typename] == 'Coconut' }
+        end
       end
 
       query Query
@@ -142,6 +152,7 @@ module TestSchema
         end
 
         field :fruits_c, [Fruit, null: true], null: false do
+          directive Boundary, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -149,21 +160,19 @@ module TestSchema
           ids.map { |id| FRUITS.find { _1[:id] == id && /Apple|Coconut/.match(_1[:__typename]) } }
         end
 
-        field :apple, Apple, null: true do
-          directive Boundary, key: "id"
+        field :apple_c, Apple, null: true do
           argument :id, ID, required: true
         end
 
-        def apple(id:)
+        def apple_c(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Apple' }
         end
 
-        field :coconut, Coconut, null: true do
-          directive Boundary, key: "id"
+        field :coconut_c, Coconut, null: true do
           argument :id, ID, required: true
         end
 
-        def coconut(id:)
+        def coconut_c(id:)
           FRUITS.find { _1[:id] == id && _1[:__typename] == 'Coconut' }
         end
       end

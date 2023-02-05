@@ -1,32 +1,37 @@
 ## GraphQL::Stitching::Composer
 
-The `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined `Supergraph` that is validated for integrity. The resulting context provides a combined GraphQL schema and delegation maps used to route incoming requests:
+The `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity. The resulting context provides a combined GraphQL schema and delegation maps used to route incoming requests:
 
 ```ruby
-storefronts_sdl = %{
+storefronts_sdl = <<~GRAPHQL
   type Storefront { 
     id:ID!
     name: String!
     products: [Product]
   }
+
   type Product { 
     id:ID!
   }
+
   type Query {
     storefront(id: ID!): Storefront
   }
-}
+GRAPHQL
 
-products_sdl = %{
+products_sdl = <<~GRAPHQL
+  directive @boundary(key: String!) repeatable on FIELD_DEFINITION
+
   type Product { 
     id:ID!
     name: String
     price: Int
   }
+
   type Query {
     product(id: ID!): Product @boundary(key: "id")
   }
-}
+GRAPHQL
 
 supergraph = GraphQL::Stitching::Composer.new({
   "storefronts" => GraphQL::Schema.from_definition(storefronts_sdl),
@@ -45,7 +50,7 @@ The strategy used to merge source schemas into the combined schema is based on e
 - `Object` and `Interface` types merge their fields together:
   - Common fields across locations must share a value type, and the weakest nullability is used.
   - Field arguments merge using the same rules as `InputObject`.
-  - Objects with unique fields across locations must implement [`@boundary` accessors](#).
+  - Objects with unique fields across locations must implement [`@boundary` accessors](../README.md#merged-types-boundaries).
   - Shared object types without `@boundary` accessors must contain identical fields.
   - Merged interfaces must remain compatible with all underlying implementations.
 

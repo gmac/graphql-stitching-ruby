@@ -30,6 +30,8 @@ module GraphQL
           end
         end
 
+        schema.extend(GraphQL::Stitching::SupergraphTypeResolver)
+
         @possible_keys_by_type_and_location = {}
         @resources = { LOCATION => @schema }.merge!(resources)
       end
@@ -62,6 +64,24 @@ module GraphQL
       def assign_location_handler(location, handler = nil, &block)
         raise "A client block must be provided." unless block_given?
         @resources[location] = handler || block
+      end
+
+      def execute_at_location(location, query, variables)
+        resource = resources[location]
+
+        if resource.nil?
+          raise "No executable resource assigned for #{location} location."
+        elsif resource.is_a?(Class) && resource <= GraphQL::Schema
+          resource.execute(
+            query: query,
+            variables: variables,
+            validate: false,
+          )
+        elsif resource.is_a?(RemoteClient) || resource.respond_to?(:call)
+          resource.call(location, query, variables)
+        else
+          raise "Unexpected executable resource type for #{location} location."
+        end
       end
 
       # inverts fields map to provide fields for a type/location

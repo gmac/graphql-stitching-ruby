@@ -9,7 +9,9 @@ module GraphQL
 end
 
 require_relative "stitching/supergraph"
+require_relative "stitching/supergraph_type_resolver"
 require_relative "stitching/composer"
+require_relative "stitching/document"
 require_relative "stitching/executor"
 require_relative "stitching/operation"
 require_relative "stitching/planner"

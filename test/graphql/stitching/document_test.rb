@@ -59,14 +59,14 @@ describe "GraphQL::Stitching::Document" do
     end
   end
 
-  def test_accesses_document_variables
+  def test_accesses_document_variable_definitions
     query = "
       query($ids: [ID!]!, $ns: String!, $lang: String) {
         widget(ids: $ids, ns: $ns) { id name(lang: $lang) }
       }
     "
     document = GraphQL::Stitching::Document.new(query)
-    variables = document.variables.each_with_object({}) do |(name, type), memo|
+    variables = document.variable_definitions.each_with_object({}) do |(name, type), memo|
       memo[name] = GraphQL::Language::Printer.new.print(type)
     end
 
@@ -79,7 +79,7 @@ describe "GraphQL::Stitching::Document" do
     assert_equal expected, variables
   end
 
-  def test_accesses_document_fragments
+  def test_accesses_document_fragment_definitions
     query = "
       query { things { ...WidgetAttrs ...SprocketAttrs } }
       fragment WidgetAttrs on Widget { widget }
@@ -87,7 +87,7 @@ describe "GraphQL::Stitching::Document" do
     "
     document = GraphQL::Stitching::Document.new(query)
 
-    assert_equal "widget", document.fragments["WidgetAttrs"].selections.first.name
-    assert_equal "sprocket", document.fragments["SprocketAttrs"].selections.first.name
+    assert_equal "widget", document.fragment_definitions["WidgetAttrs"].selections.first.name
+    assert_equal "sprocket", document.fragment_definitions["SprocketAttrs"].selections.first.name
   end
 end

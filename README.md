@@ -14,7 +14,7 @@ GraphQL Stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`)
 - Subscriptions
 
-This Ruby implementation borrows ideas from [GraphQL Tools](https://the-guild.dev/graphql/stitching) and [Bramble](https://movio.github.io/bramble/), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a high-throughput API gateway, the opportunity here is for a smaller Ruby application to stitch its local schema onto a remote schema (making itself a superset of the remote) without requiring an additional gateway service.
+This Ruby implementation borrows ideas from [GraphQL Tools](https://the-guild.dev/graphql/stitching) and [Bramble](https://movio.github.io/bramble/), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a high-throughput API gateway, the opportunity here is for a Ruby application to stitch its local schema onto a remote schema (making itself a superset of the remote) without requiring an additional gateway service.
 
 ## Getting Started
 
@@ -67,7 +67,7 @@ result = gateway.execute(
 
 Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations.
 
-While the `Gateway` component is an easy quick start, this library has several discrete components that can be composed into tailored workflows:
+While the `Gateway` component is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one graph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.
@@ -77,7 +77,7 @@ While the `Gateway` component is an easy quick start, this library has several d
 
 ## Merged Types (Boundaries)
 
-`Object` and `Interface` types may exist with different fields in different graph locations, and will get merged together in the combined schema.
+`Object` and `Interface` types may exist with different fields in different graph locations, and will get merged together in the combined schema. These merged types are referred to as "boundaries".
 
 ![Merging Types](./docs/images/merging.png)
 
@@ -125,7 +125,7 @@ superschema.assign_location_url("products", "http://localhost:3001")
 superschema.assign_location_url("shipping", "http://localhost:3002")
 ```
 
-Focusing on the `@boundary` directive useage:
+Focusing on the `@boundary` directive usage:
 
 ```graphql
 type Product {
@@ -140,7 +140,7 @@ type Query {
 * The `@boundary` directive is applied to a root query where the boundary type may be accessed. The boundary type is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible (more on arguments later).
 
-Each location that provides a unique version of a type must provide _exactly one_ boundary query per possible key (more on multiple keys later). The exception to this requirement are types that contain only a single key field:
+Each location that provides a unique variant of a type must provide _exactly one_ boundary query per possible key (more on multiple keys later). The exception to this requirement are types that contain only a single key field:
 
 ```graphql
 type Product {
@@ -199,7 +199,7 @@ type Product { id:ID! upc:ID! }  # products location
 type Product { upc:ID! }         # catelog location
 ```
 
-In the above graph, the Storefront and Catelog locations have different keys that join through an intermediary with both. This pattern is perfectly valid and resolvable as long as the intermediary provides boundaries for each possible key:
+In the above graph, the Storefront and Catelog locations have different keys that join through an intermediary. This pattern is perfectly valid and resolvable as long as the intermediary provides boundaries for each possible key:
 
 ```graphql
 type Product {

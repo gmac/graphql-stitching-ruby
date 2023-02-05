@@ -30,8 +30,6 @@ module GraphQL
           end
         end
 
-        schema.extend(GraphQL::Stitching::SupergraphTypeResolver)
-
         @possible_keys_by_type_and_location = {}
         @resources = { LOCATION => @schema }.merge!(resources)
       end

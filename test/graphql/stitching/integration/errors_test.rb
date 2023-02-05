@@ -22,11 +22,11 @@ describe 'GraphQL::Stitching, errors' do
       }
     "
 
-    result = plan_and_execute(@supergraph, query, {
+    _result = plan_and_execute(@supergraph, query, {
       "ids" => ["10", "18", "36"]
     })
 
-    pp result
+    # pp result
 
     # @todo need assertions!
   end

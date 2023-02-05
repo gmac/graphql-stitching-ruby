@@ -36,11 +36,16 @@ def plan_and_execute(supergraph, query, variables={})
     document: document,
   ).perform
 
-  GraphQL::Stitching::Executor.new(
+  executor = GraphQL::Stitching::Executor.new(
     supergraph: supergraph,
     plan: plan.to_h,
     variables: variables
-  ).perform(document)
+  )
+
+  result = executor.perform(document)
+
+  yield(plan, executor) if block_given?
+  result
 end
 
 def extract_types_of_kind(schema, kind)

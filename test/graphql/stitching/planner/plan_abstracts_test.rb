@@ -44,7 +44,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     ).perform
 
     first = plan.operations[0]
-    first_sel = "{ buyable(id: \"1\") { id ... on Product { _STITCH_id: id } ... on Bundle { name price } _STITCH_typename: __typename } }"
+    first_sel = "{ buyable(id: \"1\") { id ... on Product { _STITCH_id: id _STITCH_typename: __typename } ... on Bundle { name price } _STITCH_typename: __typename } }"
     assert_equal "b", first.location
     assert_equal [], first.insertion_path
     assert_equal first_sel, first.selection_set

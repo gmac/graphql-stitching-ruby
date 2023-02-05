@@ -21,10 +21,11 @@ describe 'GraphQL::Stitching, unions' do
       }
     }"
 
-    result = plan_and_execute(@supergraph, query)
+    _result = plan_and_execute(@supergraph, query)
 
     # pp plan.to_h
-    pp result
+    # pp result
+    # @todo
   end
 
   def test_plan_abstract_merged_types_via_abstract_boundary
@@ -36,9 +37,10 @@ describe 'GraphQL::Stitching, unions' do
       }
     }"
 
-    result = plan_and_execute(@supergraph, query)
+    _result = plan_and_execute(@supergraph, query)
 
     # pp plan.to_h
-    pp result
+    # pp result
+    # @todo
   end
 end

@@ -48,8 +48,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal "b", first.location
     assert_equal [], first.insertion_path
     assert_equal first_sel, first.selection_set
+    assert_equal 0, first.after_key
     assert_nil first.boundary
-    assert_nil first.after_key
 
     second = plan.operations[1]
     assert_equal "a", second.location
@@ -73,8 +73,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal "a", first.location
     assert_equal [], first.insertion_path
     assert_equal "{ products(ids: [\"1\"]) { id name price } }", first.selection_set
+    assert_equal 0, first.after_key
     assert_nil first.boundary
-    assert_nil first.after_key
   end
 
   # def test_plan_abstract_merged_types

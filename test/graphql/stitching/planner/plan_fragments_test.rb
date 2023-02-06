@@ -49,7 +49,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       }
     "
 
-    plan = GraphQL::Stitching::Planner.new(
+    _plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
       document: GraphQL::Stitching::Document.new(query),
     ).perform.to_h

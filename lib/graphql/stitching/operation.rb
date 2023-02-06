@@ -4,7 +4,7 @@
 module GraphQL
   module Stitching
     class Operation
-      attr_reader :key, :location, :parent_type, :operation_type, :insertion_path
+      attr_reader :key, :location, :parent_type, :type_condition, :operation_type, :insertion_path
       attr_accessor :after_key, :selections, :variables, :boundary
 
       def initialize(
@@ -13,6 +13,7 @@ module GraphQL
         parent_type:,
         operation_type: "query",
         insertion_path: [],
+        type_condition: nil,
         after_key: nil,
         selections: [],
         variables: [],
@@ -24,6 +25,7 @@ module GraphQL
         @parent_type = parent_type
         @operation_type = operation_type
         @insertion_path = insertion_path
+        @type_condition = type_condition
         @selections = selections
         @variables = variables
         @boundary = boundary
@@ -45,9 +47,9 @@ module GraphQL
           key: @key,
           after_key: @after_key,
           location: @location,
-          type_condition: @parent_type.kind.abstract? ? nil : @parent_type.graphql_name,
           operation_type: @operation_type,
           insertion_path: @insertion_path,
+          type_condition: @type_condition,
           selections: selection_set,
           variables: variable_set,
           boundary: @boundary,

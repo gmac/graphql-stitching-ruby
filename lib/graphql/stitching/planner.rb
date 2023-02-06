@@ -32,13 +32,13 @@ module GraphQL
 
       private
 
-      def add_operation(location:, parent_type:, selections: nil, insertion_path: [], operation_type: "query", after_key: nil, boundary: nil)
+      def add_operation(location:, parent_type:, selections: nil, insertion_path: [], operation_type: "query", after_key: 0, boundary: nil)
         parent_key = @sequence_key += 1
         selection_set, variables = if selections&.any?
           extract_locale_selections(location, parent_type, selections, insertion_path, parent_key)
         end
 
-        grouping = [after_key || 0, location, parent_type.graphql_name, *insertion_path].join("/")
+        grouping = [after_key, location, parent_type.graphql_name, *insertion_path].join("/")
 
         if op = @operations_by_grouping[grouping]
           op.selections += selection_set if selection_set
@@ -46,15 +46,18 @@ module GraphQL
           return op
         end
 
+        type_conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.query && parent_type != @supergraph.schema.mutation
+
         @operations_by_grouping[grouping] = Operation.new(
           key: parent_key,
           after_key: after_key,
           location: location,
           parent_type: parent_type,
           operation_type: operation_type,
+          insertion_path: insertion_path,
+          type_condition: type_conditional ? parent_type.graphql_name : nil,
           selections: selection_set || [],
           variables: variables || {},
-          insertion_path: insertion_path,
           boundary: boundary,
         )
       end
@@ -92,7 +95,7 @@ module GraphQL
             location
           end
 
-          location_groups.reduce(nil) do |after_key, group|
+          location_groups.reduce(0) do |after_key, group|
             add_operation(
               location: group[:location],
               selections: group[:selections],

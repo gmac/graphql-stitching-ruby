@@ -44,13 +44,15 @@ describe "GraphQL::Stitching::Planner, root operations" do
     assert_equal "widgets", first.location
     assert_equal "query", first.operation_type
     assert_equal "{ a: widget { id } c: widget { id } }", first.selection_set
-    assert_nil first.after_key
+    assert_equal 0, first.after_key
+    assert_nil first.type_condition
 
     second = plan.operations[1]
     assert_equal "sprockets", second.location
     assert_equal "query", second.operation_type
     assert_equal "{ b: sprocket { id } d: sprocket { id } }", second.selection_set
-    assert_nil second.after_key
+    assert_equal 0, second.after_key
+    assert_nil second.type_condition
   end
 
   def test_plans_mutation_operations_by_serial_location_groups
@@ -75,18 +77,21 @@ describe "GraphQL::Stitching::Planner, root operations" do
     assert_equal "widgets", first.location
     assert_equal "mutation", first.operation_type
     assert_equal "{ a: makeWidget { id } }", first.selection_set
-    assert_nil first.after_key
+    assert_equal 0, first.after_key
+    assert_nil first.type_condition
 
     second = plan.operations[1]
     assert_equal "sprockets", second.location
     assert_equal "mutation", second.operation_type
     assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selection_set
     assert_equal first.key, second.after_key
+    assert_nil second.type_condition
 
     third = plan.operations[2]
     assert_equal "widgets", third.location
     assert_equal "mutation", third.operation_type
     assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selection_set
     assert_equal second.key, third.after_key
+    assert_nil third.type_condition
   end
 end

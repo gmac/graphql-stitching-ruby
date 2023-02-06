@@ -28,7 +28,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
     "
 
     result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
-    pp result
+    # pp result
 
     bundle = result.dig("data", "bundles", 0)
     expected_root = { "id" => "1", "name" => "Apple Gear", "price" => 999.99 }

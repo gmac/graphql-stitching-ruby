@@ -45,12 +45,13 @@ module GraphQL
           key: @key,
           after_key: @after_key,
           location: @location,
+          type_condition: @parent_type.kind.abstract? ? nil : @parent_type.graphql_name,
           operation_type: @operation_type,
           insertion_path: @insertion_path,
           selections: selection_set,
           variables: variable_set,
           boundary: @boundary,
-        }
+        }.compact
       end
     end
   end

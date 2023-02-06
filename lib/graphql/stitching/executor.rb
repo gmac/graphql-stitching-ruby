@@ -6,33 +6,34 @@ module GraphQL
   module Stitching
     class Executor
 
-      attr_reader :results
+      attr_reader :query_count
 
       def initialize(supergraph:, plan:, variables:{})
         @supergraph = supergraph
         @plan = plan
         @variables = variables
         @queue = plan[:ops].dup
-        @results = {}
+        @status = {}
         @data = {}
         @errors = []
+        @query_count = 0
       end
 
       def perform(document=nil)
         exec_rec
 
-        if document
-          resolved = @supergraph.schema.execute(
-            operation_name: document.operation_name,
-            document: document.ast,
-            variables: @variables,
-            root_value: @data,
-            validate: false,
-          ).to_h
+        # if document
+        #   resolved = @supergraph.schema.execute(
+        #     operation_name: document.operation_name,
+        #     document: document.ast,
+        #     variables: @variables,
+        #     root_value: @data,
+        #     validate: false,
+        #   ).to_h
 
-          @data = resolved.dig("data")
-          @errors.concat(resolved.dig("errors")) if resolved.dig("errors")&.any?
-        end
+        #   @data = resolved.dig("data")
+        #   @errors.concat(resolved.dig("errors")) if resolved.dig("errors")&.any?
+        # end
 
         result = {}
         result["data"] = @data if @data && @data.length > 0
@@ -47,17 +48,17 @@ module GraphQL
         next_ops = []
         @queue.reject! do |op|
           after_key = op[:after_key]
-          after_promise = @results[after_key]
 
-          if after_key.nil? || after_promise #.complete?
+          if after_key.nil? || @status[after_key] == :complete
             next_ops << op
             true
           end
         end
 
         next_ops.each do |op|
-          @results[op[:key]] = true
-          perform_operation(op) #.then { exec_rec }
+          @status[op[:key]] = :pending
+          perform_operation(op)
+          @status[op[:key]] = :complete
           exec_rec(op[:key])
         end
       end
@@ -68,10 +69,18 @@ module GraphQL
           insertion_path = op[:insertion_path]
 
           origin_set = insertion_path.reduce([@data]) do |set, path_segment|
-            set.flat_map { |obj| obj && obj[path_segment] }.compact
+            mapped = set.flat_map { |obj| obj && obj[path_segment] }
+            mapped.compact!
+            mapped
           end
 
-          # @todo - need to prune conditional planning steps added by unused fragments
+          if op[:type_condition]
+            # operations planned around unused fragment conditions
+            # resulting from abstract return types should not trigger queries
+            origin_set.select! { _1["_STITCH_typename"] == op[:type_condition] }
+            return unless origin_set.any?
+          end
+
           results, errors = query_boundary_location(op, origin_set, insertion_path)
           origin_set.each_with_index do |origin_obj, index|
             origin_obj.merge!(results[index]) if results && results[index]
@@ -93,6 +102,7 @@ module GraphQL
         document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
         variables = @variables.slice(*op[:variables].keys)
 
+        @query_count += 1
         @supergraph.execute_at_location(op[:location], document, variables)
       end
 
@@ -118,6 +128,7 @@ module GraphQL
           "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
         end
 
+        @query_count += 1
         variables = @variables.slice(*op[:variables].keys)
         result = @supergraph.execute_at_location(location, document, variables)
 

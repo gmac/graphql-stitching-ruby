@@ -36,14 +36,14 @@ module GraphQL
         end
       end
 
-      def variables
-        @variables ||= operation.variables.each_with_object({}) do |v, memo|
+      def variable_definitions
+        @variable_definitions ||= operation.variables.each_with_object({}) do |v, memo|
           memo[v.name] = v.type
         end
       end
 
-      def fragments
-        @fragments ||= @ast.definitions.each_with_object({}) do |d, memo|
+      def fragment_definitions
+        @fragment_definitions ||= @ast.definitions.each_with_object({}) do |d, memo|
           memo[d.name] = d if d.is_a?(GraphQL::Language::Nodes::FragmentDefinition)
         end
       end

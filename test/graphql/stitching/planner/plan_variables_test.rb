@@ -8,7 +8,8 @@ describe "GraphQL::Stitching::Planner, variables" do
     @widgets_sdl = "
       input MakeWidgetInput { name: String child: MakeWidgetInput }
       type Widget { id:ID! name(lang: String): String }
-      type Query { widget(id: ID!): Widget }
+      union Thing = Widget
+      type Query { widget(id: ID!): Widget thing(id: ID!): Thing }
       type Mutation { makeWidget(input: MakeWidgetInput!): Widget }
     "
 
@@ -26,7 +27,7 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_field_arguments
-    document = "
+    query = "
       query($wid: ID!, $sid: ID!, $lang: String) {
         widget(id: $wid) { id name(lang: $lang) }
         sprocket(id: $sid) { id name(lang: $lang) }
@@ -35,7 +36,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(document),
+      document: GraphQL::Stitching::Document.new(query),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -48,7 +49,7 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_inline_input_objects
-    document = "
+    mutation = "
       mutation($wname1: String!, $wname2: String!, $sname1: String!, $sname2: String!, $lang: String) {
         makeWidget(input: { name: $wname1, child: { name: $wname2 } }) { id name(lang: $lang) }
         makeSprocket(input: { name: $sname1, child: { name: $sname2 } }) { id name(lang: $lang) }
@@ -57,7 +58,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(document),
+      document: GraphQL::Stitching::Document.new(mutation),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -70,7 +71,7 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_for_input_object_fragments
-    document = "
+    mutation = "
       mutation($newWidget: MakeWidgetInput!, $newSprocket: MakeSprocketInput!, $lang: String) {
         makeWidget(input: $newWidget) { id name(lang: $lang) }
         makeSprocket(input: $newSprocket) { id name(lang: $lang) }
@@ -79,7 +80,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(document),
+      document: GraphQL::Stitching::Document.new(mutation),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -92,10 +93,39 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_inline_fragments
-    # @todo
+    query = <<~GRAPHQL
+      query($wid: ID!, $lang: String) {
+        thing(id: $wid) { ...on Widget { id name(lang: $lang) } }
+      }
+    GRAPHQL
+
+    plan = GraphQL::Stitching::Planner.new(
+      supergraph: @supergraph,
+      document: GraphQL::Stitching::Document.new(query),
+    ).perform
+
+    assert_equal 1, plan.operations.length
+
+    expected_vars = { "wid" => "ID!", "lang" => "String" }
+    assert_equal expected_vars, plan.operations[0].variable_set
   end
 
   def test_extracts_variables_from_fragment_spreads
-    # @todo
+    query = <<~GRAPHQL
+      query($wid: ID!, $lang: String) {
+        thing(id: $wid) { ...WidgetAttrs }
+      }
+      fragment WidgetAttrs on Widget { id name(lang: $lang) }
+    GRAPHQL
+
+    plan = GraphQL::Stitching::Planner.new(
+      supergraph: @supergraph,
+      document: GraphQL::Stitching::Document.new(query),
+    ).perform
+
+    assert_equal 1, plan.operations.length
+
+    expected_vars = { "wid" => "ID!", "lang" => "String" }
+    assert_equal expected_vars, plan.operations[0].variable_set
   end
 end

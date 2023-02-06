@@ -43,12 +43,29 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       document: GraphQL::Stitching::Document.new("{ buyable(id:\"1\") { id name price } }"),
     ).perform
 
+    expected_root_selection = <<~GRAPHQL
+      {
+        buyable(id: \"1\") {
+          id
+          ... on Product {
+            _STITCH_id: id
+            _STITCH_typename: __typename
+          }
+          ... on Bundle {
+            name
+            price
+          }
+          _STITCH_typename: __typename
+        }
+      }
+    GRAPHQL
+
     first = plan.operations[0]
-    first_sel = "{ buyable(id: \"1\") { id ... on Product { _STITCH_id: id _STITCH_typename: __typename } ... on Bundle { name price } _STITCH_typename: __typename } }"
     assert_equal "b", first.location
     assert_equal [], first.insertion_path
-    assert_equal first_sel, first.selection_set
+    assert_equal expected_root_selection.gsub(/\s+/, " ").strip!, first.selection_set
     assert_equal 0, first.after_key
+    assert_nil first.type_condition
     assert_nil first.boundary
 
     second = plan.operations[1]
@@ -57,7 +74,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal "{ name price }", second.selection_set
     assert_equal "products", second.boundary["field"]
     assert_equal "id", second.boundary["selection"]
-    # @todo needs a type condition!!
+    assert_equal "Product", second.type_condition
     assert_equal first.key, second.after_key
   end
 

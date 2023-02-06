@@ -46,8 +46,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     a = "type Test { field: String } type Query { test:Test }"
     b = "type Test { field: Int } type Query { test:Test }"
 
-    # @todo verify error!
-    assert_raises do
+    assert_error "Cannot compose mixed types at `Test.field`", ComposerError do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -81,14 +80,12 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     a = "type Test { field: [[String!]] } type Query { test:Test }"
     b = "type Test { field: [String!] } type Query { test:Test }"
 
-    # @todo verify error!
-    assert_raises do
+    assert_error "Cannot compose mixed list structures at `Test.field`", ComposerError do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
 
-  # @todo - test delegation maps
   def test_creates_delegation_map
-
+    # @todo - test delegation maps
   end
 end

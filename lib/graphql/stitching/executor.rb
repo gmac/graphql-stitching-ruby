@@ -10,9 +10,8 @@ module GraphQL
 
       def initialize(supergraph:, plan:, variables:{})
         @supergraph = supergraph
-        @plan = plan
+        @queue = plan[:ops]
         @variables = variables
-        @queue = plan[:ops].dup
         @status = {}
         @data = {}
         @errors = []
@@ -20,7 +19,7 @@ module GraphQL
       end
 
       def perform(document=nil)
-        exec_rec
+        exec!
 
         # if document
         #   resolved = @supergraph.schema.execute(
@@ -43,23 +42,19 @@ module GraphQL
 
       private
 
-      def exec_rec(key=nil)
+      def exec!
         # @todo make this async
-        next_ops = []
-        @queue.reject! do |op|
-          after_key = op[:after_key]
+        next_ops = @queue.select { _1[:after_key].zero? }
 
-          if after_key.nil? || @status[after_key] == :complete
-            next_ops << op
-            true
+        while next_ops.any?
+          next_ops.each do |op|
+            @status[op[:key]] = perform_operation(op)
           end
-        end
 
-        next_ops.each do |op|
-          @status[op[:key]] = :pending
-          perform_operation(op)
-          @status[op[:key]] = :complete
-          exec_rec(op[:key])
+          next_ops = @queue.select do |op|
+            after_key = op[:after_key]
+            after_key && @status[after_key] == :completed && @status[op[:key]].nil?
+          end
         end
       end
 
@@ -75,10 +70,9 @@ module GraphQL
           end
 
           if op[:type_condition]
-            # operations planned around unused fragment conditions
-            # resulting from abstract return types should not trigger queries
+            # operations planned around unused fragment conditions should not trigger requests
             origin_set.select! { _1["_STITCH_typename"] == op[:type_condition] }
-            return unless origin_set.any?
+            return :skipped unless origin_set.any?
           end
 
           results, errors = query_boundary_location(op, origin_set, insertion_path)
@@ -94,6 +88,7 @@ module GraphQL
           @data.merge!(result["data"]) if result["data"]
           @errors.concat(result["errors"]) if result["errors"]&.any?
         end
+        :completed
       end
 
       def query_root_location(op)

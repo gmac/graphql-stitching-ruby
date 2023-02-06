@@ -138,9 +138,4 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
-
-  # @todo - test delegation maps
-  # def test_creates_delegation_map
-
-  # end
 end

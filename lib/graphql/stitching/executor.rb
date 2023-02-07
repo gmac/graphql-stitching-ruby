@@ -12,20 +12,18 @@ module GraphQL
         end
 
         def fetch(ops)
-          ops.map do |op|
-            # @todo batch these requests as well...? There should only ever be one.
-            variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
-            variable_defs = "(#{variable_defs})" if variable_defs.length > 0
-            document = "#{op["operation_type"]}#{variable_defs}#{op["selections"]}"
+          op = ops.first # There should only ever be one per location at a time
+          variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
+          variable_defs = "(#{variable_defs})" if variable_defs.length > 0
+          document = "#{op["operation_type"]}#{variable_defs}#{op["selections"]}"
 
-            variables = @executor.variables.slice(*op["variables"].keys)
-            result = @executor.supergraph.execute_at_location(op["location"], document, variables)
-            @executor.query_count += 1
+          variables = @executor.variables.slice(*op["variables"].keys)
+          result = @executor.supergraph.execute_at_location(op["location"], document, variables)
+          @executor.query_count += 1
 
-            @executor.data.merge!(result["data"]) if result["data"]
-            @executor.errors.concat(result["errors"]) if result["errors"]&.any?
-            op["key"]
-          end
+          @executor.data.merge!(result["data"]) if result["data"]
+          @executor.errors.concat(result["errors"]) if result["errors"]&.any?
+          op["key"]
         end
       end
 
@@ -51,11 +49,22 @@ module GraphQL
             memo[op] = origin_set if origin_set.any?
           end
 
-          perform_query(origin_sets_by_operation) if origin_sets_by_operation.any?
+          if origin_sets_by_operation.any?
+            query_document, variable_names = build_query(origin_sets_by_operation)
+            variables = @executor.variables.slice(*variable_names)
+            raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables)
+            @executor.query_count += 1
+
+            merge_results!(origin_sets_by_operation, raw_result)
+
+            errors = raw_result.dig("errors")
+            @executor.errors.concat(extract_result_errors(origin_sets_by_operation, errors)) if errors&.any?
+          end
+
           ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
         end
 
-        def perform_query(origin_sets_by_operation)
+        def build_query(origin_sets_by_operation)
           variable_defs = {}
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
             variable_defs.merge!(op["variables"])
@@ -80,15 +89,15 @@ module GraphQL
             "query{ #{query_fields.join(" ")} }"
           end
 
-          variables = @executor.variables.slice(*variable_defs.keys)
-          result = @executor.supergraph.execute_at_location(@location, query_document, variables)
-          @executor.query_count += 1
+          return query_document, variable_defs.keys
+        end
 
+        def merge_results!(origin_sets_by_operation, raw_result)
           origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
             results = if op.dig("boundary", "list")
-              result.dig("data", "_#{batch_index}_result")
+              raw_result.dig("data", "_#{batch_index}_result")
             else
-              origin_set.map.with_index { |_, index| result.dig("data", "_#{batch_index}_#{index}_result") }
+              origin_set.map.with_index { |_, index| raw_result.dig("data", "_#{batch_index}_#{index}_result") }
             end
 
             next unless results&.any?
@@ -96,11 +105,6 @@ module GraphQL
             origin_set.each_with_index do |origin_obj, index|
               origin_obj.merge!(results[index]) if results[index]
             end
-          end
-
-          errors = result.dig("errors")
-          if errors&.any?
-            @executor.errors.concat(extract_result_errors(origin_sets_by_operation, errors))
           end
         end
 

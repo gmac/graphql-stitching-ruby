@@ -15,7 +15,7 @@ describe 'GraphQL::Stitching, errors' do
         elementsA(ids: $ids) {
           name
           code
-          year
+          discovery
         }
       }
     GRAPHQL

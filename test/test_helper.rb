@@ -15,6 +15,10 @@ require 'minitest/pride'
 require 'minitest/autorun'
 require 'graphql/stitching'
 
+ComposerError = GraphQL::Stitching::Composer::ComposerError
+ValidationError = GraphQL::Stitching::Composer::ValidationError
+MockExecutor = Struct.new(:data)
+
 def compose_definitions(schemas, options={})
   schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|
     memo[location] = if schema_or_sdl.is_a?(String)
@@ -75,9 +79,6 @@ def print_value_type(type)
     end
   end
 end
-
-ComposerError = GraphQL::Stitching::Composer::ComposerError
-ValidationError = GraphQL::Stitching::Composer::ValidationError
 
 def assert_error(pattern, klass=nil)
   begin

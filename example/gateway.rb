@@ -1,4 +1,3 @@
-require 'em_fiberscheduler'
 require 'rackup'
 require 'json'
 require 'byebug'

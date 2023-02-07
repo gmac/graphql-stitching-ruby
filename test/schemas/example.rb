@@ -35,6 +35,7 @@ module Schemas
         field :name, String, null: false
         field :price, Float, null: false
         field :manufacturer, "Schemas::Example::Products::Manufacturer", null: false
+        field :pages, Integer, null: true
 
         def manufacturer
           { id: object[:manufacturer_id] }

@@ -27,7 +27,7 @@ module GraphQL
       end
 
       def to_h
-        { ops: operations.map(&:to_h) }
+        { "ops" => operations.map(&:to_h) }
       end
 
       private
@@ -48,7 +48,7 @@ module GraphQL
 
         type_conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.query && parent_type != @supergraph.schema.mutation
 
-        @operations_by_grouping[grouping] = Operation.new(
+        @operations_by_grouping[grouping] = PlannerOperation.new(
           key: parent_key,
           after_key: after_key,
           location: location,

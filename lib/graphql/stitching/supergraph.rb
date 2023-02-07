@@ -50,18 +50,13 @@ module GraphQL
         )
       end
 
-      def assign_location_schema(location, schema)
-        raise "Schema must be a `GraphQL::Schema` class." unless schema <= GraphQL::Schema
-        @resources[location] = schema
-      end
-
-      def assign_location_url(location, url, headers={})
-        @resources[location] = RemoteClient.new(url: url, headers: headers)
-      end
-
-      def assign_location_handler(location, handler = nil, &block)
-        raise "A client block must be provided." unless block_given?
-        @resources[location] = handler || block
+      def assign_location_resource(location, schema_or_client = nil, &block)
+        schema_or_client ||= block
+        unless schema_or_client.is_a?(Class) && schema_or_client <= GraphQL::Schema
+          raise "A client or block handler must be provided." unless schema_or_client
+          raise "A client must be callable" unless schema_or_client.respond_to?(:call)
+        end
+        @resources[location] = schema_or_client
       end
 
       def execute_at_location(location, query, variables)

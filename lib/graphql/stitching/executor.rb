@@ -8,6 +8,26 @@ module GraphQL
 
       attr_reader :query_count
 
+      class RootSource < GraphQL::Dataloader::Source
+        def fetch(ops)
+          puts "root"
+          puts ops
+          ops
+        end
+      end
+
+      class BoundarySource < GraphQL::Dataloader::Source
+        def initialize(location)
+          @location = location
+        end
+
+        def fetch(ops)
+          puts "boundary #{@location}"
+          puts ops
+          ops.map { _1 > 10 ? nil : _1 }
+        end
+      end
+
       def initialize(supergraph:, plan:, variables:{})
         @supergraph = supergraph
         @queue = plan[:ops]
@@ -16,10 +36,17 @@ module GraphQL
         @data = {}
         @errors = []
         @query_count = 0
+        @dataloader = GraphQL::Dataloader.new
       end
 
       def perform(document=nil)
+        g2 = @queue[1].dup
+        g2[:key] = 23
+        @queue << g2
+        pp @queue
+
         exec!
+
 
         # if document
         #   resolved = @supergraph.schema.execute(
@@ -42,24 +69,24 @@ module GraphQL
 
       private
 
-      def exec!
-        # @todo make this async
-        next_ops = @queue.select { _1[:after_key].zero? }
-
-        while next_ops.any?
-          next_ops.group_by { _1[:location] }.each do |_location, ops|
-            if ops.first[:after_key].zero?
-              query_root_location(ops)
-            else
-              query_boundary_locations(ops)
+      def exec!(after_key = 0)
+        @dataloader.append_job do
+          reqs = @queue
+            .select { _1[:after_key] == after_key }
+            .map do |op|
+              result = if op[:after_key].zero?
+                @dataloader.with(RootSource).request(op[:key])
+              else
+                @dataloader.with(BoundarySource, op[:location]).request(op[:key])
+              end
             end
-          end
 
-          next_ops = @queue.select do |op|
-            after_key = op[:after_key]
-            after_key && @status[after_key] == :completed && @status[op[:key]].nil?
+          reqs.each do |req|
+            result = req.load
+            exec!(result) if result
           end
         end
+        @dataloader.run
       end
 
       def query_root_location(ops)

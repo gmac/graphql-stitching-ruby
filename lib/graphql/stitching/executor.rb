@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "promise.rb"
+require "json"
 
 module GraphQL
   module Stitching
@@ -47,8 +47,12 @@ module GraphQL
         next_ops = @queue.select { _1[:after_key].zero? }
 
         while next_ops.any?
-          next_ops.each do |op|
-            @status[op[:key]] = perform_operation(op)
+          next_ops.group_by { _1[:location] }.each do |_location, ops|
+            if ops.first[:after_key].zero?
+              query_root_location(ops)
+            else
+              query_boundary_locations(ops)
+            end
           end
 
           next_ops = @queue.select do |op|
@@ -58,12 +62,28 @@ module GraphQL
         end
       end
 
-      def perform_operation(op)
-        if op[:boundary]
-          # query for a merged type via a boundary
-          insertion_path = op[:insertion_path]
+      def query_root_location(ops)
+        ops.each do |op|
+          # @todo batch these requests as well
+          variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
+          variable_defs = "(#{variable_defs})" if variable_defs.length > 0
+          document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
 
-          origin_set = insertion_path.reduce([@data]) do |set, path_segment|
+          variables = @variables.slice(*op[:variables].keys)
+          result = @supergraph.execute_at_location(op[:location], document, variables)
+          @query_count += 1
+
+          @data.merge!(result["data"]) if result["data"]
+          @errors.concat(result["errors"]) if result["errors"]&.any?
+          @status[op[:key]] = :completed
+        end
+      end
+
+      def query_boundary_locations(ops)
+        first_op = nil
+        origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
+          first_op ||= op
+          origin_set = op[:insertion_path].reduce([@data]) do |set, path_segment|
             mapped = set.flat_map { |obj| obj && obj[path_segment] }
             mapped.compact!
             mapped
@@ -72,132 +92,109 @@ module GraphQL
           if op[:type_condition]
             # operations planned around unused fragment conditions should not trigger requests
             origin_set.select! { _1["_STITCH_typename"] == op[:type_condition] }
-            return :skipped unless origin_set.any?
           end
 
-          results, errors = query_boundary_location(op, origin_set, insertion_path)
+          if origin_set.any?
+            memo[op] = origin_set
+          else
+            @status[op[:key]] = :skipped
+          end
+        end
+
+        return unless origin_sets_by_operation.any?
+
+        variable_defs = {}
+        query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
+          variable_defs.merge!(op[:variables])
+          boundary = op[:boundary]
+          key_selection = "_STITCH_#{boundary["selection"]}"
+
+          if boundary["list"]
+            input = JSON.generate(origin_set.map { _1[key_selection] })
+            "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op[:selections]}"
+          else
+            origin_set.map.with_index do |origin_obj, index|
+              input = JSON.generate(origin_obj[key_selection])
+              "_#{batch_index}_#{index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op[:selections]}"
+            end
+          end
+        end
+
+        query_document = if variable_defs.any?
+          query_variables = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
+          "#{first_op[:operation_type]}(#{query_variables}){ #{query_fields.join(" ")} }"
+        else
+          "#{first_op[:operation_type]}{ #{query_fields.join(" ")} }"
+        end
+
+        variables = @variables.slice(*variable_defs.keys)
+        result = @supergraph.execute_at_location(first_op[:location], query_document, variables)
+        @query_count += 1
+
+        origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
+          boundary = op[:boundary]
+          results = if boundary["list"]
+            result.dig("data", "_#{batch_index}_result")
+          else
+            origin_set.map.with_index { |_, index| result.dig("data", "_#{batch_index}_#{index}_result") }
+          end
+
+          next unless results&.any?
+
           origin_set.each_with_index do |origin_obj, index|
-            origin_obj.merge!(results[index]) if results && results[index]
+            origin_obj.merge!(results[index]) if results[index]
           end
 
-          @errors.concat(errors) if errors&.any?
-
-        else
-          # query for root data as a normal graphql request
-          result = query_root_location(op)
-          @data.merge!(result["data"]) if result["data"]
-          @errors.concat(result["errors"]) if result["errors"]&.any?
-        end
-        :completed
-      end
-
-      def query_root_location(op)
-        variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
-        variable_defs = "(#{variable_defs})" if variable_defs.length > 0
-        document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
-        variables = @variables.slice(*op[:variables].keys)
-
-        @query_count += 1
-        @supergraph.execute_at_location(op[:location], document, variables)
-      end
-
-      def query_boundary_location(op, origin_set, insertion_path)
-        location = op[:location]
-        boundary = op[:boundary]
-        selections = op[:selections]
-        operation_type = op[:operation_type]
-        key_selection = "_STITCH_#{boundary["selection"]}"
-
-        variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
-        variable_defs = "(#{variables})" if variable_defs.length > 0
-
-        document = if boundary["list"]
-          input = JSON.generate(origin_set.map { _1[key_selection] })
-          "#{operation_type}#{variable_defs}{ _STITCH_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{selections} }"
-        else
-          result_selections = origin_set.each_with_index.map do |origin_obj, index|
-            input = JSON.generate(origin_obj[key_selection])
-            "_STITCH_result_#{index}: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{selections}"
-          end
-
-          "#{operation_type}#{variable_defs}{ #{result_selections.join(" ")} }"
+          @status[op[:key]] = :completed
         end
 
-        @query_count += 1
-        variables = @variables.slice(*op[:variables].keys)
-        result = @supergraph.execute_at_location(location, document, variables)
-
-        if boundary["list"]
-          errors = extract_list_result_errors(origin_set, insertion_path, result.dig("errors"))
-          return result.dig("data", "_STITCH_result"), errors
-        else
-          results = origin_set.each_with_index.map do |_origin_obj, index|
-            result.dig("data", "_STITCH_result_#{index}")
-          end
-          errors = extract_single_result_errors(origin_set, insertion_path, result.dig("errors"))
-          return results, errors
+        errors = result.dig("errors")
+        if errors&.any?
+          @errors.concat(extract_result_errors(origin_sets_by_operation, errors))
         end
       end
 
       # https://spec.graphql.org/June2018/#sec-Errors
-      def extract_list_result_errors(origin_set, insertion_path, errors)
-        return nil unless errors&.any?
-        pathed_errors_by_object_id = {}
-        errors_result = []
+      def extract_result_errors(origin_sets_by_operation, errors)
+        ops = origin_sets_by_operation.keys
+        origin_sets = origin_sets_by_operation.values
+        pathed_errors_by_op_index_and_object_id = {}
 
-        errors.each do |err|
+        errors_result = errors.each_with_object([]) do |err, memo|
           path = err["path"]
-          if path && path.first == "_STITCH_result"
-            err.delete("locations")
-            path = err["path"] = path[1..-1]
-            if path.first && /^\d+$/.match?(path.first.to_s)
-              index = path.shift
-              origin = origin_set[index.to_i]
-              if origin
-                pathed_errors_by_object_id[origin.object_id] ||= []
-                pathed_errors_by_object_id[origin.object_id] << err
-                next
-              end
-            end
-          end
-          errors_result << err
-        end
 
-        if pathed_errors_by_object_id.any?
-          repath_errors!(pathed_errors_by_object_id, insertion_path)
-          errors_result.concat(pathed_errors_by_object_id.values)
-        end
-        errors_result
-      end
-
-      # https://spec.graphql.org/June2018/#sec-Errors
-      def extract_single_result_errors(origin_set, insertion_path, errors)
-        return nil unless errors&.any?
-
-        pathed_errors_by_object_id = {}
-        result_errors = errors.each_with_object([]) do |err, memo|
-          path = err["path"]
           if path && path.length > 0
-            result_index = /^_STITCH_result_(\d+)$/.match(path.first.to_s)
-            if result_index
+            result_alias = /^_(\d+)(?:_(\d+))?_result$/.match(path.first.to_s)
+
+            if result_alias
               err.delete("locations")
-              err["path"] = path[1..-1]
-              origin = origin_set[result_index[1].to_i]
-              if origin
-                pathed_errors_by_object_id[origin.object_id] ||= []
-                pathed_errors_by_object_id[origin.object_id] << err
+              path = err["path"] = path[1..-1]
+
+              origin_obj = if result_alias[2]
+                origin_sets.dig(result_alias[1].to_i, result_alias[2].to_i)
+              elsif path[0].is_a?(Integer) || /\d+/.match?(path[0].to_s)
+                origin_sets.dig(result_alias[1].to_i, path.shift.to_i)
+              end
+
+              if origin_obj
+                by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i] ||= {}
+                by_object_id = by_op_index[origin_obj.object_id] ||= []
+                by_object_id << err
                 next
               end
             end
           end
+
           memo << err
         end
 
-        if pathed_errors_by_object_id.any?
-          repath_errors!(pathed_errors_by_object_id, insertion_path)
-          result_errors.concat(pathed_errors_by_object_id.values)
+        if pathed_errors_by_op_index_and_object_id.any?
+          pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
+            repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, :insertion_path))
+            errors_result.concat(pathed_errors_by_object_id.values)
+          end
         end
-        result_errors
+        errors_result
       end
 
       # traverses forward through origin data, expanding arrays to follow all paths

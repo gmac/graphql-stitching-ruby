@@ -14,17 +14,17 @@ module GraphQL
         def fetch(ops)
           ops.map do |op|
             # @todo batch these requests as well...? There should only ever be one.
-            variable_defs = op[:variables].map { |k, v| "$#{k}:#{v}" }.join(",")
+            variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
             variable_defs = "(#{variable_defs})" if variable_defs.length > 0
-            document = "#{op[:operation_type]}#{variable_defs}#{op[:selections]}"
+            document = "#{op["operation_type"]}#{variable_defs}#{op["selections"]}"
 
-            variables = @executor.variables.slice(*op[:variables].keys)
-            result = @executor.supergraph.execute_at_location(op[:location], document, variables)
+            variables = @executor.variables.slice(*op["variables"].keys)
+            result = @executor.supergraph.execute_at_location(op["location"], document, variables)
             @executor.query_count += 1
 
             @executor.data.merge!(result["data"]) if result["data"]
             @executor.errors.concat(result["errors"]) if result["errors"]&.any?
-            op[:key]
+            op["key"]
           end
         end
       end
@@ -37,38 +37,38 @@ module GraphQL
 
         def fetch(ops)
           origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
-            origin_set = op[:insertion_path].reduce([@executor.data]) do |set, path_segment|
+            origin_set = op["insertion_path"].reduce([@executor.data]) do |set, path_segment|
               mapped = set.flat_map { |obj| obj && obj[path_segment] }
               mapped.compact!
               mapped
             end
 
-            if op[:type_condition]
+            if op["type_condition"]
               # operations planned around unused fragment conditions should not trigger requests
-              origin_set.select! { _1["_STITCH_typename"] == op[:type_condition] }
+              origin_set.select! { _1["_STITCH_typename"] == op["type_condition"] }
             end
 
             memo[op] = origin_set if origin_set.any?
           end
 
           perform_query(origin_sets_by_operation) if origin_sets_by_operation.any?
-          ops.map { origin_sets_by_operation[_1] ? _1[:key] : nil }
+          ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
         end
 
         def perform_query(origin_sets_by_operation)
           variable_defs = {}
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
-            variable_defs.merge!(op[:variables])
-            boundary = op[:boundary]
+            variable_defs.merge!(op["variables"])
+            boundary = op["boundary"]
             key_selection = "_STITCH_#{boundary["selection"]}"
 
             if boundary["list"]
               input = JSON.generate(origin_set.map { _1[key_selection] })
-              "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op[:selections]}"
+              "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op["selections"]}"
             else
               origin_set.map.with_index do |origin_obj, index|
                 input = JSON.generate(origin_obj[key_selection])
-                "_#{batch_index}_#{index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op[:selections]}"
+                "_#{batch_index}_#{index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op["selections"]}"
               end
             end
           end
@@ -85,8 +85,7 @@ module GraphQL
           @executor.query_count += 1
 
           origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-            boundary = op[:boundary]
-            results = if boundary["list"]
+            results = if op.dig("boundary", "list")
               result.dig("data", "_#{batch_index}_result")
             else
               origin_set.map.with_index { |_, index| result.dig("data", "_#{batch_index}_#{index}_result") }
@@ -141,7 +140,7 @@ module GraphQL
 
           if pathed_errors_by_op_index_and_object_id.any?
             pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
-              repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, :insertion_path))
+              repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "insertion_path"))
               errors_result.concat(pathed_errors_by_object_id.values)
             end
           end
@@ -188,7 +187,7 @@ module GraphQL
       def initialize(supergraph:, plan:, variables: {}, nonblocking: false)
         @supergraph = supergraph
         @variables = variables
-        @queue = plan[:ops]
+        @queue = plan["ops"]
         @data = {}
         @errors = []
         @query_count = 0
@@ -210,11 +209,11 @@ module GraphQL
 
       def exec!(after_key = 0)
         @dataloader.append_job do
-          tasks = @queue.select { _1[:after_key] == after_key }.map do |op|
-            if op[:after_key].zero?
+          tasks = @queue.select { _1["after_key"] == after_key }.map do |op|
+            if op["after_key"].zero?
               @dataloader.with(RootSource, self).request(op)
             else
-              @dataloader.with(BoundarySource, self, op[:location]).request(op)
+              @dataloader.with(BoundarySource, self, op["location"]).request(op)
             end
           end
 

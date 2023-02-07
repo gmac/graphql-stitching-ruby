@@ -17,8 +17,11 @@ class StitchedApp
       "manufacturers" => Schemas::Example::Manufacturers,
     }).perform
 
-    @supergraph.assign_location_url("storefronts", "http://localhost:3001/graphql")
-    @supergraph.assign_location_url("manufacturers", "http://localhost:3002/graphql")
+    client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001/graphql")
+    @supergraph.assign_location_resource("storefronts", client)
+
+    client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002/graphql")
+    @supergraph.assign_location_resource("manufacturers", client)
   end
 
   def call(env)

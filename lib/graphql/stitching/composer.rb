@@ -36,6 +36,7 @@ module GraphQL
       def perform
         # "Typename" => "location" => candidate_type
         @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+          raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
           schema.types.each do |type_name, type_candidate|

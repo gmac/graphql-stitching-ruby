@@ -27,13 +27,3 @@ raw_result = GraphQL::Stitching::Executor.new(
   variables: variables,
 ).perform
 ```
-
-The executor returns a raw result of data collected and merged from across locations. This includes stitching keys and may have nullability violations. This view of the data may still be useful for debugging. Run the raw result through the `Shaper` for final output:
-
-```ruby
-final_result = GraphQL::Stitching::Shaper.perform(
-  supergraph: supergraph,
-  document: document,
-  raw: raw_result,
-)
-```

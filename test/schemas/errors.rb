@@ -15,8 +15,8 @@ module Schemas
     ].freeze
 
     ELEMENTS_B = [
-      { id: '10', code: 'Ne', discovery: 1898 },
-      { id: '18', code: 'Ar', discovery: 1894 },
+      { id: '10', code: 'Ne', year: 1898 },
+      { id: '18', code: 'Ar', year: 1894 },
     ].freeze
 
     class ElementsA < GraphQL::Schema
@@ -45,7 +45,7 @@ module Schemas
       class Element < GraphQL::Schema::Object
         field :id, ID, null: false
         field :code, String, null: true
-        field :discovery, Int, null: true
+        field :year, Int, null: true
       end
 
       class Query < GraphQL::Schema::Object

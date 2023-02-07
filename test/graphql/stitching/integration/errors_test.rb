@@ -15,7 +15,7 @@ describe 'GraphQL::Stitching, errors' do
         elementsA(ids: $ids) {
           name
           code
-          discovery
+          year
         }
       }
     GRAPHQL
@@ -30,18 +30,14 @@ describe 'GraphQL::Stitching, errors' do
       "elementsA" => [
         {
           "name" => "neon",
-          "_STITCH_id" => "10",
-          "_STITCH_typename" => "Element",
           "code" => "Ne",
           "year" => 1898,
         },
         nil,
         {
           "name" => "krypton",
-          "_STITCH_id" => "36",
-          "_STITCH_typename" => "Element",
-          # code
-          # year
+          "code" => nil,
+          "year" => nil,
         },
       ],
     }

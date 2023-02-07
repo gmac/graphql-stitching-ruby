@@ -43,8 +43,6 @@ describe "GraphQL::Stitching::Gateway" do
             {
               "upc" => "1",
               "name" => "iPhone",
-              "_STITCH_upc" => "1",
-              "_STITCH_typename" => "Product",
               "manufacturer" => {
                 "name" => "Apple",
                 "products" => [
@@ -52,14 +50,10 @@ describe "GraphQL::Stitching::Gateway" do
                   { "upc" => "2", "name" => "Apple Watch" },
                   { "upc" => "5", "name" => "iOS Survival Guide" }
                 ],
-                "_STITCH_id" => "1",
-                "_STITCH_typename" => "Manufacturer",
               }
             }, {
               "upc" => "2",
               "name" => "Apple Watch",
-              "_STITCH_upc" => "2",
-              "_STITCH_typename" => "Product",
               "manufacturer" => {
                 "name" => "Apple",
                 "products" => [
@@ -67,8 +61,6 @@ describe "GraphQL::Stitching::Gateway" do
                   { "upc" => "2", "name" => "Apple Watch" },
                   { "upc" => "5", "name" => "iOS Survival Guide" }
                 ],
-                "_STITCH_id" => "1",
-                "_STITCH_typename" => "Manufacturer",
               }
             }
           ]
@@ -189,7 +181,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_uncached, uncached_result
 
     cached_result = @gateway.execute(query: test_query)
-    expected_cached = { "data" => { "product" => { "name" => "iPhone" } } }
+    expected_cached = { "data" => { "product" => { "name" => "iPhone", "price" => nil } } }
     assert_equal expected_cached, cached_result
   end
 

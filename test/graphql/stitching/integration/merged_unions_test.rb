@@ -25,8 +25,8 @@ describe 'GraphQL::Stitching, unions' do
 
     expected = {
       "fruitsA" => [
-        { "a" => "a1", "_STITCH_id" => "1", "_STITCH_typename" => "Apple", "b" => "b1", "c" => "c1" },
-        { "a" => "a3", "_STITCH_id" => "3", "_STITCH_typename" => "Banana", "b" => "b3" },
+        { "a" => "a1", "b" => "b1", "c" => "c1" },
+        { "a" => "a3", "b" => "b3" },
       ],
     }
 
@@ -47,8 +47,8 @@ describe 'GraphQL::Stitching, unions' do
 
     expected = {
       "fruitsC" => [
-        { "c" => "c1", "_STITCH_id" => "1", "_STITCH_typename" => "Apple", "a" => "a1", "b" => "b1" },
-        { "c" => "c4", "_STITCH_id" => "4", "_STITCH_typename" => "Coconut", "b" => "b4" },
+        { "c" => "c1", "a" => "a1", "b" => "b1" },
+        { "c" => "c4", "b" => "b4" },
       ],
     }
 

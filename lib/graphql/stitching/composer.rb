@@ -27,6 +27,7 @@ module GraphQL
         @mutation_name = mutation_name
         @field_map = {}
         @boundary_map = {}
+        @mapped_type_names = {}
 
         @description_merger = description_merger || DEFAULT_STRING_MERGER
         @deprecation_merger = deprecation_merger || DEFAULT_STRING_MERGER
@@ -48,6 +49,7 @@ module GraphQL
 
             type_name = @query_name if type_candidate == schema.query
             type_name = @mutation_name if type_candidate == schema.mutation
+            @mapped_type_names[type_candidate.graphql_name] = type_name if type_candidate.graphql_name != type_name
 
             memo[type_name] ||= {}
             memo[type_name][location] = type_candidate
@@ -83,14 +85,15 @@ module GraphQL
           end
         end
 
+        builder = self
         schema = Class.new(GraphQL::Schema) do
           orphan_types schema_types.values
+          query schema_types[builder.query_name]
+          mutation schema_types[builder.mutation_name]
+
+          own_orphan_types.clear
         end
 
-        # do these after class constructor so the root types resolve
-        schema.query(schema.types[@query_name])
-        schema.mutation(schema.types[@mutation_name])
-        schema.send(:own_orphan_types).clear # cheat
         expand_abstract_boundaries(schema)
 
         supergraph = Supergraph.new(
@@ -162,7 +165,7 @@ module GraphQL
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
           interface_names.uniq.each do |interface_name|
-            implements(GraphQL::Schema::LateBoundType.new(interface_name))
+            implements(builder.build_type_binding(interface_name))
           end
 
           builder.build_merged_fields(type_name, types_by_location, self)
@@ -179,7 +182,7 @@ module GraphQL
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
           interface_names.uniq.each do |interface_name|
-            implements(GraphQL::Schema::LateBoundType.new(interface_name))
+            implements(builder.build_type_binding(interface_name))
           end
 
           builder.build_merged_fields(type_name, types_by_location, self)
@@ -194,7 +197,7 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
 
           possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.uniq
-          possible_types(*possible_names.map { GraphQL::Schema::LateBoundType.new(_1) })
+          possible_types(*possible_names.map { builder.build_type_binding(_1) })
         end
       end
 
@@ -206,6 +209,10 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_arguments(type_name, types_by_location, self)
         end
+      end
+
+      def build_type_binding(type_name)
+        GraphQL::Schema::LateBoundType.new(@mapped_type_names.fetch(type_name, type_name))
       end
 
       def build_merged_fields(type_name, types_by_location, owner)
@@ -259,6 +266,9 @@ module GraphQL
             next
           end
 
+          # Getting double args sometimes... why?
+          return if owner.arguments.any? { _1.first == argument_name }
+
           owner.argument(
             argument_name,
             description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
@@ -278,11 +288,7 @@ module GraphQL
           raise ComposerError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
         end
 
-        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
-          named_types.first,
-          GraphQL::Schema::LateBoundType.new(named_types.first)
-        )
-
+        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(named_types.first, build_type_binding(named_types.first))
         list_structures = type_candidates.map { Util.get_list_structure(_1) }
 
         if list_structures.any?(&:any?)

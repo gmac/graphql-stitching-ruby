@@ -12,6 +12,7 @@
 
 # Used by dotenv library to load environment variables.
 # .env
+/example/env.json
 
 # Ignore Byebug command history file.
 .byebug_history

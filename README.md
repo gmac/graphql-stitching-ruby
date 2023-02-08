@@ -14,7 +14,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`)
 - Subscriptions
 
-This Ruby implementation is a sibling of [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a high-throughput API gateway, the opportunity here is for a Ruby application to stitch its local schema onto a remote schema (making itself a superset of the remote) without requiring an additional gateway service.
+This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a high-throughput API gateway, the opportunity here is for a Ruby application to stitch its local schema onto a remote schema (making itself a superset of the remote) without requiring an additional gateway service.
 
 ## Getting started
 
@@ -255,7 +255,7 @@ GraphQL::Stitching.stitch_directive = "merge"
 
 ## Executables
 
-A [Supergraph](./docs/supergraph.md) will delegate requests to the individual `GraphQL::Schema` classes that composed it. You may change this behavior by assigning new executables: these may be `GraphQL::Schema` classes, or objects that responds to `.call` with the following arguments...
+A [Supergraph](./docs/supergraph.md) will delegate requests to the individual `GraphQL::Schema` classes that composed it. You may change this behavior by assigning new executables: these may be `GraphQL::Schema` classes, or objects that respond to `.call` with the following arguments...
 
 ```ruby
 class MyExecutable
@@ -277,7 +277,7 @@ supergraph.assign_executable("location3") do |loc, query vars|
 end
 ```
 
-The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` instance when rehydrating from cache ([see docs](./docs/supergraph.md)).
+The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you _must_ manually assign all executables to a `Supergraph` instance when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
 ## Concurrency
 

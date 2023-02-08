@@ -20,10 +20,10 @@ class StitchedApp
     }).perform
 
     client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001/graphql")
-    @supergraph.assign_location_resource("storefronts", client)
+    @supergraph.assign_executable("storefronts", client)
 
     client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002/graphql")
-    @supergraph.assign_location_resource("manufacturers", client)
+    @supergraph.assign_executable("manufacturers", client)
   end
 
   def call(env)

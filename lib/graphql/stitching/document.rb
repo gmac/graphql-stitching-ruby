@@ -17,6 +17,14 @@ module GraphQL
         @operation_name = operation_name
       end
 
+      def string
+        @string ||= GraphQL::Language::Printer.new.print(@ast)
+      end
+
+      def digest
+        @digest ||= Digest::SHA2.hexdigest(string)
+      end
+
       def operation
         @operation ||= begin
           operation_defs = @ast.definitions.select do |d|

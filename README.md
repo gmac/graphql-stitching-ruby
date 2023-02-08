@@ -26,7 +26,7 @@ gem "graphql-stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided `Gateway` component that assembles a stitched graph ready to execute requests:
+The quickest way to start is to use the provided [`Gateway`](./docs/gateway.md) component that assembles a stitched graph ready to execute requests:
 
 ```ruby
 movies_schema = <<~GRAPHQL
@@ -66,7 +66,7 @@ result = gateway.execute(
 
 Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations.
 
-While the `Gateway` component is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
+While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one graph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.

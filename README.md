@@ -42,11 +42,11 @@ GRAPHQL
 gateway = GraphQL::Stitching::Gateway.new({
   products: {
     schema: GraphQL::Schema.from_definition(movies_schema),
-    client: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),
+    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),
   },
   showtimes: {
     schema: GraphQL::Schema.from_definition(showtimes_schema),
-    client: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
   },
   my_local: {
     schema: MyLocal::GraphQL::Schema,
@@ -120,10 +120,10 @@ supergraph = GraphQL::Stitching::Composer.new({
   "shipping" => GraphQL::Schema.from_definition(shipping_schema),
 })
 
-supergraph.assign_location_resource("products",
+supergraph.assign_executable("products",
   GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001")
 )
-supergraph.assign_location_resource("shipping",
+supergraph.assign_executable("shipping",
   GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002")
 )
 ```
@@ -190,7 +190,7 @@ type Query {
 }
 ```
 
-#### Multiple query keys
+#### Multiple type keys
 
 A type may exist in multiple locations across the graph using different keys, for example:
 
@@ -253,39 +253,39 @@ The library is configured to use a `@stitch` directive by default. You may custo
 GraphQL::Stitching.stitch_directive = "merge"
 ```
 
-## Executable resources
+## Executables
 
-A [Supergraph](./docs/supergraph.md) will delegate requests to the individual `GraphQL::Schema` instances that composed it by default. You may change this behavior by assigning new resource for any location. An executable resource is a `GraphQL::Schema` class, or any object that responds to `.call` (procs, lambdas, custom class objects, etc).
+A [Supergraph](./docs/supergraph.md) will delegate requests to the individual `GraphQL::Schema` classes that composed it. You may change this behavior by assigning new executables: these may be `GraphQL::Schema` classes, or objects that responds to `.call` with the following arguments...
 
 ```ruby
-class MyExecutableResource
+class MyExecutable
   def call(location, query_string, variables)
     # process a GraphQL request...
   end
 end
 ```
 
-These resources can be assigned to the supergraph instance using `assign_executable`:
+Executables are assigned to a supergraph using `assign_executable`:
 
 ```ruby
 supergraph = GraphQL::Stitching::Composer.new(...)
 
-supergraph.assign_executable("location1", MyExecutableResource.new)
+supergraph.assign_executable("location1", MyExecutable.new)
 supergraph.assign_executable("location2", ->(loc, query, vars) { ... })
 supergraph.assign_executable("location3") do |loc, query vars|
   # ...
 end
 ```
 
-The `GraphQL::Stitching::RemoteClient` class is provided as a simple wrapper around `Net::HTTP.post`. You should build your own wrappers to leverage existing libraries and provide instrumentation.
+The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` instance when rehydrating from cache ([see docs](./docs/supergraph.md)).
 
 ## Concurrency
 
-The [Executor](./docs/executor.md) component performs all GraphQL requests, and structures its execution around the `GraphQL::Dataloader` implementation built atop Ruby fibers. Non-blocking concurrency requires setting a fiber scheduler implementation via `Fiber.set_scheduler`, see [official docs](https://graphql-ruby.org/dataloader/nonblocking.html). You may also need your own remote client using corresponding HTTP libraries.
+The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based implementation of `GraphQL::Dataloader`. Non-blocking concurrency requires setting a fiber scheduler via `Fiber.set_scheduler`, see [graphql-ruby docs](https://graphql-ruby.org/dataloader/nonblocking.html). You may also need to build your own remote clients using corresponding HTTP libraries.
 
 ## Example
 
-This repo includes a working example of three stitched schemas running across Rack servers. Try running it:
+This repo includes a working example of several stitched schemas running across Rack servers. Try running it:
 
 ```shell
 bundle install
@@ -312,7 +312,7 @@ query {
 }
 ```
 
-The above query collects data from all three locations, two of which are remote schemas and the third a local schema. The combined graph schema is also stitched in to provide introspection capabilities.
+The above query collects data from all locations, two of which are remote schemas and the third a local schema. The combined graph schema is also stitched in to provide introspection capabilities.
 
 ## Tests
 

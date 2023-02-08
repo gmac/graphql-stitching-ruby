@@ -6,15 +6,15 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   def test_merges_boundaries_with_multiple_keys
     a = %{
       type T { upc:ID! }
-      type Query { a(upc:ID!):T @boundary(key: "upc") }
+      type Query { a(upc:ID!):T @stitch(key: "upc") }
     }
     b = %{
       type T { id:ID! upc:ID! }
-      type Query { b(id: ID, upc:ID):T @boundary(key: "id:id") @boundary(key: "upc:upc") }
+      type Query { b(id: ID, upc:ID):T @stitch(key: "id:id") @stitch(key: "upc:upc") }
     }
     c = %{
       type T { id:ID! }
-      type Query { c(id:ID!):T @boundary(key: "id") }
+      type Query { c(id:ID!):T @stitch(key: "id") }
     }
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
@@ -31,14 +31,14 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
       type Apple implements Fruit { id:ID! name:String }
       type Banana implements Fruit { id:ID! name:String }
       type Coconut implements Fruit { id:ID! name:String }
-      type Query { fruit(id:ID!):Fruit @boundary(key: "id") }
+      type Query { fruit(id:ID!):Fruit @stitch(key: "id") }
     }
     b = %{
       type Apple { id:ID! color:String }
       type Banana { id:ID! color:String }
       type Query {
-        a(id:ID!):Apple @boundary(key: "id")
-        b(id:ID!):Banana @boundary(key: "id")
+        a(id:ID!):Apple @stitch(key: "id")
+        b(id:ID!):Banana @stitch(key: "id")
       }
     }
 
@@ -62,7 +62,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
       type Banana { id:ID! name:String }
       union Fruit = Apple | Banana
       type Query {
-        fruit(id:ID!):Fruit @boundary(key: "id")
+        fruit(id:ID!):Fruit @stitch(key: "id")
       }
     }
     b = %{
@@ -70,7 +70,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
       type Coconut { id:ID! name:String }
       union Fruit = Apple | Coconut
       type Query {
-        a(id:ID!):Apple @boundary(key: "id")
+        a(id:ID!):Apple @stitch(key: "id")
         c(id:ID!):Coconut
       }
     }

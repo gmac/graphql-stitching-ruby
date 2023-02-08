@@ -35,7 +35,7 @@ describe 'GraphQL::Stitching::Composer, merging objects' do
     }
 
     type Query {
-      movie(id: ID!): Movie @boundary(key: "id")
+      movie(id: ID!): Movie @stitch(key: "id")
       genre: Genre!
     }
   }
@@ -52,7 +52,7 @@ describe 'GraphQL::Stitching::Composer, merging objects' do
     }
 
     type Query {
-      movie(id: ID!): Movie @boundary(key: "id")
+      movie(id: ID!): Movie @stitch(key: "id")
       showtime: Showtime!
     }
   }

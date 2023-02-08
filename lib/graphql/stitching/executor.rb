@@ -12,19 +12,24 @@ module GraphQL
         end
 
         def fetch(ops)
-          ops.map do |op|
-            # @todo batch these requests as well...? There should only ever be one.
+          op = ops.first # There should only ever be one per location at a time
+
+          query_document = build_query(op)
+          query_variables = @executor.variables.slice(*op["variables"].keys)
+          result = @executor.supergraph.execute_at_location(op["location"], query_document, query_variables)
+          @executor.query_count += 1
+
+          @executor.data.merge!(result["data"]) if result["data"]
+          @executor.errors.concat(result["errors"]) if result["errors"]&.any?
+          op["key"]
+        end
+
+        def build_query(op)
+          if op["variables"].any?
             variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
-            variable_defs = "(#{variable_defs})" if variable_defs.length > 0
-            document = "#{op["operation_type"]}#{variable_defs}#{op["selections"]}"
-
-            variables = @executor.variables.slice(*op["variables"].keys)
-            result = @executor.supergraph.execute_at_location(op["location"], document, variables)
-            @executor.query_count += 1
-
-            @executor.data.merge!(result["data"]) if result["data"]
-            @executor.errors.concat(result["errors"]) if result["errors"]&.any?
-            op["key"]
+            "#{op["operation_type"]}(#{variable_defs})#{op["selections"]}"
+          else
+            "#{op["operation_type"]}#{op["selections"]}"
           end
         end
       end
@@ -51,11 +56,22 @@ module GraphQL
             memo[op] = origin_set if origin_set.any?
           end
 
-          perform_query(origin_sets_by_operation) if origin_sets_by_operation.any?
+          if origin_sets_by_operation.any?
+            query_document, variable_names = build_query(origin_sets_by_operation)
+            variables = @executor.variables.slice(*variable_names)
+            raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables)
+            @executor.query_count += 1
+
+            merge_results!(origin_sets_by_operation, raw_result.dig("data"))
+
+            errors = raw_result.dig("errors")
+            @executor.errors.concat(extract_errors!(origin_sets_by_operation, errors)) if errors&.any?
+          end
+
           ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
         end
 
-        def perform_query(origin_sets_by_operation)
+        def build_query(origin_sets_by_operation)
           variable_defs = {}
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
             variable_defs.merge!(op["variables"])
@@ -80,15 +96,17 @@ module GraphQL
             "query{ #{query_fields.join(" ")} }"
           end
 
-          variables = @executor.variables.slice(*variable_defs.keys)
-          result = @executor.supergraph.execute_at_location(@location, query_document, variables)
-          @executor.query_count += 1
+          return query_document, variable_defs.keys
+        end
+
+        def merge_results!(origin_sets_by_operation, raw_result)
+          return unless raw_result
 
           origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
             results = if op.dig("boundary", "list")
-              result.dig("data", "_#{batch_index}_result")
+              raw_result["_#{batch_index}_result"]
             else
-              origin_set.map.with_index { |_, index| result.dig("data", "_#{batch_index}_#{index}_result") }
+              origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }
             end
 
             next unless results&.any?
@@ -97,15 +115,10 @@ module GraphQL
               origin_obj.merge!(results[index]) if results[index]
             end
           end
-
-          errors = result.dig("errors")
-          if errors&.any?
-            @executor.errors.concat(extract_result_errors(origin_sets_by_operation, errors))
-          end
         end
 
         # https://spec.graphql.org/June2018/#sec-Errors
-        def extract_result_errors(origin_sets_by_operation, errors)
+        def extract_errors!(origin_sets_by_operation, errors)
           ops = origin_sets_by_operation.keys
           origin_sets = origin_sets_by_operation.values
           pathed_errors_by_op_index_and_object_id = {}
@@ -144,8 +157,10 @@ module GraphQL
               errors_result.concat(pathed_errors_by_object_id.values)
             end
           end
-          errors_result
+          errors_result.flatten!
         end
+
+        private
 
         # traverses forward through origin data, expanding arrays to follow all paths
         # any errors found for an origin object_id have their path prefixed by the object path

@@ -16,7 +16,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         price: Float!
       }
       type Query {
-        products(ids: [ID!]!): [Product]! @boundary(key:\"id\")
+        products(ids: [ID!]!): [Product]! @stitch(key:\"id\")
       }
     "
     b = "
@@ -29,7 +29,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         products: [Product]!
       }
       type Query {
-        buyable(id: ID!): Buyable @boundary(key:\"id\")
+        buyable(id: ID!): Buyable @stitch(key:\"id\")
       }
     "
     compose_definitions({ "a" => a, "b" => b })
@@ -101,16 +101,16 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   #     union Fruit = Apple | Banana
   #     type Query {
   #       fruit: Fruit
-  #       apple(id: ID!): Apple @boundary(key: \"id\")
-  #       banana(id: ID!): Banana @boundary(key: \"id\")
+  #       apple(id: ID!): Apple @stitch(key: \"id\")
+  #       banana(id: ID!): Banana @stitch(key: \"id\")
   #     }
   #   "
   #   b = "
   #     type Apple { id: ID! b: String }
   #     type Banana { id: ID! b: String }
   #     type Query {
-  #       apple(id: ID!): Apple @boundary(key: \"id\")
-  #       banana(id: ID!): Banana @boundary(key: \"id\")
+  #       apple(id: ID!): Apple @stitch(key: \"id\")
+  #       banana(id: ID!): Banana @stitch(key: \"id\")
   #     }
   #   "
   #   c = "
@@ -118,8 +118,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   #     type Coconut { id: ID! c: String }
   #     union Fruit = Apple | Coconut
   #     type Query {
-  #       apple(id: ID!): Apple @boundary(key: \"id\")
-  #       coconut(id: ID!): Coconut @boundary(key: \"id\")
+  #       apple(id: ID!): Apple @stitch(key: \"id\")
+  #       coconut(id: ID!): Coconut @stitch(key: \"id\")
   #     }
   #   "
 

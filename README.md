@@ -18,10 +18,16 @@ This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/g
 
 ## Getting started
 
-Add to your Gemfile, then `bundle install`:
+Add to your Gemfile:
 
 ```ruby
 gem "graphql-stitching"
+```
+
+Run `bundle install`, then require unless running an autoloading framework (Rails, etc):
+
+```ruby
+require "graphql/stitching"
 ```
 
 ## Usage

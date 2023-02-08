@@ -3,6 +3,21 @@
 require "test_helper"
 
 describe 'GraphQL::Stitching::Composer, merging boundary queries' do
+  def test_creates_boundary_map
+    a = %{type Test { id: ID!, a: String } type Query { a(id: ID!):Test @stitch(key: "id") }}
+    b = %{type Test { id: ID!, b: String } type Query { b(ids: [ID!]!):[Test]! @stitch(key: "id") }}
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+
+    expected_boundaries_map = {
+      "Test" => [
+        { "location"=>"a", "selection"=>"id", "field"=>"a", "arg"=>"id", "list"=>false, "type_name"=>"Test" },
+        { "location"=>"b", "selection"=>"id", "field"=>"b", "arg"=>"ids", "list"=>true, "type_name"=>"Test" },
+      ],
+    }
+
+    assert_equal expected_boundaries_map, supergraph.boundaries
+  end
+
   def test_merges_boundaries_with_multiple_keys
     a = %{
       type T { upc:ID! }

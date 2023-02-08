@@ -47,7 +47,5 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
   # def test_validates_merged_interface_fields_match_implementation_fields
   #   # is this really a problem...? Implementing objects have to have matching fields across services.
   #   # possibly applies to nullability concerns.
-  #   a = %{interface I { id:ID } type T implements I { id:ID name:String } type Query { t:T }}
-  #   b = %{interface I { id:ID code:String } type T implements I { id:ID code:String } type Query { t:T }}
   # end
 end

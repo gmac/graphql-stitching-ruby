@@ -52,7 +52,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     first = plan.operations[0]
     assert_equal "base", first.location
-    assert_equal @expected_root_query.gsub(/\s+/, " ").strip!, first.selection_set
+    assert_equal squish_string(@expected_root_query), first.selection_set
 
     second = plan.operations[1]
     assert_equal "ext", second.location
@@ -90,7 +90,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     first = plan.operations[0]
     assert_equal "base", first.location
-    assert_equal @expected_root_query.gsub(/\s+/, " ").strip!, first.selection_set
+    assert_equal squish_string(@expected_root_query), first.selection_set
 
     second = plan.operations[1]
     assert_equal "ext", second.location

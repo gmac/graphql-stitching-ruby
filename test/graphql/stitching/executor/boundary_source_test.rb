@@ -84,17 +84,17 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
   end
 
   def test_extracts_errors_for_operation_batch
-    executor = MockExecutor.new(data: {
+    data = {
       "storefronts" => [
         { "_STITCH_id" => "7", "product" => { "_STITCH_upc" => "abc" } },
         { "_STITCH_id" => "8", "product" => { "_STITCH_upc" => "xyz" } }
       ]
-    })
+    }
 
-    @source = GraphQL::Stitching::Executor::BoundarySource.new(executor, "products")
+    @source = GraphQL::Stitching::Executor::BoundarySource.new(MockExecutor.new(data: data), "products")
     @origin_sets_by_operation = {
-      @op1 => executor.data["storefronts"],
-      @op2 => executor.data["storefronts"].map { _1["product"] },
+      @op1 => data["storefronts"],
+      @op2 => data["storefronts"].map { _1["product"] },
     }
 
     result = @source.extract_errors!(@origin_sets_by_operation, [

@@ -82,6 +82,18 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_result, result
   end
 
+  def test_caching_hooks
+    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: {})
+    gateway.register_cache_read {|k| k }
+    result = gateway.send(:cache_read,"key")
+    assert_equal "key", result
+
+    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: {})
+    gateway.register_cache_write {|key ,payload| [key, payload] }
+    result = gateway.send(:cache_write,"key", "payload")
+    assert_equal ["key", "payload"], result
+  end
+
   def test_invalid_query
     schema_configs = {
       "products": {

@@ -40,18 +40,25 @@ module GraphQL
         ).perform(doc)
       end
 
-      # should respond to call w/ key as an argument
-      def cache_read(&block)
-        @cache_read_block = block
+      def register_cache_read(&block)
+        @cache_read_hook = block
       end
-
-      # should respond to call w/ key and payload as arguments
-      def cache_write(&block)
-        @cache_write_block = block
+      def register_cache_write(&block)
+        @cache_write_hook = block
       end
 
       private
+      def cache_read(key)
+        if @cache_read_hook
+          @cache_read_hook.call(key)
+        end
+      end
 
+      def cache_write(key,payload)
+        if @cache_write_hook
+          @cache_write_hook.call(key, payload)
+        end
+      end
       def validate_query(document:)
         validation_errors = @supergraph.schema.validate(document.ast)
         if validation_errors.any?

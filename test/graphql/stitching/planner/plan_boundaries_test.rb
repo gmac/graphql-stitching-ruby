@@ -31,8 +31,8 @@ describe "GraphQL::Stitching::Planner, boundaries" do
         products: [Product]!
       }
       type Query {
-        product(upc: ID!): Product @boundary(key: \"upc\")
-        productsManufacturer(id: ID!): Manufacturer @boundary(key: \"id\")
+        product(upc: ID!): Product @stitch(key: \"upc\")
+        productsManufacturer(id: ID!): Manufacturer @stitch(key: \"id\")
       }
     "
 
@@ -43,7 +43,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
         address: String!
       }
       type Query {
-        manufacturer(id: ID!): Manufacturer @boundary(key: \"id\")
+        manufacturer(id: ID!): Manufacturer @stitch(key: \"id\")
       }
     "
 
@@ -156,13 +156,13 @@ describe "GraphQL::Stitching::Planner, boundaries" do
   def test_expands_selections_targeting_interface_locations
     a = "
       type Apple { id:ID! name:String }
-      type Query { apple(id:ID!):Apple @boundary(key:\"id\") }
+      type Query { apple(id:ID!):Apple @stitch(key:\"id\") }
     "
     b = "
       interface Node { id:ID! }
       type Apple implements Node { id:ID! weight:Int }
       type Banana implements Node { id:ID! weight:Int }
-      type Query { node(id:ID!):Node @boundary(key:\"id\") }
+      type Query { node(id:ID!):Node @stitch(key:\"id\") }
     "
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
@@ -191,13 +191,13 @@ describe "GraphQL::Stitching::Planner, boundaries" do
   def test_expands_selections_targeting_union_locations
     a = "
       type Apple { id:ID! name:String }
-      type Query { apple(id:ID!):Apple @boundary(key:\"id\") }
+      type Query { apple(id:ID!):Apple @stitch(key:\"id\") }
     "
     b = "
       type Apple { id:ID! weight:Int }
       type Banana { id:ID! weight:Int }
       union Node = Apple | Banana
-      type Query { node(id:ID!):Node @boundary(key:\"id\") }
+      type Query { node(id:ID!):Node @stitch(key:\"id\") }
     "
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
@@ -227,13 +227,13 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     a = "
       interface Node { id:ID! }
       type Apple implements Node { id:ID! name:String }
-      type Query { node(id:ID!):Node @boundary(key:\"id\") }
+      type Query { node(id:ID!):Node @stitch(key:\"id\") }
     "
     b = "
       type Apple { id:ID! weight:Int }
       type Banana { id:ID! weight:Int }
       union Fruit = Apple | Banana
-      type Query { fruit(id:ID!):Fruit @boundary(key:\"id\") }
+      type Query { fruit(id:ID!):Fruit @stitch(key:\"id\") }
     "
     supergraph = compose_definitions({ "a" => a, "b" => b })
 

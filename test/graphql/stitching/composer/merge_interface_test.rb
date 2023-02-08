@@ -30,12 +30,12 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
     a = %{
       interface I { id:ID! name:String }
       type T implements I { id:ID! name:String }
-      type Query { t(id:ID!):T @boundary(key: "id") }
+      type Query { t(id:ID!):T @stitch(key: "id") }
     }
     b = %{
       interface I { id:ID! code:String }
       type T implements I { id:ID! code:String }
-      type Query { t(id:ID!):T @boundary(key: "id") }
+      type Query { t(id:ID!):T @stitch(key: "id") }
     }
 
     info = compose_definitions({ "a" => a, "b" => b })

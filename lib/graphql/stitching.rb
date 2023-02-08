@@ -1,9 +1,15 @@
+# frozen_string_literal: true
+
 require "graphql"
 
 module GraphQL
   module Stitching
     class << self
+      def stitch_directive
+        @stitch_directive ||= "stitch"
+      end
 
+      attr_writer :stitch_directive
     end
   end
 end

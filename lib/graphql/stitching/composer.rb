@@ -344,7 +344,7 @@ module GraphQL
             boundary_list = Util.get_list_structure(field_candidate.type)
 
             field_candidate.directives.each do |directive|
-              next unless directive.graphql_name == "boundary"
+              next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
 
               key = directive.arguments.keyword_arguments.fetch(:key)
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections

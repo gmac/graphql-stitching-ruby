@@ -3,7 +3,7 @@
 module Schemas
   module MultipleKeys
     class Boundary < GraphQL::Schema::Directive
-      graphql_name "boundary"
+      graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
       repeatable true

@@ -17,7 +17,6 @@ require 'graphql/stitching'
 
 ComposerError = GraphQL::Stitching::Composer::ComposerError
 ValidationError = GraphQL::Stitching::Composer::ValidationError
-MockExecutor = Struct.new(:data)
 
 def compose_definitions(schemas, options={})
   schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|

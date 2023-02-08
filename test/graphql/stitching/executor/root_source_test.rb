@@ -16,7 +16,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       "boundary"=>nil
     }
 
-    @source = GraphQL::Stitching::Executor::RootSource.new(MockExecutor.new(data: {}))
+    @source = GraphQL::Stitching::Executor::RootSource.new({})
   end
 
   def test_builds_query_for_an_operation

@@ -41,7 +41,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       }
     }
 
-    @source = GraphQL::Stitching::Executor::BoundarySource.new(MockExecutor.new(data: {}), "products")
+    @source = GraphQL::Stitching::Executor::BoundarySource.new({}, "products")
     @origin_sets_by_operation = {
       @op1 => [{ "_STITCH_id" => "7" }, { "_STITCH_id" => "8" }],
       @op2 => [{ "_STITCH_upc" => "abc" }, { "_STITCH_upc" => "xyz" }],
@@ -91,7 +91,10 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       ]
     }
 
-    @source = GraphQL::Stitching::Executor::BoundarySource.new(MockExecutor.new(data: data), "products")
+    mock = GraphQL::Stitching::Executor.new(supergraph: {}, plan: { "ops" => [] })
+    mock.instance_variable_set(:@data, data)
+
+    @source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")
     @origin_sets_by_operation = {
       @op1 => data["storefronts"],
       @op2 => data["storefronts"].map { _1["product"] },

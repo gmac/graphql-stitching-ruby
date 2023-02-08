@@ -160,22 +160,22 @@ describe "GraphQL::Stitching::Supergraph" do
     end
   end
 
-  def test_assign_location_resource_as_schema
+  def test_assign_executable_as_schema
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
     )
 
-    assert_equal 1, supergraph.resources.length
+    assert_equal 1, supergraph.executables.length
     subschema = Schemas::Example::Products
-    supergraph.assign_location_resource("products", subschema)
+    supergraph.assign_executable("products", subschema)
 
-    assert_equal 2, supergraph.resources.length
-    assert_equal subschema, supergraph.resources["products"]
+    assert_equal 2, supergraph.executables.length
+    assert_equal subschema, supergraph.executables["products"]
   end
 
-  def test_assign_location_resource_as_remote_client
+  def test_assign_executable_as_remote_client
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
@@ -184,14 +184,14 @@ describe "GraphQL::Stitching::Supergraph" do
 
     client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
 
-    assert_equal 1, supergraph.resources.length
-    supergraph.assign_location_resource("products", client)
+    assert_equal 1, supergraph.executables.length
+    supergraph.assign_executable("products", client)
 
-    assert_equal 2, supergraph.resources.length
-    assert_equal client, supergraph.resources["products"]
+    assert_equal 2, supergraph.executables.length
+    assert_equal client, supergraph.executables["products"]
   end
 
-  def test_assign_location_resource_as_proc
+  def test_assign_executable_as_proc
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
@@ -200,25 +200,25 @@ describe "GraphQL::Stitching::Supergraph" do
 
     client = ->() { true }
 
-    assert_equal 1, supergraph.resources.length
-    supergraph.assign_location_resource("products", client)
+    assert_equal 1, supergraph.executables.length
+    supergraph.assign_executable("products", client)
 
-    assert_equal 2, supergraph.resources.length
-    assert_equal client, supergraph.resources["products"]
+    assert_equal 2, supergraph.executables.length
+    assert_equal client, supergraph.executables["products"]
   end
 
-  def test_assign_location_resource_as_block
+  def test_assign_executable_as_block
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
     )
 
-    assert_equal 1, supergraph.resources.length
-    supergraph.assign_location_resource("products") { true }
+    assert_equal 1, supergraph.executables.length
+    supergraph.assign_executable("products") { true }
 
-    assert_equal 2, supergraph.resources.length
-    assert supergraph.resources["products"].respond_to?(:call)
+    assert_equal 2, supergraph.executables.length
+    assert supergraph.executables["products"].respond_to?(:call)
   end
 
   def test_route_type_to_locations_connects_types_across_locations

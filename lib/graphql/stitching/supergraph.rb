@@ -15,9 +15,9 @@ module GraphQL
         "__DirectiveLocation",
       ].freeze
 
-      attr_reader :schema, :boundaries, :locations_by_type_and_field, :resources
+      attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
 
-      def initialize(schema:, fields:, boundaries:, resources: {})
+      def initialize(schema:, fields:, boundaries:, executables: {})
         @schema = schema
         @boundaries = boundaries
         @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
@@ -30,7 +30,7 @@ module GraphQL
         end
 
         @possible_keys_by_type_and_location = {}
-        @resources = { LOCATION => @schema }.merge!(resources)
+        @executables = { LOCATION => @schema }.merge!(executables)
       end
 
       def export
@@ -40,39 +40,40 @@ module GraphQL
         }
       end
 
-      def self.from_export(schema, delegation_map)
+      def self.from_export(schema, delegation_map, executables: {})
         schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
         new(
           schema: schema,
           fields: delegation_map["fields"],
-          boundaries: delegation_map["boundaries"]
+          boundaries: delegation_map["boundaries"],
+          executables: executables,
         )
       end
 
-      def assign_location_resource(location, schema_or_client = nil, &block)
-        schema_or_client ||= block
-        unless schema_or_client.is_a?(Class) && schema_or_client <= GraphQL::Schema
-          raise "A client or block handler must be provided." unless schema_or_client
-          raise "A client must be callable" unless schema_or_client.respond_to?(:call)
+      def assign_executable(location, executable = nil, &block)
+        executable ||= block
+        unless executable.is_a?(Class) && executable <= GraphQL::Schema
+          raise "A client or block handler must be provided." unless executable
+          raise "A client must be callable" unless executable.respond_to?(:call)
         end
-        @resources[location] = schema_or_client
+        @executables[location] = executable
       end
 
       def execute_at_location(location, query, variables)
-        resource = resources[location]
+        executable = executables[location]
 
-        if resource.nil?
-          raise "No executable resource assigned for #{location} location."
-        elsif resource.is_a?(Class) && resource <= GraphQL::Schema
-          resource.execute(
+        if executable.nil?
+          raise "No executable assigned for #{location} location."
+        elsif executable.is_a?(Class) && executable <= GraphQL::Schema
+          executable.execute(
             query: query,
             variables: variables,
             validate: false,
           )
-        elsif resource.is_a?(RemoteClient) || resource.respond_to?(:call)
-          resource.call(location, query, variables)
+        elsif executable.respond_to?(:call)
+          executable.call(location, query, variables)
         else
-          raise "Unexpected executable resource type for #{location} location."
+          raise "Missing valid executable for #{location} location."
         end
       end
 

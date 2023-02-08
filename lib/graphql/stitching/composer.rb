@@ -101,7 +101,7 @@ module GraphQL
           schema: schema,
           fields: @field_map,
           boundaries: @boundary_map,
-          resources: @schemas,
+          executables: @schemas,
         )
 
         VALIDATORS.each do |validator|

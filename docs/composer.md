@@ -4,13 +4,13 @@ The `Composer` receives many individual `GraphQL:Schema` instances for various g
 
 ```ruby
 storefronts_sdl = <<~GRAPHQL
-  type Storefront { 
+  type Storefront {
     id:ID!
     name: String!
     products: [Product]
   }
 
-  type Product { 
+  type Product {
     id:ID!
   }
 
@@ -20,16 +20,16 @@ storefronts_sdl = <<~GRAPHQL
 GRAPHQL
 
 products_sdl = <<~GRAPHQL
-  directive @boundary(key: String!) repeatable on FIELD_DEFINITION
+  directive @stitch(key: String!) repeatable on FIELD_DEFINITION
 
-  type Product { 
+  type Product {
     id:ID!
     name: String
     price: Int
   }
 
   type Query {
-    product(id: ID!): Product @boundary(key: "id")
+    product(id: ID!): Product @stitch(key: "id")
   }
 GRAPHQL
 
@@ -50,8 +50,8 @@ The strategy used to merge source schemas into the combined schema is based on e
 - `Object` and `Interface` types merge their fields together:
   - Common fields across locations must share a value type, and the weakest nullability is used.
   - Field arguments merge using the same rules as `InputObject`.
-  - Objects with unique fields across locations must implement [`@boundary` accessors](../README.md#merged-types-boundaries).
-  - Shared object types without `@boundary` accessors must contain identical fields.
+  - Objects with unique fields across locations must implement [`@stitch` accessors](../README.md#merged-types).
+  - Shared object types without `@stitch` accessors must contain identical fields.
   - Merged interfaces must remain compatible with all underlying implementations.
 
 - `InputObject` types intersect arguments from across locations (arguments must appear in all locations):

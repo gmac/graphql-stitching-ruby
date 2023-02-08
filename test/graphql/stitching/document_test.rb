@@ -90,4 +90,16 @@ describe "GraphQL::Stitching::Document" do
     assert_equal "widget", document.fragment_definitions["WidgetAttrs"].selections.first.name
     assert_equal "sprocket", document.fragment_definitions["SprocketAttrs"].selections.first.name
   end
+
+  def test_generates_a_digest_from_string_and_ast_input
+    sample_ast = GraphQL.parse("query { things { name } }")
+    sample_query = GraphQL::Language::Printer.new.print(sample_ast)
+    expected_digest = "88908d0790f7b20afe4a7508a8bba6343c62f98abb9c5abff17345c64d90c0d0"
+
+    document1 = GraphQL::Stitching::Document.new(sample_ast)
+    assert_equal expected_digest, document1.digest
+
+    document2 = GraphQL::Stitching::Document.new(sample_query)
+    assert_equal expected_digest, document2.digest
+  end
 end

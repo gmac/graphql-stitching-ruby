@@ -14,15 +14,10 @@ module Schemas
       { id: '2', extension_id: '22', __typename: 'Banana' },
     ].freeze
 
-    class Extensions < GraphQL::Schema
+    class ExtensionsA < GraphQL::Schema
       class AppleExtension < GraphQL::Schema::Object
         field :id, ID, null: false
         field :color, String, null: false
-      end
-
-      class BananaExtension < GraphQL::Schema::Object
-        field :id, ID, null: false
-        field :shape, String, null: false
       end
 
       class Query < GraphQL::Schema::Object
@@ -34,7 +29,18 @@ module Schemas
         def apple_extension(id:)
           { id: id, color: "red" }
         end
+      end
 
+      query Query
+    end
+
+    class ExtensionsB < GraphQL::Schema
+      class BananaExtension < GraphQL::Schema::Object
+        field :id, ID, null: false
+        field :shape, String, null: false
+      end
+
+      class Query < GraphQL::Schema::Object
         field :banana_extension, BananaExtension, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true

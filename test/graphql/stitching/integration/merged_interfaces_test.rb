@@ -9,10 +9,8 @@ describe 'GraphQL::Stitching, merged interfaces' do
       "products" => Schemas::Interfaces::Products,
       "bundles" => Schemas::Interfaces::Bundles,
     })
-  end
 
-  def test_queries_merged_interfaces
-    query = "
+    @query = <<~GRAPHQL
       query($ids: [ID!]!) {
         bundles(ids: $ids) {
           id
@@ -25,20 +23,38 @@ describe 'GraphQL::Stitching, merged interfaces' do
           }
         }
       }
-    "
+    GRAPHQL
+  end
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
-    # pp result
+  def test_queries_merged_interfaces
+    result = plan_and_execute(@supergraph, @query, { "ids" => ["1"] })
 
-    bundle = result.dig("data", "bundles", 0)
-    expected_root = { "id" => "1", "name" => "Apple Gear", "price" => 999.99 }
-    expected_products = [
-      { "id" => "1", "name" => "iPhone", "price" => 699.99 },
-      { "id" => "2", "name" => "Apple Watch", "price" => 399.99 },
-    ]
+    expected_result = {
+      "bundles" => [
+        {
+          "id" => "1",
+          "name" => "Apple Gear",
+          "price" => 999.99,
+          "products" => [
+            {
+              "id" => "1",
+              "_STITCH_id" => "1",
+              "_STITCH_typename" => "Product",
+              "name" => "iPhone",
+              "price" => 699.99
+            },
+            {
+              "id" => "2",
+              "_STITCH_id" => "2",
+              "_STITCH_typename" => "Product",
+              "name" => "Apple Watch",
+              "price" => 399.99
+            },
+          ],
+        },
+      ],
+    }
 
-    # @todo make this cleaner once there's a resolver
-    assert_equal expected_root, bundle.slice("id", "name", "price")
-    assert_equal expected_products, bundle["products"].map { _1.slice("id", "name", "price") }
+    assert_equal expected_result, result["data"]
   end
 end

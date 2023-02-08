@@ -14,6 +14,7 @@ module GraphQL
   end
 end
 
+require_relative "stitching/gateway"
 require_relative "stitching/supergraph"
 require_relative "stitching/composer"
 require_relative "stitching/document"

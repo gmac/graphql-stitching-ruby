@@ -222,24 +222,28 @@ module GraphQL
 
       private
 
-      def exec!(after_key = 0)
+      def exec!(after_keys = [0])
         @dataloader.append_job do
-          tasks = @queue.select { _1["after_key"] == after_key }.map do |op|
-            if op["after_key"].zero?
-              @dataloader.with(RootSource, self).request(op)
-            else
-              @dataloader.with(BoundarySource, self, op["location"]).request(op)
+          requests = @queue
+            .select { after_keys.include?(_1["after_key"]) }
+            .group_by { _1["location"] }
+            .map do |location, ops|
+              if ops.first["after_key"].zero?
+                @dataloader.with(RootSource, self).request_all(ops)
+              else
+                @dataloader.with(BoundarySource, self, location).request_all(ops)
+              end
             end
-          end
 
-          tasks.each(&method(:exec_task))
+          requests.each(&method(:exec_request))
         end
         @dataloader.run
       end
 
-      def exec_task(task)
-        next_key = task.load
-        exec!(next_key) if next_key
+      def exec_request(request)
+        next_keys = request.load
+        next_keys.compact!
+        exec!(next_keys) if next_keys.any?
       end
     end
   end

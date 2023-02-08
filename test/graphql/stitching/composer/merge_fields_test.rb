@@ -8,38 +8,38 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     a = %{type Test { """a""" field: String } type Query { test:Test }}
     b = %{type Test { """b""" field: String } type Query { test:Test }}
 
-    info = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      description_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", info.schema.types["Test"].fields["field"].description
+    assert_equal "a/b", supergraph.schema.types["Test"].fields["field"].description
   end
 
   def test_merges_field_deprecations
     a = %{type Test { field: String @deprecated(reason:"a") } type Query { test:Test }}
     b = %{type Test { field: String @deprecated(reason:"b") } type Query { test:Test }}
 
-    info = compose_definitions({ "a" => a, "b" => b }, {
-      deprecation_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      deprecation_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", info.schema.types["Test"].fields["field"].deprecation_reason
+    assert_equal "a/b", supergraph.schema.types["Test"].fields["field"].deprecation_reason
   end
 
   def test_merged_fields_use_common_nullability
     a = "type Test { field: String! } type Query { test:Test }"
     b = "type Test { field: String! } type Query { test:Test }"
 
-    info = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "String!", print_value_type(info.schema.types["Test"].fields["field"].type)
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_equal "String!", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
   end
 
   def test_merged_fields_use_weakest_nullability
     a = "type Test { field: String! } type Query { test:Test }"
     b = "type Test { field: String } type Query { test:Test }"
 
-    info = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "String", print_value_type(info.schema.types["Test"].fields["field"].type)
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_equal "String", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
   end
 
   def test_merged_fields_must_have_matching_named_types
@@ -55,8 +55,8 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     a = "type Test { field: [String!]! } type Query { test:Test }"
     b = "type Test { field: [String!]! } type Query { test:Test }"
 
-    info = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[String!]!", print_value_type(info.schema.types["Test"].fields["field"].type)
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_equal "[String!]!", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
   end
 
   def test_merged_fields_use_weakest_list_structure
@@ -64,16 +64,16 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     b = "type Test { field: [String!] } type Query { test:Test }"
     c = "type Test { field: [String]! } type Query { test:Test }"
 
-    info = compose_definitions({ "a" => a, "b" => b, "c" => c })
-    assert_equal "[String]", print_value_type(info.schema.types["Test"].fields["field"].type)
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
+    assert_equal "[String]", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
   end
 
   def test_merged_fields_allow_deep_list_structures
     a = "type Test { field: [[String!]!]! } type Query { test:Test }"
     b = "type Test { field: [[String]!] } type Query { test:Test }"
 
-    info = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[[String]!]", print_value_type(info.schema.types["Test"].fields["field"].type)
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_equal "[[String]!]", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
   end
 
   def test_merged_fields_must_have_matching_list_structures
@@ -86,6 +86,23 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
   end
 
   def test_creates_delegation_map
-    # @todo - test delegation maps
+    a = %{type Test { id: ID!, a: String c: String } type Query { a(id: ID!):Test @stitch(key: "id") }}
+    b = %{type Test { id: ID!, b: String c: String } type Query { b(id: ID!):Test @stitch(key: "id") }}
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+
+    expected_fields_map = {
+      "Test" => {
+        "id" => ["a", "b"],
+        "a" => ["a"],
+        "b" => ["b"],
+        "c" => ["a", "b"],
+      },
+      "Query" => {
+        "a" => ["a"],
+        "b" => ["b"]
+      },
+    }
+
+    assert_equal expected_fields_map, supergraph.fields
   end
 end

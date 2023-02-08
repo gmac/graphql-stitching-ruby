@@ -63,7 +63,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     first = plan.operations[0]
     assert_equal "b", first.location
     assert_equal [], first.insertion_path
-    assert_equal expected_root_selection.gsub(/\s+/, " ").strip!, first.selection_set
+    assert_equal squish_string(expected_root_selection), first.selection_set
     assert_equal 0, first.after_key
     assert_nil first.type_condition
     assert_nil first.boundary

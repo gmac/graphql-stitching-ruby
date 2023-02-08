@@ -59,7 +59,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       }
     GRAPHQL
 
-    assert_equal expected.gsub(/\s+/, " ").strip!, query_document
+    assert_equal squish_string(expected), query_document
     assert_equal ["lang", "currency"], variable_names
   end
 

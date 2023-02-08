@@ -33,9 +33,13 @@ module GraphQL
         @executables = { LOCATION => @schema }.merge!(executables)
       end
 
+      def fields
+        @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) }
+      end
+
       def export
         return GraphQL::Schema::Printer.print_schema(@schema), {
-          "fields" => @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) },
+          "fields" => fields,
           "boundaries" => @boundaries,
         }
       end

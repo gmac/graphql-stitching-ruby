@@ -314,4 +314,26 @@ describe "GraphQL::Stitching::Supergraph" do
     assert_equal ["c"], routes["c"].map { _1["location"] }
     assert_nil routes["a"]
   end
+
+  def test_exports_and_restores_supergraph
+    a = %{
+      type T { id:ID! a:String }
+      type Query { a(id:ID!):T @stitch(key: "id") }
+    }
+    b = %{
+      type T { id:ID! b:String }
+      type Query { b(id:ID!):T @stitch(key: "id") }
+    }
+
+    supergraph1 = compose_definitions({ "a" => a, "b" => b })
+    schema_sdl, delegation_map = supergraph1.export
+
+    assert_equal delegation_map["fields"], supergraph1.fields
+    assert_equal delegation_map["boundaries"], supergraph1.boundaries
+
+    supergraph2 = GraphQL::Stitching::Supergraph.from_export(schema_sdl, delegation_map)
+    assert_equal supergraph1.fields, supergraph2.fields
+    assert_equal supergraph1.boundaries, supergraph2.boundaries
+    assert_equal supergraph1.schema.types.keys.sort, supergraph2.schema.types.keys.sort
+  end
 end

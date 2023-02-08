@@ -28,6 +28,6 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       }
     GRAPHQL
 
-    assert_equal expected.gsub(/\s+/, " ").strip!, query_document
+    assert_equal squish_string(expected), query_document
   end
 end

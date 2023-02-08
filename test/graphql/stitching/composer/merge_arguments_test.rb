@@ -109,17 +109,14 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     assert_equal "a/b", info.schema.types["Query"].fields["test"].arguments["arg"].deprecation_reason
   end
 
-  # @todo - now uses intersection, so no longer accurate. Needs intersection error for no fields
-  # def test_merges_different_sets_of_optional_arguments
-  #   a = "input Test { arg1:String } type Query { test(arg1:Test):String }"
-  #   b = "input Test { arg2:String } type Query { test(arg2:Test):String }"
+  def test_intersects_optional_arguments
+    a = "input Test { arg1:String arg2:String } type Query { test(arg1:Test, arg2:String):String }"
+    b = "input Test { arg3:String arg2:String } type Query { test(arg3:Test, arg2:String):String }"
 
-  #   info = compose_definitions({ "a" => a, "b" => b })
-  #   assert_equal ["arg1", "arg2"], info.schema.types["Test"].arguments.keys.sort
-  #   assert_equal ["arg1", "arg2"], info.schema.types["Query"].fields["test"].arguments.keys.sort
-
-  #   # DELEGATION MAP
-  # end
+    info = compose_definitions({ "a" => a, "b" => b })
+    assert_equal ["arg2"], info.schema.types["Test"].arguments.keys.sort
+    assert_equal ["arg2"], info.schema.types["Query"].fields["test"].arguments.keys.sort
+  end
 
   def test_fails_to_merge_isolated_required_object_arguments
     a = "input Test { arg1:String! } type Query { test(arg:Test):String }"

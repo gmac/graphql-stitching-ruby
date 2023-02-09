@@ -13,50 +13,32 @@ class StitchedApp
     @graphiql = file.read
     file.close
 
-    @supergraph = GraphQL::Stitching::Composer.new(schemas: {
-      "products" => Schemas::Example::Products,
-      "storefronts" => Schemas::Example::Storefronts,
-      "manufacturers" => Schemas::Example::Manufacturers,
-    }).perform
-
-    client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001/graphql")
-    @supergraph.assign_executable("storefronts", client)
-
-    client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002/graphql")
-    @supergraph.assign_executable("manufacturers", client)
+    @gateway = GraphQL::Stitching::Gateway.new(locations: {
+      products: {
+        schema: Schemas::Example::Products,
+      },
+      storefronts: {
+        schema: Schemas::Example::Storefronts,
+        executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001/graphql"),
+      },
+      manufacturers: {
+        schema: Schemas::Example::Manufacturers,
+        executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002/graphql"),
+      }
+    })
   end
 
   def call(env)
     req = Rack::Request.new(env)
     case req.path_info
     when /graphql/
-      # @todo extract composition + this workflow into some kind of "Gateway" convenience
       params = JSON.parse(req.body.read)
-      document = GraphQL::Stitching::Document.new(params["query"], operation_name: params["operationName"])
 
-      validation_errors = @supergraph.schema.validate(document.ast)
-      if validation_errors.any?
-        result = { errors: [validation_errors.map { |e| { message: e.message, path: e.path } }]}
-        return [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
-      end
-
-      # @todo
-      # hoist variables... (nice to have)
-      # generate document hash... (nice to have)
-      # check for cached plan... (nice to have)
-
-      plan = GraphQL::Stitching::Planner.new(
-        supergraph: @supergraph,
-        document: document,
-      ).perform
-
-      # cache generated plan... (nice to have)
-
-      result = GraphQL::Stitching::Executor.new(
-        supergraph: @supergraph,
-        plan: plan.to_h,
-        variables: params["variables"] || {},
-      ).perform(document)
+      result = @gateway.execute(
+        query: params["query"],
+        variables: params["variables"],
+        operation_name: params["operationName"],
+      )
 
       [200, {"content-type" => "application/json"}, [JSON.generate(result)]]
     else

@@ -4,9 +4,8 @@ require "test_helper"
 require_relative "../../schemas/example"
 
 describe "GraphQL::Stitching::Gateway" do
-  def test_execute_valid_query
-
-    schema_configs = {
+  def setup_example_gateway
+    @gateway = GraphQL::Stitching::Gateway.new(locations: {
       manufacturers: {
         schema: Schemas::Example::Manufacturers,
       },
@@ -16,105 +15,267 @@ describe "GraphQL::Stitching::Gateway" do
       "products": {
         schema: Schemas::Example::Products,
       }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
+    })
 
-    query_string = 'query {
-  storefront(id: "1") {
-    id
-    products {
-      upc
-      name
-      price
-      manufacturer {
-        name
-        address
-        products { upc name }
+    @query_string = <<~GRAPHQL
+      query MyStore($id: ID!){
+        storefront(id: $id) {
+          id
+          name
+          products {
+            upc
+            name
+            manufacturer {
+              name
+              products { upc name }
+            }
+          }
+        }
+      }
+    GRAPHQL
+
+    @expected_result = {
+      "data" => {
+        "storefront" => {
+          "id" => "1",
+          "name" => "eShoppe",
+          "products" => [
+            {
+              "upc" => "1",
+              "name" => "iPhone",
+              "_STITCH_upc" => "1",
+              "_STITCH_typename" => "Product",
+              "manufacturer" => {
+                "name" => "Apple",
+                "products" => [
+                  { "upc" => "1", "name" => "iPhone" },
+                  { "upc" => "2", "name" => "Apple Watch" },
+                  { "upc" => "5", "name" => "iOS Survival Guide" }
+                ],
+                "_STITCH_id" => "1",
+                "_STITCH_typename" => "Manufacturer",
+              }
+            }, {
+              "upc" => "2",
+              "name" => "Apple Watch",
+              "_STITCH_upc" => "2",
+              "_STITCH_typename" => "Product",
+              "manufacturer" => {
+                "name" => "Apple",
+                "products" => [
+                  { "upc" => "1", "name" => "iPhone" },
+                  { "upc" => "2", "name" => "Apple Watch" },
+                  { "upc" => "5", "name" => "iOS Survival Guide" }
+                ],
+                "_STITCH_id" => "1",
+                "_STITCH_typename" => "Manufacturer",
+              }
+            }
+          ]
+        }
       }
     }
-  }
-}'
-    result = gateway.execute(query: query_string)
-    expected_respone = { "data" => { "storefront" => { "id" => "1", "products" => [{ "upc" => "1", "_STITCH_upc" => "1", "_STITCH_typename" => "Product", "name" => "iPhone", "price" => 699.99, "manufacturer" => { "products" => [{ "upc" => "1", "name" => "iPhone" }, { "upc" => "2", "name" => "Apple Watch" }, { "upc" => "5", "name" => "iOS Survival Guide" }], "_STITCH_id" => "1", "_STITCH_typename" => "Manufacturer", "name" => "Apple", "address" => "123 Main" } }, { "upc" => "2", "_STITCH_upc" => "2", "_STITCH_typename" => "Product", "name" => "Apple Watch", "price" => 399.99, "manufacturer" => { "products" => [{ "upc" => "1", "name" => "iPhone" }, { "upc" => "2", "name" => "Apple Watch" }, { "upc" => "5", "name" => "iOS Survival Guide" }], "_STITCH_id" => "1", "_STITCH_typename" => "Manufacturer", "name" => "Apple", "address" => "123 Main" } }] } } }
-    assert_equal expected_respone, result
+  end
 
-    query_doc = GraphQL.parse(query_string)
-    result = gateway.execute(query: query_doc)
-    assert_equal expected_respone, result
+  def test_execute_valid_query_via_string
+    setup_example_gateway
+
+    result = @gateway.execute(
+      query: @query_string,
+      variables: { "id" => "1" },
+      operation_name: "MyStore",
+    )
+
+    assert_equal @expected_result, result
+  end
+
+  def test_execute_valid_query_via_ast
+    setup_example_gateway
+
+    result = @gateway.execute(
+      query: GraphQL.parse(@query_string),
+      variables: { "id" => "1" },
+      operation_name: "MyStore",
+    )
+
+    assert_equal @expected_result, result
+  end
+
+  def test_gateway_builds_with_provided_supergraph
+    export_schema = "type Thing { id: String } type Query { thing: Thing }"
+    export_mapping = { "fields" => {}, "boundaries" => {} }
+    supergraph = GraphQL::Stitching::Supergraph.from_export(export_schema, export_mapping)
+    assert GraphQL::Stitching::Gateway.new(supergraph: supergraph)
+  end
+
+  def test_errors_for_invalid_supergraph
+    assert_error "must be a GraphQL::Stitching::Supergraph" do
+      GraphQL::Stitching::Gateway.new(supergraph: {})
+    end
+  end
+
+  def test_errors_for_both_locations_and_supergraph
+    assert_error "Cannot provide both locations and a supergraph" do
+      GraphQL::Stitching::Gateway.new(locations: {}, supergraph: {})
+    end
   end
 
   def test_query_with_operation_name
-    schema_configs = {
-      "storefronts": {
-        schema: Schemas::Example::Storefronts,
-      }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
+    setup_example_gateway
 
-    result = gateway.execute(query: 'query BestStoreFront { storefront(id: "1") { id } }  query SecondBest { storefront(id: "2") { id } }', operation_name: "SecondBest")
+    queries = <<~GRAPHQL
+      query BestStorefront {
+        storefront(id: "1") { id }
+      }
+      query SecondBest {
+        storefront(id: "2") { id }
+      }
+    GRAPHQL
+
+    result = @gateway.execute(query: queries, operation_name: "SecondBest")
+
     expected_result = { "data" => { "storefront" => { "id" => "2" } } }
     assert_equal expected_result, result
   end
 
-  def test_execute_with_remote_schema
+  def test_location_with_executable
     static_remote_data = { "data" => { "storefront" => { "id" => "10000" } } }
-    schema_configs = {
-      "storefronts": {
+
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      storefronts: {
         schema: Schemas::Example::Storefronts,
         executable: Proc.new { static_remote_data }
       }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
-    result = gateway.execute(query: 'query { storefront(id: "1") { id } }')
+    })
+
+    result = gateway.execute(query: "query { storefront(id: \"1\") { id } }")
     assert_equal static_remote_data, result
   end
 
   def test_query_with_variables
-    schema_configs = {
-      "storefronts": {
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      storefronts: {
         schema: Schemas::Example::Storefronts,
       }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
+    })
 
-    result = gateway.execute(query: 'query BestStoreFront($storefrontID: ID!) { storefront(id: $storefrontID) { id } }', variables: { "storefrontID" => "1" })
+    query = <<~GRAPHQL
+      query BestStoreFront($storefrontID: ID!) {
+        storefront(id: $storefrontID) { id }
+      }
+    GRAPHQL
+
+    result = gateway.execute(query: query, variables: { "storefrontID" => "1" })
+
     expected_result = { "data" => { "storefront" => { "id" => "1" } } }
     assert_equal expected_result, result
   end
 
-  def test_caching_hooks
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: {})
-    gateway.register_cache_read {|k| k }
-    result = gateway.send(:cache_read,"key")
-    assert_equal "key", result
+  def test_caching_hooks_store_query_plans
+    setup_example_gateway
+    cache = {}
 
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: {})
-    gateway.register_cache_write {|key ,payload| [key, payload] }
-    result = gateway.send(:cache_write,"key", "payload")
-    assert_equal ["key", "payload"], result
+    test_query = <<~GRAPHQL
+      query {
+        product(upc: "1") { price }
+      }
+    GRAPHQL
+
+    @gateway.on_cache_read { |key| cache[key] }
+    @gateway.on_cache_write { |key, payload| cache[key] = payload.gsub("price", "name") }
+
+    uncached_result = @gateway.execute(query: test_query)
+    expected_uncached = { "data" => { "product" => { "price" => 699.99 } } }
+    assert_equal expected_uncached, uncached_result
+
+    cached_result = @gateway.execute(query: test_query)
+    expected_cached = { "data" => { "product" => { "name" => "iPhone" } } }
+    assert_equal expected_cached, cached_result
+  end
+
+  def test_caching_hooks_receive_request_context
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      products: {
+        schema: Schemas::Example::Products,
+      }
+    })
+
+    context = { key: "R2d2c3P0" }
+    read_context = nil
+    write_context = nil
+
+    gateway.on_cache_read do |key, context|
+      read_context = context[:key]
+      nil
+    end
+    gateway.on_cache_write do |key, payload, context|
+      write_context = context[:key]
+      nil
+    end
+
+    gateway.execute(query: "{ product(upc: \"1\") { price } }", context: context)
+    assert_equal context[:key], read_context
+    assert_equal context[:key], write_context
   end
 
   def test_invalid_query
-    schema_configs = {
-      "products": {
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      products: {
         schema: Schemas::Example::Products,
       }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
+    })
 
-    result = gateway.execute(query: 'query { invalid_selection }')
-    error_response = { :errors => [[{ :message => "Field 'invalid_selection' doesn't exist on type 'Query'", :path => ["query", "invalid_selection"] }]] }
-    assert_equal result, error_response
+    result = gateway.execute(query: "query { invalidSelection }")
+    expected_errors = [{
+      "message" => "Field 'invalidSelection' doesn't exist on type 'Query'",
+      "path" => ["query", "invalidSelection"],
+    }]
+
+    assert_nil result["data"]
+    assert_equal expected_errors, result["errors"].map { _1.slice("message", "path") }
   end
 
-  def test_skipping_validation_of_invalid_query
-    schema_configs = {
-      "products": {
+  def test_errors_are_handled_by_default
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      products: {
         schema: Schemas::Example::Products,
       }
-    }
-    gateway = GraphQL::Stitching::Gateway.new(schema_configurations: schema_configs)
+    })
 
-    assert_raises { gateway.execute(query: 'query { invalid_selection }', validate: false) }
+    result = gateway.execute(query: 'query { invalidSelection }', validate: false)
+
+    expected_errors = [{
+      "message" => "An unexpected error occured.",
+      "path" => [],
+    }]
+
+    assert_nil result["data"]
+    assert_equal expected_errors, result["errors"]
+  end
+
+  def test_errors_trigger_hooks_that_may_return_a_custom_message
+    gateway = GraphQL::Stitching::Gateway.new(locations: {
+      products: {
+        schema: Schemas::Example::Products,
+      }
+    })
+
+    gateway.on_error do |_err, context|
+      "An error occured. Request id: #{context[:request_id]}"
+    end
+
+    result = gateway.execute(
+      query: 'query { invalidSelection }',
+      context: { request_id: "R2d2c3P0" },
+      validate: false
+    )
+
+    expected_errors = [{
+      "message" => "An error occured. Request id: R2d2c3P0",
+      "path" => [],
+    }]
+
+    assert_nil result["data"]
+    assert_equal expected_errors, result["errors"]
   end
 end

@@ -1,69 +1,119 @@
-# typed: false
 # frozen_string_literal: true
 
-# client is anything that accepts "call"
+require "json"
+
 module GraphQL
   module Stitching
     class Gateway
+      class GatewayError < StitchingError; end
 
-      def initialize(schema_configurations:)
-        schemas = {}
-        remotes = {}
-        schema_configurations.each do |schema_name, config|
-          schemas[schema_name.to_s] = config[:schema]
-          if config[:executable]
-            remotes[schema_name.to_s] = config[:executable]
+      EMPTY_CONTEXT = {}.freeze
+
+      attr_reader :supergraph
+
+      def initialize(locations: nil, supergraph: nil)
+        @supergraph = if locations && supergraph
+          raise GatewayError, "Cannot provide both locations and a supergraph."
+        elsif supergraph && !supergraph.is_a?(Supergraph)
+          raise GatewayError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
+        elsif supergraph
+          supergraph
+        elsif locations
+          build_supergraph_from_locations_config(locations)
+        else
+          raise GatewayError, "No locations or supergraph provided."
+        end
+      end
+
+      def execute(query:, variables: nil, operation_name: nil, context: EMPTY_CONTEXT, validate: true)
+        document = GraphQL::Stitching::Document.new(query, operation_name: operation_name)
+
+        if validate
+          validation_errors = @supergraph.schema.validate(document.ast)
+          return error_result(validation_errors) if validation_errors.any?
+        end
+
+        begin
+          plan = fetch_plan(document, context) do
+            GraphQL::Stitching::Planner.new(
+              supergraph: @supergraph,
+              document: document,
+            ).perform.to_h
           end
-        end
-        @supergraph = GraphQL::Stitching::Composer.new(schemas: schemas).perform
-        remotes.each do |location, executable|
-          @supergraph.assign_executable(location, executable)
+
+          GraphQL::Stitching::Executor.new(
+            supergraph: @supergraph,
+            plan: plan,
+            variables: variables || {},
+          ).perform(document)
+        rescue StandardError => e
+          custom_message = @on_error.call(e, context) if @on_error
+          error_result([{ "message" => custom_message || "An unexpected error occured." }])
         end
       end
 
-      def execute(query: nil, variables: {}, operation_name: nil, validate: true)
-        doc = GraphQL::Stitching::Document.new(query, operation_name: operation_name)
-
-        if validate && result = validate_query(document: doc)
-          return result
-        end
-
-        plan = GraphQL::Stitching::Planner.new(
-          supergraph: @supergraph,
-          document: doc,
-        ).perform
-
-        GraphQL::Stitching::Executor.new(
-          supergraph: @supergraph,
-          plan: plan.to_h,
-          variables: variables,
-        ).perform(doc)
+      def on_cache_read(&block)
+        raise GatewayError, "A cache read block is required." unless block_given?
+        @on_cache_read = block
       end
 
-      def register_cache_read(&block)
-        @cache_read_hook = block
+      def on_cache_write(&block)
+        raise GatewayError, "A cache write block is required." unless block_given?
+        @on_cache_write = block
       end
-      def register_cache_write(&block)
-        @cache_write_hook = block
+
+      def on_error(&block)
+        raise GatewayError, "An error handler block is required." unless block_given?
+        @on_error = block
       end
 
       private
-      def cache_read(key)
-        if @cache_read_hook
-          @cache_read_hook.call(key)
+
+      def build_supergraph_from_locations_config(locations)
+        schemas = locations.each_with_object({}) do |(location, config), memo|
+          schema = config[:schema]
+          if schema.nil?
+            raise GatewayError, "A schema is required for `#{location}` location."
+          elsif !(schema.is_a?(Class) && schema <= GraphQL::Schema)
+            raise GatewayError, "The schema for `#{location}` location must be a GraphQL::Schema class."
+          else
+            memo[location.to_s] = schema
+          end
         end
+
+        supergraph = GraphQL::Stitching::Composer.new(schemas: schemas).perform
+
+        locations.each do |location, config|
+          executable = config[:executable]
+          supergraph.assign_executable(location.to_s, executable) if executable
+        end
+
+        supergraph
       end
 
-      def cache_write(key,payload)
-        if @cache_write_hook
-          @cache_write_hook.call(key, payload)
+      def fetch_plan(document, context)
+        if @on_cache_read
+          cached_plan = @on_cache_read.call(document.digest, context)
+          return JSON.parse(cached_plan) if cached_plan
         end
+
+        plan_json = yield
+
+        if @on_cache_write
+          @on_cache_write.call(document.digest, JSON.generate(plan_json), context)
+        end
+
+        plan_json
       end
-      def validate_query(document:)
-        validation_errors = @supergraph.schema.validate(document.ast)
-        if validation_errors.any?
-          { errors: [validation_errors.map { |e| { message: e.message, path: e.path } }] }
+
+      def error_result(errors)
+        public_errors = errors.map do |e|
+          public_error = e.is_a?(Hash) ? e : e.to_h
+          public_error["path"] ||= []
+          public_error
         end
+
+        { "errors" => public_errors }
       end
     end
   end

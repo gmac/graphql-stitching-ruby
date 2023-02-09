@@ -3,7 +3,7 @@
 module GraphQL
   module Stitching
     class Composer
-      class ComposerError < StandardError; end
+      class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
 
       attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location

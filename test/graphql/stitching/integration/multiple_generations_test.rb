@@ -10,11 +10,9 @@ describe 'GraphQL::Stitching, multiple generations' do
       "storefronts" => Schemas::Example::Storefronts,
       "manufacturers" => Schemas::Example::Manufacturers,
     })
-  end
 
-  def test_resolves_multiple_generations
-    query = "
-      query($id: ID!){
+    @query = <<~GRAPHQL
+      query($id: ID!) {
         storefront(id: $id) {
           id
           products {
@@ -29,12 +27,55 @@ describe 'GraphQL::Stitching, multiple generations' do
           }
         }
       }
-    "
+    GRAPHQL
+  end
 
-    result = plan_and_execute(@supergraph, query, { "id" => "1" })
+  def test_resolves_multiple_generations
+    result = plan_and_execute(@supergraph, @query, { "id" => "1" })
+    expected = {
+      "storefront" => {
+        "id" => "1",
+        "products" => [
+          {
+            "upc" => "1",
+            "_STITCH_upc" => "1",
+            "_STITCH_typename" => "Product",
+            "name" => "iPhone",
+            "price"=>699.99,
+            "manufacturer" => {
+              "products"=>[
+                { "upc" => "1", "name" => "iPhone" },
+                { "upc" => "2", "name" => "Apple Watch" },
+                { "upc" => "5", "name" => "iOS Survival Guide" },
+              ],
+              "_STITCH_id" => "1",
+              "_STITCH_typename" => "Manufacturer",
+              "name" => "Apple",
+              "address" => "123 Main",
+            },
+          },
+          {
+            "upc" => "2",
+            "_STITCH_upc" => "2",
+            "_STITCH_typename" => "Product",
+            "name" => "Apple Watch",
+            "price"=>399.99,
+            "manufacturer"=> {
+              "products"=> [
+                { "upc" => "1", "name" => "iPhone" },
+                { "upc" => "2", "name" => "Apple Watch" },
+                { "upc" => "5", "name" => "iOS Survival Guide" },
+              ],
+              "_STITCH_id" => "1",
+              "_STITCH_typename" => "Manufacturer",
+              "name" => "Apple",
+              "address" => "123 Main",
+            },
+          },
+        ],
+      },
+    }
 
-    # pp result
-    # @todo validate shape once there's a resolver
-    assert result.dig("data")
+    assert_equal expected, result.dig("data")
   end
 end

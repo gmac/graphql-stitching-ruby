@@ -120,30 +120,40 @@ module GraphQL
 
         while paths.any?
           path = paths.pop
-          @boundaries[type_name].each do |boundary|
-            location = boundary["location"]
-            next if path.last[:selection] != boundary["selection"]
-            next if path.any? { _1[:location] == location }
+          current_location = path.last[:location]
+          current_selection = path.last[:selection]
+          current_cost = path.last[:cost]
 
-            best_cost = costs[location] || Float::INFINITY
-            current_cost = path.last[:cost]
+          @boundaries[type_name].each do |boundary|
+            forward_location = boundary["location"]
+            next if current_selection != boundary["selection"]
+            next if path.any? { _1[:location] == forward_location }
+
+            best_cost = costs[forward_location] || Float::INFINITY
             next if best_cost < current_cost
 
-            path << { **path.pop, boundary: boundary }
+            path.pop
+            path << {
+              location: current_location,
+              selection: current_selection,
+              cost: current_cost,
+              boundary: boundary,
+            }
 
-            if goal_locations.include?(location)
-              current_result = results[location]
+            if goal_locations.include?(forward_location)
+              current_result = results[forward_location]
               if current_result.nil? || current_cost < best_cost || (current_cost == best_cost && path.length < current_result.length)
-                results[location] = path.map { _1[:boundary] }
+                results[forward_location] = path.map { _1[:boundary] }
               end
             else
-              current_cost = path.last[:cost] += 1
+              path.last[:cost] += 1
             end
 
-            costs[location] = current_cost if current_cost < best_cost
+            forward_cost = path.last[:cost]
+            costs[forward_location] = forward_cost if forward_cost < best_cost
 
-            possible_keys_for_type_and_location(type_name, location).each do |possible_key|
-              paths << [*path, { location: location, selection: possible_key, cost: current_cost }]
+            possible_keys_for_type_and_location(type_name, forward_location).each do |possible_key|
+              paths << [*path, { location: forward_location, selection: possible_key, cost: forward_cost }]
             end
           end
 

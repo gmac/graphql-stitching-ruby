@@ -38,8 +38,6 @@ describe 'GraphQL::Stitching, multiple generations' do
         "products" => [
           {
             "upc" => "1",
-            "_STITCH_upc" => "1",
-            "_STITCH_typename" => "Product",
             "name" => "iPhone",
             "price"=>699.99,
             "manufacturer" => {
@@ -48,16 +46,12 @@ describe 'GraphQL::Stitching, multiple generations' do
                 { "upc" => "2", "name" => "Apple Watch" },
                 { "upc" => "5", "name" => "iOS Survival Guide" },
               ],
-              "_STITCH_id" => "1",
-              "_STITCH_typename" => "Manufacturer",
               "name" => "Apple",
               "address" => "123 Main",
             },
           },
           {
             "upc" => "2",
-            "_STITCH_upc" => "2",
-            "_STITCH_typename" => "Product",
             "name" => "Apple Watch",
             "price"=>399.99,
             "manufacturer"=> {
@@ -66,8 +60,6 @@ describe 'GraphQL::Stitching, multiple generations' do
                 { "upc" => "2", "name" => "Apple Watch" },
                 { "upc" => "5", "name" => "iOS Survival Guide" },
               ],
-              "_STITCH_id" => "1",
-              "_STITCH_typename" => "Manufacturer",
               "name" => "Apple",
               "address" => "123 Main",
             },

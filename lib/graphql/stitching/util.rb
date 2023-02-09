@@ -50,6 +50,14 @@ module GraphQL
       def self.is_leaf_type?(type)
         type.kind.scalar? || type.kind.enum?
       end
+
+      def self.get_named_type_for_field_node(schema, parent_type, node)
+        if node.name == "__schema" && parent_type == schema.query
+          schema.types["__Schema"] # type mapped to phantom introspection field
+        else
+          Util.get_named_type(parent_type.fields[node.name].type)
+        end
+      end
     end
   end
 end

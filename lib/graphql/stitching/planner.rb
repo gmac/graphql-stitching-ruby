@@ -154,11 +154,7 @@ module GraphQL
               next
             end
 
-            field_type = if node.name == "__schema" && parent_type == @supergraph.schema.query
-              @supergraph.schema.types["__Schema"] # type mapped to phantom introspection field
-            else
-              Util.get_named_type(parent_type.fields[node.name].type)
-            end
+            field_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
 
             extract_node_variables!(node, variables_result)
 

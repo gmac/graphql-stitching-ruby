@@ -33,11 +33,8 @@ describe 'GraphQL::Stitching, type conditions' do
       "fruits" => [{
         "extensions" => {
           "color" => "red",
-          "_STITCH_id" => "11",
-          "_STITCH_typename" => "AppleExtension"
         },
         "__typename" => "Apple",
-        "_STITCH_typename" => "Apple",
       }],
     }
 
@@ -55,19 +52,13 @@ describe 'GraphQL::Stitching, type conditions' do
       "fruits" => [{
         "extensions" => {
           "color" => "red",
-          "_STITCH_id" => "11",
-          "_STITCH_typename" => "AppleExtension"
         },
         "__typename" => "Apple",
-        "_STITCH_typename" => "Apple",
       }, {
         "extensions" => {
           "shape" => "crescent",
-          "_STITCH_id" => "22",
-          "_STITCH_typename" => "BananaExtension"
         },
         "__typename" => "Banana",
-        "_STITCH_typename" => "Banana",
       }],
     }
 

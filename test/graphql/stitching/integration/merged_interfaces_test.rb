@@ -38,15 +38,11 @@ describe 'GraphQL::Stitching, merged interfaces' do
           "products" => [
             {
               "id" => "1",
-              "_STITCH_id" => "1",
-              "_STITCH_typename" => "Product",
               "name" => "iPhone",
               "price" => 699.99
             },
             {
               "id" => "2",
-              "_STITCH_id" => "2",
-              "_STITCH_typename" => "Product",
               "name" => "Apple Watch",
               "price" => 399.99
             },

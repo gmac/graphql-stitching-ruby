@@ -215,12 +215,13 @@ module GraphQL
       def perform(document=nil)
         exec!
 
-        # run the shaper...
-
         result = {}
         result["data"] = @data if @data && @data.length > 0
         result["errors"] = @errors if @errors.length > 0
-        result
+
+        result if document.nil?
+
+        GraphQL::Stitching::Shaper.new(supergraph: @supergraph, document: document, raw: result).perform!
       end
 
       private

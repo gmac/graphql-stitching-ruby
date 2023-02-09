@@ -219,7 +219,7 @@ module GraphQL
         result["data"] = @data if @data && @data.length > 0
         result["errors"] = @errors if @errors.length > 0
 
-        result if document.nil?
+        return result if document.nil?
 
         GraphQL::Stitching::Shaper.new(supergraph: @supergraph, document: document, raw: result).perform!
       end

@@ -27,6 +27,18 @@ gateway = GraphQL::Stitching::Gateway.new(locations: {
 
 Locations provided with only a `schema` will assign the schema as the location executable (these are locally-executable schemas, and must have locally-implemented resolvers). Locations that provide an `executable` will perform requests using the executable.
 
+#### From exported supergraph
+
+It's possible to [export and rehydrate](./supergraph.md#export-and-caching) `Supergraph` instances, allowing a supergraph to be cached as static artifacts and then rehydrated quickly at runtime without going through composition. To setup a gateway with a prebuilt supergraph, you may pass it as a `supergraph` argument:
+
+```ruby
+exported_schema = "..."
+exported_mapping = JSON.parse("{ ... }")
+supergraph = GraphQL::Stitching::Supergraph.from_export(exported_schema, exported_mapping)
+
+gateway = GraphQL::Stitching::Gateway.new(supergraph: supergraph)
+```
+
 ### Execution
 
 A gateway provides an `execute` method with a subset of arguments provided by [`GraphQL::Schema.execute`](https://graphql-ruby.org/queries/executing_queries). Executing requests to a stitched gateway becomes mostly a drop-in replacement to executing a `GraphQL::Schema` instance:

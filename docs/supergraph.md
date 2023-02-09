@@ -35,8 +35,13 @@ A Supergraph is designed to be composed, cached, and restored. Calling the `expo
 ```ruby
 supergraph_sdl, delegation_map = supergraph.export
 
+# stash these resources in Redis...
 $redis.set("cached_supergraph_sdl", supergraph_sdl)
 $redis.set("cached_delegation_map", JSON.generate(delegation_map))
+
+# or, write the resources as files and commit them to your repo...
+File.write("supergraph/schema.graphql", supergraph_sdl)
+File.write("supergraph/delegation_map.json", JSON.generate(delegation_map))
 ```
 
 To restore a cached Supergraph, collect the cached SDL and delegation mapping then recreate the Supergraph using `from_export`:

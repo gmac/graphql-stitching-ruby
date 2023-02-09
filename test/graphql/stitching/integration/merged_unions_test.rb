@@ -13,34 +13,46 @@ describe 'GraphQL::Stitching, unions' do
   end
 
   def test_plan_abstract_merged_via_concrete_boundaries
-    query = "{
-      fruitsA(ids: [\"1\", \"3\"]) {
-        ...on Apple { a b c }
-        ...on Banana { a b }
-        ...on Coconut { b c }
+    query = <<~GRAPHQL
+      {
+        fruitsA(ids: [\"1\", \"3\"]) {
+          ...on Apple { a b c }
+          ...on Banana { a b }
+          ...on Coconut { b c }
+        }
       }
-    }"
+    GRAPHQL
 
-    _result = plan_and_execute(@supergraph, query)
+    expected = {
+      "fruitsA" => [
+        { "a" => "a1", "_STITCH_id" => "1", "_STITCH_typename" => "Apple", "b" => "b1", "c" => "c1" },
+        { "a" => "a3", "_STITCH_id" => "3", "_STITCH_typename" => "Banana", "b" => "b3" },
+      ],
+    }
 
-    # pp plan.to_h
-    # pp result
-    # @todo
+    result = plan_and_execute(@supergraph, query)
+    assert_equal expected, result["data"]
   end
 
   def test_plan_abstract_merged_types_via_abstract_boundary
-    query = "{
-      fruitsC(ids: [\"1\", \"4\"]) {
-        ...on Apple { a b c }
-        ...on Banana { a b }
-        ...on Coconut { b c }
+    query = <<~GRAPHQL
+      {
+        fruitsC(ids: [\"1\", \"4\"]) {
+          ...on Apple { a b c }
+          ...on Banana { a b }
+          ...on Coconut { b c }
+        }
       }
-    }"
+    GRAPHQL
 
-    _result = plan_and_execute(@supergraph, query)
+    expected = {
+      "fruitsC" => [
+        { "c" => "c1", "_STITCH_id" => "1", "_STITCH_typename" => "Apple", "a" => "a1", "b" => "b1" },
+        { "c" => "c4", "_STITCH_id" => "4", "_STITCH_typename" => "Coconut", "b" => "b4" },
+      ],
+    }
 
-    # pp plan.to_h
-    # pp result
-    # @todo
+    result = plan_and_execute(@supergraph, query)
+    assert_equal expected, result["data"]
   end
 end

@@ -20,7 +20,10 @@ module GraphQL
           @executor.query_count += 1
 
           @executor.data.merge!(result["data"]) if result["data"]
-          @executor.errors.concat(result["errors"]) if result["errors"]&.any?
+          if result["errors"]&.any?
+            result["errors"].each { _1.delete("locations") }
+            @executor.errors.concat(result["errors"])
+          end
           op["key"]
         end
 
@@ -124,13 +127,13 @@ module GraphQL
           pathed_errors_by_op_index_and_object_id = {}
 
           errors_result = errors.each_with_object([]) do |err, memo|
+            err.delete("locations")
             path = err["path"]
 
             if path && path.length > 0
               result_alias = /^_(\d+)(?:_(\d+))?_result$/.match(path.first.to_s)
 
               if result_alias
-                err.delete("locations")
                 path = err["path"] = path[1..-1]
 
                 origin_obj = if result_alias[2]

@@ -129,7 +129,7 @@ module GraphQL
             current_cost = path.last[:cost]
             next if best_cost < current_cost
 
-            path << ({ boundary: boundary }.merge!(path.pop))
+            path << { **path.pop, boundary: boundary }
 
             if goal_locations.include?(location)
               current_result = results[location]

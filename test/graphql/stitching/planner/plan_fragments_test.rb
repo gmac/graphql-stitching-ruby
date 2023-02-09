@@ -6,8 +6,9 @@ require_relative "../../../schemas/conditionals"
 describe "GraphQL::Stitching::Planner, fragments" do
   def setup
     @supergraph = compose_definitions({
+      "exa" => Schemas::Conditionals::ExtensionsA,
+      "exb" => Schemas::Conditionals::ExtensionsB,
       "base" => Schemas::Conditionals::Abstracts,
-      "ext" => Schemas::Conditionals::Extensions,
     })
 
     @expected_root_query = <<~GRAPHQL
@@ -55,14 +56,14 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal squish_string(@expected_root_query), first.selection_set
 
     second = plan.operations[1]
-    assert_equal "ext", second.location
+    assert_equal "exa", second.location
     assert_equal "{ color }", second.selection_set
     assert_equal "AppleExtension", second.type_condition
     assert_equal ["fruits", "extensions"], second.insertion_path
     assert_equal first.key, second.after_key
 
     third = plan.operations[2]
-    assert_equal "ext", third.location
+    assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
     assert_equal "BananaExtension", third.type_condition
     assert_equal ["fruits", "extensions"], third.insertion_path
@@ -93,14 +94,14 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal squish_string(@expected_root_query), first.selection_set
 
     second = plan.operations[1]
-    assert_equal "ext", second.location
+    assert_equal "exa", second.location
     assert_equal "{ color }", second.selection_set
     assert_equal "AppleExtension", second.type_condition
     assert_equal ["fruits", "extensions"], second.insertion_path
     assert_equal first.key, second.after_key
 
     third = plan.operations[2]
-    assert_equal "ext", third.location
+    assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
     assert_equal "BananaExtension", third.type_condition
     assert_equal ["fruits", "extensions"], third.insertion_path

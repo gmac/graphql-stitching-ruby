@@ -85,7 +85,10 @@ The gateway also provides an error hook. Any program errors rescued during execu
 
 ```ruby
 gateway.on_error do |err, context|
-  Bugsnag.log(err)
+  # log the error
+  Bugsnag.notify(err)
+
+  # return a formatted message for the public response
   "Whoops, please contact support abount request '#{context[:request_id]}'"
 end
 ```

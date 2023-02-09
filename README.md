@@ -45,7 +45,7 @@ showtimes_schema = <<~GRAPHQL
   type Query { showtime(id: ID!): Showtime }
 GRAPHQL
 
-gateway = GraphQL::Stitching::Gateway.new({
+gateway = GraphQL::Stitching::Gateway.new(locations: {
   products: {
     schema: GraphQL::Schema.from_definition(movies_schema),
     executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),

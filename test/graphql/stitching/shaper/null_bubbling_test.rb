@@ -1,0 +1,340 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+describe "GraphQL::Stitching::Shaper, null bubbling" do
+  def test_basic_object_structure
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => {
+          "req" => "yes",
+          "opt" => nil
+        }
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => {
+          "req" => "yes",
+          "opt" => nil
+        }
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_single_object_scopes
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => {
+          "req" => nil,
+          "opt" => "yes"
+        }
+      }
+    }
+    expected = { "data" => { "test" => nil } }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_recursive_object_scopes
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test! }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => {
+          "req" => nil,
+          "opt" => "yes"
+        }
+      }
+    }
+    expected = { "data" => nil }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_basic_list_structure
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          { "req" => "yes", "opt" => "yes" },
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          { "req" => "yes", "opt" => "yes" },
+        ]
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_list_elements
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          { "req" => nil, "opt" => "yes" },
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          nil,
+        ]
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_required_list_elements
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          { "req" => nil, "opt" => "yes" },
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => nil,
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_required_lists
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!]! }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          { "req" => "yes", "opt" => nil },
+          { "req" => nil, "opt" => "yes" },
+        ]
+      }
+    }
+    expected = {
+      "data" => nil
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_basic_nested_list_structure
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => "yes", "opt" => "yes" }],
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => "yes", "opt" => "yes" }],
+        ]
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_nested_list_elements
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => nil, "opt" => "yes" }],
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [nil],
+        ]
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_nested_required_list_elements
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => nil, "opt" => "yes" }],
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          nil,
+        ]
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_for_inner_required_lists
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!] }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => nil, "opt" => "yes" }],
+        ]
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => nil
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubbles_null_through_nested_required_list_scopes
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!]! }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => [
+          [{ "req" => "yes", "opt" => nil }],
+          [{ "req" => nil, "opt" => "yes" }],
+        ]
+      }
+    }
+    expected = {
+      "data" => nil
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubble_through_inline_fragment
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new("{ test { ... on Test { ... on Test { req opt } } } }"),
+    )
+    raw = {
+      "data" => {
+        "test" => {
+          "_STITCH_typename" => "Test",
+          "req" => nil,
+          "opt" => nil
+        }
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => nil
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_bubble_through_fragment_spreads
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    query = <<~GRAPHQL
+      query { test { ...Test2 } }
+      fragment Test1 on Test { req opt }
+      fragment Test2 on Test { ...Test1 }
+    GRAPHQL
+    shaper = GraphQL::Stitching::Shaper.new(
+      schema: GraphQL::Schema.from_definition(schema_sdl),
+      document: GraphQL::Stitching::Document.new(query),
+    )
+    raw = {
+      "data" => {
+        "test" => {
+          "_STITCH_typename" => "Test",
+          "req" => nil,
+          "opt" => nil
+        }
+      }
+    }
+    expected = {
+      "data" => {
+        "test" => nil
+      }
+    }
+
+    assert_equal expected, shaper.perform!(raw)
+  end
+end

@@ -4,22 +4,21 @@
 module GraphQL
   module Stitching
     class Shaper
-      def initialize(supergraph:, document:, raw:)
-        @supergraph = supergraph
+      def initialize(schema:, document:)
+        @schema = schema
         @document = document
-        @result = raw
         @errors = []
       end
 
-      def perform!
-        @result["data"] = resolve_object_scope(@result["data"], @supergraph.schema.query, @document.operation.selections)
-        @result
+      def perform!(raw)
+        raw["data"] = resolve_object_scope(raw["data"], @schema.query, @document.operation.selections)
+        raw
       end
 
       private
 
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
-        return nil unless raw_object
+        return nil if raw_object.nil?
 
         typename ||= raw_object["_STITCH_typename"]
         raw_object.reject! { |k, _v| k.start_with?("_STITCH_") }
@@ -31,7 +30,7 @@ module GraphQL
 
             field_name = node.alias || node.name
             node_type = parent_type.fields[node.name].type
-            named_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+            named_type = Util.get_named_type_for_field_node(@schema, parent_type, node)
             is_leaf_type = Util.is_leaf_type?(named_type)
             list_structure = Util.get_list_structure(node_type)
 
@@ -46,16 +45,17 @@ module GraphQL
 
           when GraphQL::Language::Nodes::InlineFragment
             next unless typename == node.type.name
-            fragment_type = @supergraph.schema.types[node.type.name]
+            fragment_type = @schema.types[node.type.name]
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
-            return nil unless result
+            return nil if result.nil?
 
           when GraphQL::Language::Nodes::FragmentSpread
-            next unless typename == node.name
             fragment = @document.fragment_definitions[node.name]
-            fragment_type = @supergraph.schema.types[node.name]
+            fragment_type = @schema.types[fragment.type.name]
+            next unless typename == fragment_type.graphql_name
+
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
-            return nil unless result
+            return nil if result.nil?
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
@@ -66,12 +66,12 @@ module GraphQL
       end
 
       def resolve_list_scope(raw_list, list_structure, is_leaf_element, parent_type, selections)
-        return nil unless raw_list
+        return nil if raw_list.nil?
 
         current_structure = list_structure.shift
         next_structure = list_structure.first
 
-        raw_list.map do |raw_list_element|
+        resolved_list = raw_list.map do |raw_list_element|
           case next_structure
           when "list", "non_null_list"
             result = resolve_list_scope(raw_list_element, list_structure.dup, is_leaf_element, parent_type, selections)
@@ -89,6 +89,10 @@ module GraphQL
             result
           end
         end
+
+        return nil if next_structure.start_with?("non_null") && resolved_list.any?(&:nil?)
+
+        resolved_list
       end
     end
   end

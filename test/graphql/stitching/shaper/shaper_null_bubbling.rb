@@ -10,26 +10,28 @@ describe "GraphQL::Stitching::Shaper, happy flow" do
       "products" => Schemas::Example::Products,
       "storefronts" => Schemas::Example::Storefronts,
       "manufacturers" => Schemas::Example::Manufacturers,
-      "base" => Schemas::Conditionals::Abstracts,
-      "exa" => Schemas::Conditionals::ExtensionsA,
-      "exb" => Schemas::Conditionals::ExtensionsB,
     })
   end
 
-  def xtest_basic_null_bubbling
-    document = GraphQL::Stitching::Document.new("query {
-      storefront(id: \"3\") {
-        id
-        products {
-          upc
-          manufacturer {
-            name
-            address
+  def test_basic_null_bubbling
+    query = <<~GRAPHQL
+      query {
+        storefront(id: \"3\") {
+          id
+          products {
+            ... on Product {
+              upc
+              manufacturer {
+                name
+                address
+              }
+            }
           }
         }
       }
-    }
-    ")
+    GRAPHQL
+
+    document = GraphQL::Stitching::Document.new(query)
 
     raw_result = {
       "data"=>{

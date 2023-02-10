@@ -12,78 +12,81 @@ module GraphQL
       end
 
       def perform!
-        if @result.key?("data") && ! @result["data"].empty?
-          munge_entry(@result["data"], @document.operation.selections, @supergraph.schema.query)
-          # hate doing a second pass, but cannot remove _STITCH_ fields until the fragements are processed
-          clean_entry(@result["data"])
-        end
-
-        if @errors.length > 0
-          @result = [] unless @result.key?("errors")
-          @result["errors"] += @errors
-        end
-
+        @result["data"] = resolve_object_scope(@result["data"], @supergraph.schema.query, @document.operation.selections)
         @result
       end
 
       private
 
-      def munge_entry(entry, selections, parent_type)
+      def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
+        return nil unless raw_object
+
+        typename ||= raw_object["_STITCH_typename"]
+        raw_object.reject! { |k, _v| k.start_with?("_STITCH_") }
+
         selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next if node.respond_to?(:name) && node&.name == "__typename"
+            next if node.name == "__typename"
 
-            munge_field(entry, node, parent_type)
+            field_name = node.alias || node.name
+            node_type = parent_type.fields[node.name].type
+            named_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+            is_leaf_type = Util.is_leaf_type?(named_type)
+            list_structure = Util.get_list_structure(node_type)
+
+            raw_object[field_name] = if list_structure.any?
+              resolve_list_scope(raw_object[field_name], list_structure, is_leaf_type, named_type, node.selections)
+            elsif is_leaf_type
+              raw_object[field_name]
+            else
+              resolve_object_scope(raw_object[field_name], named_type, node.selections)
+            end
+            return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
-            next unless entry["_STITCH_typename"] == node.type.name
+            next unless typename == node.type.name
             fragment_type = @supergraph.schema.types[node.type.name]
-            munge_entry(entry, node.selections, fragment_type)
+            result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
+            return nil unless result
 
           when GraphQL::Language::Nodes::FragmentSpread
-            next unless entry["_STITCH_typename"] == node.name
+            next unless typename == node.name
             fragment = @document.fragment_definitions[node.name]
             fragment_type = @supergraph.schema.types[node.name]
-            munge_entry(entry, fragment.selections, fragment_type)
+            result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
+            return nil unless result
+
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
           end
         end
+
+        raw_object
       end
 
-      def munge_field(entry, node, parent_type)
-        field_identifier = (node.alias || node.name)
-        node_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+      def resolve_list_scope(raw_list, list_structure, is_leaf_element, parent_type, selections)
+        return nil unless raw_list
 
-        if entry.nil?
-          return  # TODO bubble up error if not nullable
-        end
+        current_structure = list_structure.shift
+        next_structure = list_structure.first
 
-        child_entry = entry[field_identifier]
-        if child_entry.nil?
-          entry[field_identifier] = nil
-        elsif child_entry.is_a? Array
-          child_entry.each do |raw_item|
-            munge_entry(raw_item, node.selections, node_type)
-          end
-        elsif ! Util.is_leaf_type?(node_type)
-          munge_entry(child_entry, node.selections, node_type)
-        end
-      end
+        raw_list.map do |raw_list_element|
+          case next_structure
+          when "list", "non_null_list"
+            result = resolve_list_scope(raw_list_element, list_structure.dup, is_leaf_element, parent_type, selections)
+            return nil if result.nil? && current_structure == "non_null_list"
+            result
 
-      def clean_entry(entry)
-        return if entry.nil?
-
-        entry.each do |key, value|
-          if key.start_with? "_STITCH_"
-            entry.delete(key)
-          elsif value.is_a?(Array)
-            value.each do |item|
-              clean_entry(item)
+          when "element", "non_null_element"
+            result = if is_leaf_element
+              raw_list_element
+            else
+              resolve_object_scope(raw_list_element, parent_type, selections)
             end
-          elsif value.is_a?(Hash)
-            clean_entry(value)
+
+            return nil if result.nil? && current_structure == "non_null_element"
+            result
           end
         end
       end

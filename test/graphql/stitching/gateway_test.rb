@@ -174,14 +174,14 @@ describe "GraphQL::Stitching::Gateway" do
     GRAPHQL
 
     @gateway.on_cache_read { |key| cache[key] }
-    @gateway.on_cache_write { |key, payload| cache[key] = payload.gsub("price", "name") }
+    @gateway.on_cache_write { |key, payload| cache[key] = payload.gsub("price", "name price") }
 
     uncached_result = @gateway.execute(query: test_query)
     expected_uncached = { "data" => { "product" => { "price" => 699.99 } } }
     assert_equal expected_uncached, uncached_result
 
     cached_result = @gateway.execute(query: test_query)
-    expected_cached = { "data" => { "product" => { "name" => "iPhone", "price" => nil } } }
+    expected_cached = { "data" => { "product" => { "name" => "iPhone", "price" => 699.99 } } }
     assert_equal expected_cached, cached_result
   end
 

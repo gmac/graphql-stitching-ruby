@@ -19,8 +19,6 @@ module GraphQL
             @errors << { "message" => e.message}
             @result["data"] = nil
           end
-          # hate doing a second pass, but cannot remove _STITCH_ fields until the fragements are processed
-          clean_entry(@result["data"])
         end
 
         if @errors.length > 0
@@ -33,11 +31,20 @@ module GraphQL
       private
 
       def munge_entry(entry, selections, parent_type)
+        entry_map = lambda do |key, value|
+          if value.is_a?(Hash)
+            value = "Hash"
+          elsif value.is_a?(Array)
+            value = "Array"
+          end
+          [key, value]
+        end
+
+        puts "munge_entry start: #{entry.map(&entry_map).to_h}"
         selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
             next if node.respond_to?(:name) && node&.name == "__typename"
-
             munge_field(entry, node, parent_type)
 
           when GraphQL::Language::Nodes::InlineFragment
@@ -48,12 +55,16 @@ module GraphQL
           when GraphQL::Language::Nodes::FragmentSpread
             next unless entry["_STITCH_typename"] == node.name
             fragment = @document.fragment_definitions[node.name]
-            fragment_type = @supergraph.schema.types[node.name]
+            fragment_type = @supergraph.schema.types[node.type.name]
             munge_entry(entry, fragment.selections, fragment_type)
+
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
           end
         end
+
+        entry.reject! { |k, v| k.start_with? "_STITCH_" }
+        # puts "munge_entry clean: #{entry}"
       end
 
       def munge_field(entry, node, parent_type)
@@ -86,22 +97,6 @@ module GraphQL
             raise e if field_type.non_null?
             @errors << { "message" => e.message}
             entry[field_identifier] = nil
-          end
-        end
-      end
-
-      def clean_entry(entry)
-        return if entry.nil?
-
-        entry.each do |key, value|
-          if key.start_with? "_STITCH_"
-            entry.delete(key)
-          elsif value.is_a?(Array)
-            value.each do |item|
-              clean_entry(item)
-            end
-          elsif value.is_a?(Hash)
-            clean_entry(value)
           end
         end
       end

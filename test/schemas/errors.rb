@@ -12,6 +12,7 @@ module Schemas
     ELEMENTS_A = [
       { id: '10', name: 'neon' },
       { id: '36', name: 'krypton' },
+      { id: '54', name: nil } # bad entry
     ].freeze
 
     ELEMENTS_B = [

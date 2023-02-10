@@ -16,7 +16,7 @@ describe "GraphQL::Stitching::Shaper, happy flow" do
     })
   end
 
-  def xtest_basic_null_bubbling
+  def test_basic_null_bubbling
     document = GraphQL::Stitching::Document.new("query {
       storefront(id: \"3\") {
         id
@@ -28,8 +28,7 @@ describe "GraphQL::Stitching::Shaper, happy flow" do
           }
         }
       }
-    }
-    ")
+    }")
 
     raw_result = {
       "data"=>{
@@ -57,13 +56,13 @@ describe "GraphQL::Stitching::Shaper, happy flow" do
         "storefront"=>{
           "id"=>"3",
           "products"=>[
-            {
-              "upc"=>"6",
-              "manufacturer"=>nil
-            }
+            {"upc"=>"6", "manufacturer"=>nil}
           ]
         }
-      }
+      },
+      "errors"=>[
+        {"message"=>"Cannot return null for non-nullable field Manufacturer.address"}
+      ]
     }
 
     result = GraphQL::Stitching::Shaper.new(supergraph: @supergraph, document: document, raw: raw_result).perform!

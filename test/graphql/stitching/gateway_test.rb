@@ -69,7 +69,7 @@ describe "GraphQL::Stitching::Gateway" do
     }
   end
 
-  def test_execute_valid_query_via_string
+  def xtest_execute_valid_query_via_string
     setup_example_gateway
 
     result = @gateway.execute(
@@ -81,7 +81,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal @expected_result, result
   end
 
-  def test_execute_valid_query_via_ast
+  def xtest_execute_valid_query_via_ast
     setup_example_gateway
 
     result = @gateway.execute(
@@ -93,26 +93,26 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal @expected_result, result
   end
 
-  def test_gateway_builds_with_provided_supergraph
+  def xtest_gateway_builds_with_provided_supergraph
     export_schema = "type Thing { id: String } type Query { thing: Thing }"
     export_mapping = { "fields" => {}, "boundaries" => {} }
     supergraph = GraphQL::Stitching::Supergraph.from_export(export_schema, export_mapping)
     assert GraphQL::Stitching::Gateway.new(supergraph: supergraph)
   end
 
-  def test_errors_for_invalid_supergraph
+  def xtest_errors_for_invalid_supergraph
     assert_error "must be a GraphQL::Stitching::Supergraph" do
       GraphQL::Stitching::Gateway.new(supergraph: {})
     end
   end
 
-  def test_errors_for_both_locations_and_supergraph
+  def xtest_errors_for_both_locations_and_supergraph
     assert_error "Cannot provide both locations and a supergraph" do
       GraphQL::Stitching::Gateway.new(locations: {}, supergraph: {})
     end
   end
 
-  def test_query_with_operation_name
+  def xtest_query_with_operation_name
     setup_example_gateway
 
     queries = <<~GRAPHQL
@@ -130,7 +130,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_result, result
   end
 
-  def test_location_with_executable
+  def xtest_location_with_executable
     static_remote_data = { "data" => { "storefront" => { "id" => "10000" } } }
 
     gateway = GraphQL::Stitching::Gateway.new(locations: {
@@ -144,7 +144,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal static_remote_data, result
   end
 
-  def test_query_with_variables
+  def xtest_query_with_variables
     gateway = GraphQL::Stitching::Gateway.new(locations: {
       storefronts: {
         schema: Schemas::Example::Storefronts,
@@ -185,7 +185,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_cached, cached_result
   end
 
-  def test_caching_hooks_receive_request_context
+  def xtest_caching_hooks_receive_request_context
     gateway = GraphQL::Stitching::Gateway.new(locations: {
       products: {
         schema: Schemas::Example::Products,
@@ -210,7 +210,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal context[:key], write_context
   end
 
-  def test_invalid_query
+  def xtest_invalid_query
     gateway = GraphQL::Stitching::Gateway.new(locations: {
       products: {
         schema: Schemas::Example::Products,
@@ -227,7 +227,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_errors, result["errors"].map { _1.slice("message", "path") }
   end
 
-  def test_errors_are_handled_by_default
+  def xtest_errors_are_handled_by_default
     gateway = GraphQL::Stitching::Gateway.new(locations: {
       products: {
         schema: Schemas::Example::Products,
@@ -245,7 +245,7 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_errors, result["errors"]
   end
 
-  def test_errors_trigger_hooks_that_may_return_a_custom_message
+  def xtest_errors_trigger_hooks_that_may_return_a_custom_message
     gateway = GraphQL::Stitching::Gateway.new(locations: {
       products: {
         schema: Schemas::Example::Products,

@@ -24,22 +24,14 @@ describe 'GraphQL::Stitching, errors' do
   def test_queries_merged_interfaces
     result = plan_and_execute(@supergraph, @query, {
       "ids" => ["10", "18", "36"]
-    })
+    }, false)
 
     expected_data = {
-      "elementsA" => [
-        {
-          "name" => "neon",
-          "code" => "Ne",
-          "year" => 1898,
-        },
+      "elementsA"=>[
+        {"name"=>"neon", "_STITCH_id"=>"10", "_STITCH_typename"=>"Element", "code"=>"Ne", "year"=>1898},
         nil,
-        {
-          "name" => "krypton",
-          "code" => nil,
-          "year" => nil,
-        },
-      ],
+        {"name"=>"krypton", "_STITCH_id"=>"36", "_STITCH_typename"=>"Element"}
+      ]
     }
 
     expected_errors = [

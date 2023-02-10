@@ -13,14 +13,18 @@ module GraphQL
 
       def perform!
         if @result.key?("data") && ! @result["data"].empty?
-          munge_entry(@result["data"], @document.operation.selections, @supergraph.schema.query)
+          begin
+            munge_entry(@result["data"], @document.operation.selections, @supergraph.schema.query)
+          rescue InvalidNullError => e
+            @errors << { "message" => e.message}
+            @result["data"] = nil
+          end
           # hate doing a second pass, but cannot remove _STITCH_ fields until the fragements are processed
           clean_entry(@result["data"])
         end
 
         if @errors.length > 0
-          @result = [] unless @result.key?("errors")
-          @result["errors"] += @errors
+          (@result["errors"] ||= []).concat(@errors)
         end
 
         @result
@@ -54,21 +58,35 @@ module GraphQL
 
       def munge_field(entry, node, parent_type)
         field_identifier = (node.alias || node.name)
-        node_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+        named_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+        field_type = parent_type.own_fields[node.name].type
 
         if entry.nil?
-          return  # TODO bubble up error if not nullable
+          raise InvalidNullError.new(parent_type, parent_type.own_fields[node.name], nil) if field_type.non_null?
+          return
         end
 
         child_entry = entry[field_identifier]
         if child_entry.nil?
+          raise InvalidNullError.new(parent_type, parent_type.own_fields[node.name], nil) if field_type.non_null?
           entry[field_identifier] = nil
         elsif child_entry.is_a? Array
           child_entry.each do |raw_item|
-            munge_entry(raw_item, node.selections, node_type)
+            begin
+              munge_entry(raw_item, node.selections, named_type)
+            rescue InvalidNullError => e
+              @errors << { "message" => e.message}
+              child_entry.delete(raw_item)
+            end
           end
-        elsif ! Util.is_leaf_type?(node_type)
-          munge_entry(child_entry, node.selections, node_type)
+        elsif ! Util.is_leaf_type?(named_type)
+          begin
+            munge_entry(child_entry, node.selections, named_type)
+          rescue InvalidNullError => e
+            raise e if field_type.non_null?
+            @errors << { "message" => e.message}
+            entry[field_identifier] = nil
+          end
         end
       end
 

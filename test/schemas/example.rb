@@ -27,7 +27,7 @@ module Schemas
     MANUFACTURERS = [
       { id: '1', name: 'Apple', address: '123 Main' },
       { id: '2', name: 'Macmillan', address: '456 Market' },
-      { id: '3', name: 'Narnia', address: "123" }, # invalid address
+      { id: '3', name: 'Narnia', address: nil }, # invalid address
     ].freeze
 
     # Products
@@ -36,7 +36,7 @@ module Schemas
       class Product < GraphQL::Schema::Object
         field :upc, ID, null: false
         field :name, String, null: false
-        field :price, Float, null: false
+        field :price, Float, null: true
         field :manufacturer, "Schemas::Example::Products::Manufacturer", null: true
         field :pages, Integer, null: true
 

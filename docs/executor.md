@@ -21,9 +21,17 @@ plan = GraphQL::Stitching::Planner.new(
   document: document,
 ).perform
 
+# get the raw result without shaping
 raw_result = GraphQL::Stitching::Executor.new(
   supergraph: supergraph,
   plan: plan.to_h,
   variables: variables,
 ).perform
+
+# get the final result with shaping
+final_result = GraphQL::Stitching::Executor.new(
+  supergraph: supergraph,
+  plan: plan.to_h,
+  variables: variables,
+).perform(document)
 ```

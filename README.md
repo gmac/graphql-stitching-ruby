@@ -79,7 +79,6 @@ While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the
 - [Document](./docs/document.md) - manages a parsed GraphQL request document.
 - [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
-- [Shaper](./docs/shaper.md) - takes the raw output of the executor and prepares it for delivery.
 
 ## Merged types
 

@@ -7,7 +7,6 @@ module GraphQL
       def initialize(schema:, document:)
         @schema = schema
         @document = document
-        @errors = []
       end
 
       def perform!(raw)
@@ -32,9 +31,9 @@ module GraphQL
             node_type = parent_type.fields[node.name].type
             named_type = Util.get_named_type_for_field_node(@schema, parent_type, node)
             is_leaf_type = Util.is_leaf_type?(named_type)
-            list_structure = Util.get_list_structure(node_type)
 
-            raw_object[field_name] = if list_structure.any?
+            raw_object[field_name] = if node_type.list?
+              list_structure = Util.get_list_structure(node_type)
               resolve_list_scope(raw_object[field_name], list_structure, is_leaf_type, named_type, node.selections)
             elsif is_leaf_type
               raw_object[field_name]

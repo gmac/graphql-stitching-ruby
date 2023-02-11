@@ -34,6 +34,21 @@ module GraphQL
       end
 
       def perform
+        # "directive_name" => "location" => candidate_directive
+        @subschema_directives_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
+            memo[directive_name] ||= {}
+            memo[directive_name][location] = schema.directives[directive_name]
+          end
+        end
+
+        # "Typename" => merged_directive
+        schema_directives = @subschema_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
+          memo[directive_name] = build_directive(directive_name, directives_by_location)
+        end
+
+        schema_directives.merge!(GraphQL::Schema.default_directives)
+
         # "Typename" => "location" => candidate_type
         @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
           raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
@@ -91,6 +106,7 @@ module GraphQL
           orphan_types schema_types.values
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
+          directives schema_directives.values
 
           own_orphan_types.clear
         end
@@ -110,6 +126,18 @@ module GraphQL
         end
 
         supergraph
+      end
+
+      def build_directive(directive_name, directives_by_location)
+        builder = self
+
+        Class.new(GraphQL::Schema::Directive) do
+          graphql_name(directive_name)
+          description(builder.merge_descriptions(directive_name, directives_by_location))
+          repeatable(directives_by_location.values.any?(&:repeatable?))
+          locations(*directives_by_location.values.flat_map(&:locations).uniq)
+          builder.build_merged_arguments(directive_name, directives_by_location, self)
+        end
       end
 
       def build_scalar_type(type_name, types_by_location)

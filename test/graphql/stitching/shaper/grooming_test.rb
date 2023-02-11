@@ -1,19 +1,21 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../../schemas/introspection"
 
 describe "GraphQL::Stitching::Shaper, grooming" do
   def test_prunes_stitching_fields
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      document: GraphQL::Stitching::Document.new("{ test { __typename req opt } }"),
     )
     raw = {
       "data" => {
         "test" => {
           "_STITCH_req" => "yes",
           "_STITCH_typename" => "Test",
+          "__typename" => "Test",
           "req" => "yes",
           "opt" => nil,
         }
@@ -22,6 +24,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     expected = {
       "data" => {
         "test" => {
+          "__typename" => "Test",
           "req" => "yes",
           "opt" => nil,
         }
@@ -115,5 +118,17 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     }
 
     assert_equal expected, shaper.perform!(raw)
+  end
+
+  def test_handles_introspection_types
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    schema = GraphQL::Schema.from_definition(schema_sdl)
+    shaper = GraphQL::Stitching::Shaper.new(
+      document: GraphQL::Stitching::Document.new(INTROSPECTION_QUERY),
+      schema: schema,
+    )
+
+    raw = schema.execute(query: INTROSPECTION_QUERY).to_h
+    assert shaper.perform!(raw)
   end
 end

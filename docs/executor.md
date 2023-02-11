@@ -35,3 +35,5 @@ final_result = GraphQL::Stitching::Executor.new(
   variables: variables,
 ).perform(document)
 ```
+
+Note that an executor's `perform` method accepts a document argument. When provided, the raw execution result will be shaped for delivery to match the document. Without a document, the raw result will be returned with stitching inclusions and no null bubbling applied.

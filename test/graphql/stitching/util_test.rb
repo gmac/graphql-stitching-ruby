@@ -51,6 +51,14 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
     assert_equal "Int", Util.get_named_type(field_type("list3")).graphql_name
   end
 
+  def test_unwrap_non_null
+    field = field_type("first")
+    assert_equal true, field.non_null?
+    assert_equal false, Util.unwrap_non_null(field).non_null?
+    assert_equal "FirstObject", Util.unwrap_non_null(field).graphql_name
+  end
+
+
   def test_get_list_structure
     assert_equal ["list", "element"], Util.get_list_structure(field_type("list1"))
     assert_equal ["list", "non_null_element"], Util.get_list_structure(field_type("list2"))

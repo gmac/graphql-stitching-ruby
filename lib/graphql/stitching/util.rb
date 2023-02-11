@@ -4,9 +4,17 @@ module GraphQL
   module Stitching
     class Util
 
-      # gets the named type at the bottom of a non-null/list wrapper chain
+      # gets the named type at the bottom of a non-null/list wrapper tree
       def self.get_named_type(type)
         while type.respond_to?(:of_type)
+          type = type.of_type
+        end
+        type
+      end
+
+      # strips non-null wrappers from a type
+      def self.unwrap_non_null(type)
+        while type.is_a?(GraphQL::Schema::NonNull)
           type = type.of_type
         end
         type

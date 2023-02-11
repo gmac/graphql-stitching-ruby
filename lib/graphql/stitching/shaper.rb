@@ -25,21 +25,20 @@ module GraphQL
         selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next if node.name == "__typename"
+            next if node.name.start_with?("__")
 
             field_name = node.alias || node.name
             node_type = parent_type.fields[node.name].type
             named_type = Util.get_named_type_for_field_node(@schema, parent_type, node)
-            is_leaf_type = Util.is_leaf_type?(named_type)
 
             raw_object[field_name] = if node_type.list?
-              list_structure = Util.get_list_structure(node_type)
-              resolve_list_scope(raw_object[field_name], list_structure, is_leaf_type, named_type, node.selections)
-            elsif is_leaf_type
+              resolve_list_scope(raw_object[field_name], Util.unwrap_non_null(node_type), node.selections)
+            elsif Util.is_leaf_type?(named_type)
               raw_object[field_name]
             else
               resolve_object_scope(raw_object[field_name], named_type, node.selections)
             end
+
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
@@ -64,32 +63,31 @@ module GraphQL
         raw_object
       end
 
-      def resolve_list_scope(raw_list, list_structure, is_leaf_element, parent_type, selections)
+      def resolve_list_scope(raw_list, current_node_type, selections)
         return nil if raw_list.nil?
 
-        current_structure = list_structure.shift
-        next_structure = list_structure.first
+        next_node_type = Util.unwrap_non_null(current_node_type).of_type
+        named_type = Util.get_named_type(next_node_type)
+        contains_null = false
 
-        resolved_list = raw_list.map do |raw_list_element|
-          case next_structure
-          when "list", "non_null_list"
-            result = resolve_list_scope(raw_list_element, list_structure.dup, is_leaf_element, parent_type, selections)
-            return nil if result.nil? && current_structure == "non_null_list"
-            result
-
-          when "element", "non_null_element"
-            result = if is_leaf_element
-              raw_list_element
-            else
-              resolve_object_scope(raw_list_element, parent_type, selections)
-            end
-
-            return nil if result.nil? && current_structure == "non_null_element"
-            result
+        resolved_list = raw_list.map! do |raw_list_element|
+          result = if next_node_type.list?
+            resolve_list_scope(raw_list_element, next_node_type, selections)
+          elsif Util.is_leaf_type?(named_type)
+            raw_list_element
+          else
+            resolve_object_scope(raw_list_element, named_type, selections)
           end
+
+          if result.nil?
+            contains_null = true
+            return nil if current_node_type.non_null?
+          end
+
+          result
         end
 
-        return nil if next_structure.start_with?("non_null") && resolved_list.any?(&:nil?)
+        return nil if contains_null && next_node_type.non_null?
 
         resolved_list
       end

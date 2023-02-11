@@ -8,11 +8,11 @@ Gem::Specification.new do |spec|
   spec.version       = GraphQL::Stitching::VERSION
   spec.authors       = ['Greg MacWilliam']
   spec.summary       = 'GraphQL schema stitching for Ruby'
-  spec.description   = spec.summary
+  spec.description   = 'Combine GraphQL services into one unified graph'
   spec.homepage      = 'https://github.com/gmac/graphql-stitching-ruby'
   spec.license       = 'MIT'
 
-  spec.required_ruby_version = '>= 3.1.1'
+  spec.required_ruby_version = '>= 2.7.0'
 
   spec.metadata    = {
     'homepage_uri' => 'https://github.com/gmac/graphql-stitching-ruby',

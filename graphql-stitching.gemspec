@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://github.com/gmac/graphql-stitching-ruby'
   spec.license       = 'MIT'
 
-  spec.required_ruby_version = '>= 2.4.0'
+  spec.required_ruby_version = '>= 2.7.0'
 
   spec.metadata    = {
     'homepage_uri' => 'https://github.com/gmac/graphql-stitching-ruby',

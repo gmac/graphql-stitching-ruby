@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    graphql-stitching (0.0.1)
+    graphql-stitching (0.1.0)
       graphql (~> 2.0.16)
 
 GEM
@@ -16,9 +16,9 @@ GEM
     pry (0.14.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
-    pry-byebug (3.10.1)
+    pry-byebug (3.8.0)
       byebug (~> 11.0)
-      pry (>= 0.13, < 0.15)
+      pry (~> 0.10)
     rack (3.0.4.1)
     rackup (2.1.0)
       rack (>= 3)
@@ -29,7 +29,6 @@ GEM
 
 PLATFORMS
   arm64-darwin-21
-  ruby
   x86_64-darwin-21
   x86_64-linux
 
@@ -46,4 +45,4 @@ DEPENDENCIES
   warning
 
 BUNDLED WITH
-   2.4.1
+   2.4.6

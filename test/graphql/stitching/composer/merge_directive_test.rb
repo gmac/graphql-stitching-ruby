@@ -25,7 +25,8 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
       description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    puts supergraph.schema.to_definition
+    #puts supergraph.schema.to_definition
     # assert_equal "a/b", info.schema.types["Test"].description
+    # @todo
   end
 end

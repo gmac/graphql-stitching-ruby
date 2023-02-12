@@ -23,4 +23,26 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
 
     assert_equal "a/b", info.schema.types["Thing"].description
   end
+
+  def test_merges_union_directives
+    a = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on UNION
+      type A { a:Int }
+      union Thing @fizzbuzz(arg: "a") = A
+      type Query { thing:Thing }
+    GRAPHQL
+
+    b = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on UNION
+      type B { b:Int }
+      union Thing @fizzbuzz(arg: "b") = B
+      type Query { thing:Thing }
+    GRAPHQL
+
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      directive_kwarg_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+    })
+
+    assert_equal "a/b", supergraph.schema.types["Thing"].directives.first.arguments.keyword_arguments[:arg]
+  end
 end

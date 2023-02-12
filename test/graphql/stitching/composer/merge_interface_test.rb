@@ -15,6 +15,26 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
     assert_equal "a/b", info.schema.types["Test"].description
   end
 
+  def test_merges_interface_directives
+    a = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on INTERFACE
+      interface Test @fizzbuzz(arg: "a") { field: String }
+      type Query { test:Test }
+    GRAPHQL
+
+    b = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on INTERFACE
+      interface Test @fizzbuzz(arg: "b") { field: String }
+      type Query { test:Test }
+    GRAPHQL
+
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      directive_kwarg_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+    })
+
+    assert_equal "a/b", supergraph.schema.types["Test"].directives.first.arguments.keyword_arguments[:arg]
+  end
+
   def test_merges_interface_memberships
     a = %{interface A { id:ID } interface AA implements A { id:ID } type C implements AA { id:ID } type Query { c:C }}
     b = %{interface B { id:ID } interface BB implements B { id:ID } type C implements BB { id:ID } type Query { c:C }}

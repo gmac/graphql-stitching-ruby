@@ -6,7 +6,7 @@ module GraphQL
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
 
-      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location
+      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location, :schema_directives
 
       DEFAULT_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
 
@@ -21,7 +21,7 @@ module GraphQL
         mutation_name: "Mutation",
         description_merger: nil,
         deprecation_merger: nil,
-        directive_value_merger: nil
+        directive_kwarg_merger: nil
       )
         @schemas = schemas
         @query_name = query_name
@@ -32,7 +32,7 @@ module GraphQL
 
         @description_merger = description_merger || DEFAULT_VALUE_MERGER
         @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
-        @directive_value_merger = directive_value_merger || DEFAULT_VALUE_MERGER
+        @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
       end
 
       def perform
@@ -108,7 +108,7 @@ module GraphQL
           orphan_types schema_types.values
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
-          directives @schema_directives.values
+          directives builder.schema_directives.values
 
           own_orphan_types.clear
         end
@@ -332,18 +332,34 @@ module GraphQL
         end
 
         directives_by_name_location.each do |directive_name, directives_by_location|
-          directive_definition = @schema_directives[directive_name]
-          next unless directive_definition
+          directive_class = @schema_directives[directive_name]
+          next unless directive_class
 
-          # ... owner.directive() ...
+          # handled by deprecation_reason merger...
+          next if directive_class.graphql_name == "deprecated"
 
-          # strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.description }
-          # @description_merger.call(strings_by_location, {
-          #   type_name: type_name,
-          #   field_name: field_name,
-          #   argument_name: argument_name,
-          #   enum_value: enum_value,
-          # }.compact!)
+          kwarg_values_by_name_location = directives_by_location.each_with_object({}) do |(location, directive), memo|
+            directive.arguments.keyword_arguments.each do |key, value|
+              key = key.to_s
+              next unless directive_class.arguments[key]
+
+              memo[key] ||= {}
+              memo[key][location] = value
+            end
+          end
+
+          kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
+            memo[kwarg_name.to_sym] = @directive_kwarg_merger.call(kwarg_values_by_location, {
+              type_name: type_name,
+              field_name: field_name,
+              argument_name: argument_name,
+              enum_value: enum_value,
+              directive_name: directive_name,
+              kwarg_name: kwarg_name,
+            }.compact!)
+          end
+
+          owner.directive(directive_class, **kwargs)
         end
       end
 

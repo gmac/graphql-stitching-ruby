@@ -7,12 +7,12 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 **Supports:**
 - Merged object and interface types.
 - Multiple keys per merged type.
-- Shared objects, enums, and inputs across locations.
+- Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
 
 **NOT Supported:**
-- Computed fields (ie: federation-style `@requires`)
-- Subscriptions
+- Computed fields (ie: federation-style `@requires`).
+- Subscriptions, defer/stream.
 
 This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a high-throughput API gateway, the opportunity here is for a Ruby application to stitch its local schema onto a remote schema (making itself a superset of the remote) without requiring an additional gateway service.
 
@@ -70,7 +70,7 @@ result = gateway.execute(
 )
 ```
 
-Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations.
+Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md) for more information on how schemas get merged.
 
 While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 

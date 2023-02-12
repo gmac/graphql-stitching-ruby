@@ -121,7 +121,7 @@ shipping_schema = <<~GRAPHQL
   }
 GRAPHQL
 
-supergraph = GraphQL::Stitching::Composer.new({
+supergraph = GraphQL::Stitching::Composer.new(schemas: {
   "products" => GraphQL::Schema.from_definition(products_schema),
   "shipping" => GraphQL::Schema.from_definition(shipping_schema),
 })

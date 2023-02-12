@@ -6,7 +6,7 @@ A `Supergraph` is the singuar representation of a stitched graph. `Supergraph` i
 storefronts_sdl = "type Query { storefront(id: ID!): Storefront } ..."
 products_sdl = "type Query { product(id: ID!): Product } ..."
 
-supergraph = GraphQL::Stitching::Composer.new({
+supergraph = GraphQL::Stitching::Composer.new(schemas: {
   "storefronts" => GraphQL::Schema.from_definition(storefronts_sdl),
   "products" => GraphQL::Schema.from_definition(products_sdl),
 }).perform

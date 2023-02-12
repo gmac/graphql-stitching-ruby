@@ -33,7 +33,7 @@ products_sdl = <<~GRAPHQL
   }
 GRAPHQL
 
-supergraph = GraphQL::Stitching::Composer.new({
+supergraph = GraphQL::Stitching::Composer.new(schemas: {
   "storefronts" => GraphQL::Schema.from_definition(storefronts_sdl),
   "products" => GraphQL::Schema.from_definition(products_sdl),
 }).perform
@@ -71,3 +71,25 @@ The strategy used to merge source schemas into the combined schema is based on e
   - Stitching directives (both definitions and assignments) are omitted.
 
 Note that the structure of a composed schema may change based on new schema additions and/or element usage (ie: changing input object arguments in one service may cause the intersection of arguments to change). Therefore, it's highly recommended that you use a [schema comparator](https://github.com/xuorig/graphql-schema_comparator) to flag regressions across composed schema versions.
+
+### Value merger functions
+
+The composer has no way of intelligently merging static data values that are embedded into a schema. These include:
+
+- Element descriptions
+- Element deprecations
+- Directive keyword argument values
+
+By default, the first non-null value encountered across locations is used to fill these data slots. You may customize this aggregation process by providing value merger functions:
+
+
+```ruby
+supergraph = GraphQL::Stitching::Composer.new(
+  schemas: { ... },
+  description_merger: ->(values_by_location, info) { values_by_location.values.last },
+  deprecation_merger: ->(values_by_location, info) { values_by_location.values.last },
+  directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
+).perform
+```
+
+Each merger accepts a `values_by_location` and `info` argument. These provide a `location => value` mapping of all possible values encountered, and information about where this data is used (type name, field name, argument name, etc.). The function should then select a value (or compute a new one) and return that for use in the combined schema.

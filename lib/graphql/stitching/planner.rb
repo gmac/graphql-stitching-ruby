@@ -6,9 +6,9 @@ module GraphQL
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
       TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
 
-      def initialize(supergraph:, document:)
+      def initialize(supergraph:, request:)
         @supergraph = supergraph
-        @document = document
+        @request = request
         @sequence_key = 0
         @operations_by_grouping = {}
       end
@@ -62,12 +62,12 @@ module GraphQL
       end
 
       def build_root_operations
-        case @document.operation.operation_type
+        case @request.operation.operation_type
         when "query"
           # plan steps grouping all fields by location for async execution
           parent_type = @supergraph.schema.query
 
-          selections_by_location = @document.operation.selections.each_with_object({}) do |node, memo|
+          selections_by_location = @request.operation.selections.each_with_object({}) do |node, memo|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             memo[locations.last] ||= []
             memo[locations.last] << node
@@ -82,7 +82,7 @@ module GraphQL
           parent_type = @supergraph.schema.mutation
           location_groups = []
 
-          @document.operation.selections.reduce(nil) do |last_location, node|
+          @request.operation.selections.reduce(nil) do |last_location, node|
             location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].last
             if location != last_location
               location_groups << {
@@ -177,7 +177,7 @@ module GraphQL
             implements_fragments = true
 
           when GraphQL::Language::Nodes::FragmentSpread
-            fragment = @document.fragment_definitions[node.name]
+            fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
             fragment_type = @supergraph.schema.types[fragment.type.name]
@@ -289,7 +289,7 @@ module GraphQL
           when GraphQL::Language::Nodes::InputObject
             extract_node_variables!(argument.value, memo)
           when GraphQL::Language::Nodes::VariableIdentifier
-            memo[argument.value.name] ||= @document.variable_definitions[argument.value.name]
+            memo[argument.value.name] ||= @request.variable_definitions[argument.value.name]
           end
         end
       end

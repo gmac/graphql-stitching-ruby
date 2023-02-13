@@ -46,7 +46,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     ).perform
 
     assert_equal 3, plan.operations.length
@@ -84,7 +84,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     ).perform
 
     assert_equal 3, plan.operations.length

@@ -4,13 +4,13 @@
 module GraphQL
   module Stitching
     class Shaper
-      def initialize(schema:, document:)
+      def initialize(schema:, request:)
         @schema = schema
-        @document = document
+        @request = request
       end
 
       def perform!(raw)
-        raw["data"] = resolve_object_scope(raw["data"], @schema.query, @document.operation.selections)
+        raw["data"] = resolve_object_scope(raw["data"], @schema.query, @request.operation.selections)
         raw
       end
 
@@ -48,7 +48,7 @@ module GraphQL
             return nil if result.nil?
 
           when GraphQL::Language::Nodes::FragmentSpread
-            fragment = @document.fragment_definitions[node.name]
+            fragment = @request.fragment_definitions[node.name]
             fragment_type = @schema.types[fragment.type.name]
             next unless typename == fragment_type.graphql_name
 

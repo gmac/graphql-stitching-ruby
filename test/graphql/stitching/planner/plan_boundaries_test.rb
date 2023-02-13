@@ -74,7 +74,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: build_sample_graph,
-      document: GraphQL::Stitching::Document.new(document),
+      request: GraphQL::Stitching::Request.new(document),
     ).perform
 
     assert_equal 3, plan.operations.length
@@ -114,12 +114,12 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan1 = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new(document1),
+      request: GraphQL::Stitching::Request.new(document1),
     ).perform
 
     plan2 = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new(document2),
+      request: GraphQL::Stitching::Request.new(document2),
     ).perform
 
     assert_equal 2, plan1.operations.length
@@ -168,7 +168,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new("{ apple(id:\"1\") { id name weight } }"),
+      request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
     first = plan.operations[0]
@@ -203,7 +203,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new("{ apple(id:\"1\") { id name weight } }"),
+      request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
     first = plan.operations[0]
@@ -239,7 +239,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new("{ node(id:\"1\") { id ...on Apple { name weight } } }"),
+      request: GraphQL::Stitching::Request.new("{ node(id:\"1\") { id ...on Apple { name weight } } }"),
     ).perform
 
     first = plan.operations[0]

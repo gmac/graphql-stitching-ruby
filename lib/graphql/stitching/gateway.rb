@@ -7,8 +7,6 @@ module GraphQL
     class Gateway
       class GatewayError < StitchingError; end
 
-      EMPTY_CONTEXT = {}.freeze
-
       attr_reader :supergraph
 
       def initialize(locations: nil, supergraph: nil)
@@ -25,29 +23,34 @@ module GraphQL
         end
       end
 
-      def execute(query:, variables: nil, operation_name: nil, context: EMPTY_CONTEXT, validate: true)
-        document = GraphQL::Stitching::Document.new(query, variables: variables, operation_name: operation_name).prepare!
+      def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)
+        request = GraphQL::Stitching::Request.new(
+          query,
+          variables: variables,
+          operation_name: operation_name,
+          context: context,
+        ).prepare!
 
         if validate
-          validation_errors = @supergraph.schema.validate(document.ast)
+          validation_errors = @supergraph.schema.validate(request.document)
           return error_result(validation_errors) if validation_errors.any?
         end
 
         begin
-          plan = fetch_plan(document, context) do
+          plan = fetch_plan(request) do
             GraphQL::Stitching::Planner.new(
               supergraph: @supergraph,
-              document: document,
+              request: request,
             ).perform.to_h
           end
 
           GraphQL::Stitching::Executor.new(
             supergraph: @supergraph,
             plan: plan,
-            variables: document.variables,
-          ).perform(document)
+            request: request,
+          ).perform
         rescue StandardError => e
-          custom_message = @on_error.call(e, context) if @on_error
+          custom_message = @on_error.call(e, request.context) if @on_error
           error_result([{ "message" => custom_message || "An unexpected error occured." }])
         end
       end
@@ -91,16 +94,16 @@ module GraphQL
         supergraph
       end
 
-      def fetch_plan(document, context)
+      def fetch_plan(request)
         if @on_cache_read
-          cached_plan = @on_cache_read.call(document.digest, context)
+          cached_plan = @on_cache_read.call(request.digest, request.context)
           return JSON.parse(cached_plan) if cached_plan
         end
 
         plan_json = yield
 
         if @on_cache_write
-          @on_cache_write.call(document.digest, JSON.generate(plan_json), context)
+          @on_cache_write.call(request.digest, JSON.generate(plan_json), request.context)
         end
 
         plan_json

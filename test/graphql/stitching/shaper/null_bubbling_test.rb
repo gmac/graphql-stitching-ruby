@@ -7,7 +7,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -33,7 +33,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -52,7 +52,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test! }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -71,7 +71,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -97,7 +97,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -123,7 +123,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -146,7 +146,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!]! }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -167,7 +167,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -193,7 +193,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -219,7 +219,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -245,7 +245,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!] }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -268,7 +268,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!]! }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -289,7 +289,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { ... on Test { ... on Test { req opt } } } }"),
+      request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
     )
     raw = {
       "data" => {
@@ -318,7 +318,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     GRAPHQL
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
       "data" => {

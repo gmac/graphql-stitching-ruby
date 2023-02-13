@@ -12,7 +12,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new(INTROSPECTION_QUERY, operation_name: "IntrospectionQuery"),
+      request: GraphQL::Stitching::Request.new(INTROSPECTION_QUERY, operation_name: "IntrospectionQuery"),
     ).perform
 
     assert_equal 1, plan.operations.length
@@ -26,7 +26,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      document: GraphQL::Stitching::Document.new("{ __schema { queryType { name } } a { name } }"),
+      request: GraphQL::Stitching::Request.new("{ __schema { queryType { name } } a { name } }"),
     ).perform
 
     assert_equal 2, plan.operations.length

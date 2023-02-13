@@ -199,30 +199,34 @@ module GraphQL
         end
       end
 
-      attr_reader :supergraph, :data, :errors, :variables
+      attr_reader :supergraph, :data, :errors
       attr_accessor :query_count
 
-      def initialize(supergraph:, plan:, variables: {}, nonblocking: false)
+      def initialize(supergraph:, plan:, request:, nonblocking: false)
         @supergraph = supergraph
-        @variables = variables
         @queue = plan["ops"]
+        @request = request
         @data = {}
         @errors = []
         @query_count = 0
         @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking)
       end
 
-      def perform(document=nil)
+      def variables
+        @request.variables
+      end
+
+      def perform(raw: false)
         exec!
 
         result = {}
         result["data"] = @data if @data && @data.length > 0
         result["errors"] = @errors if @errors.length > 0
 
-        if document && result["data"]
+        if result["data"] && !raw
           GraphQL::Stitching::Shaper.new(
             schema: @supergraph.schema,
-            document: document,
+            request: @request,
           ).perform!(result)
         else
           result
@@ -233,7 +237,7 @@ module GraphQL
 
       def exec!(after_keys = [0])
         @dataloader.append_job do
-          requests = @queue
+          tasks = @queue
             .select { after_keys.include?(_1["after_key"]) }
             .group_by { _1["location"] }
             .map do |location, ops|
@@ -244,13 +248,13 @@ module GraphQL
               end
             end
 
-          requests.each(&method(:exec_request))
+          tasks.each(&method(:exec_task))
         end
         @dataloader.run
       end
 
-      def exec_request(request)
-        next_keys = request.load
+      def exec_task(task)
+        next_keys = task.load
         next_keys.compact!
         exec!(next_keys) if next_keys.any?
       end

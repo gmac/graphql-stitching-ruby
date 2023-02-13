@@ -13,3 +13,16 @@ document.digest # SHA digest of the normalized string
 document.variables # mapping of variable names to type definitions
 document.fragments # mapping of fragment names to fragment definitions
 ```
+
+### Preparing requests
+
+Prior to planning and executing a request, the raw document and variables need to be prepared. This involves:
+
+- Applying default values from variable definitions to request variables.
+- Applying `@skip` and `@include` directives to the request document to conditionally format it.
+
+These transformations are applied by calling `.prepare!` on the document. This should be done before planning or executing the request:
+
+```ruby
+document.prepare!
+```

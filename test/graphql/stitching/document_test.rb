@@ -102,4 +102,50 @@ describe "GraphQL::Stitching::Document" do
     document2 = GraphQL::Stitching::Document.new(sample_query)
     assert_equal expected_digest, document2.digest
   end
+
+  def test_prepare_variables_collects_variable_defaults
+    query = <<~GRAPHQL
+      query($a: String! = "defaultA", $b: String! = "defaultB") {
+        base(a: $a, b: $b) { id }
+      }
+    GRAPHQL
+
+    document = GraphQL::Stitching::Document.new(GraphQL.parse(query), variables: { "a" => "yes" })
+    expected = { "a" => "yes", "b" => "defaultB" }
+    document.prepare!
+    assert_equal expected, document.variables
+  end
+
+  def test_applies_skip_and_include_directives_via_boolean_literals
+    query = <<~GRAPHQL
+      query {
+        skipKeep @skip(if: false) { id }
+        skipOmit @skip(if: true) { id }
+        includeKeep @include(if: true) { id }
+        includeOmit @include(if: false) { id }
+      }
+    GRAPHQL
+
+    document = GraphQL::Stitching::Document.new(GraphQL.parse(query))
+    document.prepare!
+
+    assert_equal "query { skipKeep { id } includeKeep { id } }", squish_string(document.ast.to_query_string)
+  end
+
+  def test_applies_skip_and_include_directives_via_variables
+    query = <<~GRAPHQL
+      query($yes: Boolean!, $no: Boolean!) {
+        skipKeep @skip(if: $no) { id }
+        skipOmit @skip(if: $yes) { id }
+        includeKeep @include(if: $yes) { id }
+        includeOmit @include(if: $no) { id }
+      }
+    GRAPHQL
+
+    document = GraphQL::Stitching::Document.new(GraphQL.parse(query), variables: { "yes" => true, "no" => false })
+    document.prepare!
+
+    expected = "query($yes: Boolean!, $no: Boolean!) { skipKeep { id } includeKeep { id } }"
+    assert_equal expected, squish_string(document.ast.to_query_string)
+  end
 end

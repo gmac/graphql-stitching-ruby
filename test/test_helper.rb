@@ -19,7 +19,7 @@ ComposerError = GraphQL::Stitching::Composer::ComposerError
 ValidationError = GraphQL::Stitching::Composer::ValidationError
 
 def squish_string(str)
-  str.gsub(/\s+/, " ").strip!
+  str.gsub(/\s+/, " ").strip
 end
 
 def compose_definitions(schemas, options={})

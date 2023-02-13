@@ -6,9 +6,9 @@ module GraphQL
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
 
-      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location
+      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location, :schema_directives
 
-      DEFAULT_STRING_MERGER = ->(str_by_location, _info) { str_by_location.values.find { !_1.nil? } }
+      DEFAULT_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
 
       VALIDATORS = [
         "ValidateInterfaces",
@@ -20,7 +20,8 @@ module GraphQL
         query_name: "Query",
         mutation_name: "Mutation",
         description_merger: nil,
-        deprecation_merger: nil
+        deprecation_merger: nil,
+        directive_kwarg_merger: nil
       )
         @schemas = schemas
         @query_name = query_name
@@ -29,11 +30,27 @@ module GraphQL
         @boundary_map = {}
         @mapped_type_names = {}
 
-        @description_merger = description_merger || DEFAULT_STRING_MERGER
-        @deprecation_merger = deprecation_merger || DEFAULT_STRING_MERGER
+        @description_merger = description_merger || DEFAULT_VALUE_MERGER
+        @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
+        @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
       end
 
       def perform
+        # "directive_name" => "location" => candidate_directive
+        @subschema_directives_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
+            memo[directive_name] ||= {}
+            memo[directive_name][location] = schema.directives[directive_name]
+          end
+        end
+
+        # "Typename" => merged_directive
+        @schema_directives = @subschema_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
+          memo[directive_name] = build_directive(directive_name, directives_by_location)
+        end
+
+        @schema_directives.merge!(GraphQL::Schema.default_directives)
+
         # "Typename" => "location" => candidate_type
         @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
           raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
@@ -91,6 +108,7 @@ module GraphQL
           orphan_types schema_types.values
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
+          directives builder.schema_directives.values
 
           own_orphan_types.clear
         end
@@ -112,6 +130,18 @@ module GraphQL
         supergraph
       end
 
+      def build_directive(directive_name, directives_by_location)
+        builder = self
+
+        Class.new(GraphQL::Schema::Directive) do
+          graphql_name(directive_name)
+          description(builder.merge_descriptions(directive_name, directives_by_location))
+          repeatable(directives_by_location.values.any?(&:repeatable?))
+          locations(*directives_by_location.values.flat_map(&:locations).uniq)
+          builder.build_merged_arguments(directive_name, directives_by_location, self)
+        end
+      end
+
       def build_scalar_type(type_name, types_by_location)
         built_in_type = GraphQL::Schema::BUILT_IN_TYPES[type_name]
         return built_in_type if built_in_type
@@ -121,6 +151,7 @@ module GraphQL
         Class.new(GraphQL::Schema::Scalar) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
+          builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
@@ -146,13 +177,16 @@ module GraphQL
         Class.new(GraphQL::Schema::Enum) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
+          builder.build_merged_directives(type_name, types_by_location, self)
 
           enum_values_by_value_location.each do |value, enum_values_by_location|
-            value(value,
+            enum_value = value(value,
               value: value,
               description: builder.merge_descriptions(type_name, enum_values_by_location, enum_value: value),
               deprecation_reason: builder.merge_deprecations(type_name, enum_values_by_location, enum_value: value),
             )
+
+            builder.build_merged_directives(type_name, enum_values_by_location, enum_value, enum_value: value)
           end
         end
       end
@@ -170,6 +204,7 @@ module GraphQL
           end
 
           builder.build_merged_fields(type_name, types_by_location, self)
+          builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
@@ -187,6 +222,7 @@ module GraphQL
           end
 
           builder.build_merged_fields(type_name, types_by_location, self)
+          builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
@@ -199,6 +235,7 @@ module GraphQL
 
           possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.uniq
           possible_types(*possible_names.map { builder.build_type_binding(_1) })
+          builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
@@ -209,6 +246,7 @@ module GraphQL
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_arguments(type_name, types_by_location, self)
+          builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
@@ -243,6 +281,7 @@ module GraphQL
           )
 
           build_merged_arguments(type_name, fields_by_location, schema_field, field_name: field_name)
+          build_merged_directives(type_name, fields_by_location, schema_field, field_name: field_name)
         end
       end
 
@@ -270,7 +309,7 @@ module GraphQL
           # Getting double args sometimes... why?
           return if owner.arguments.any? { _1.first == argument_name }
 
-          owner.argument(
+          schema_argument = owner.argument(
             argument_name,
             description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
             deprecation_reason: merge_deprecations(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
@@ -278,6 +317,49 @@ module GraphQL
             required: value_types.any?(&:non_null?),
             camelize: false,
           )
+
+          build_merged_directives(type_name, arguments_by_location, schema_argument, field_name: field_name, argument_name: argument_name)
+        end
+      end
+
+      def build_merged_directives(type_name, members_by_location, owner, field_name: nil, argument_name: nil, enum_value: nil)
+        directives_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
+          member_candidate.directives.each do |directive|
+            memo[directive.graphql_name] ||= {}
+            memo[directive.graphql_name][location] ||= {}
+            memo[directive.graphql_name][location] = directive
+          end
+        end
+
+        directives_by_name_location.each do |directive_name, directives_by_location|
+          directive_class = @schema_directives[directive_name]
+          next unless directive_class
+
+          # handled by deprecation_reason merger...
+          next if directive_class.graphql_name == "deprecated"
+
+          kwarg_values_by_name_location = directives_by_location.each_with_object({}) do |(location, directive), memo|
+            directive.arguments.keyword_arguments.each do |key, value|
+              key = key.to_s
+              next unless directive_class.arguments[key]
+
+              memo[key] ||= {}
+              memo[key][location] = value
+            end
+          end
+
+          kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
+            memo[kwarg_name.to_sym] = @directive_kwarg_merger.call(kwarg_values_by_location, {
+              type_name: type_name,
+              field_name: field_name,
+              argument_name: argument_name,
+              enum_value: enum_value,
+              directive_name: directive_name,
+              kwarg_name: kwarg_name,
+            }.compact!)
+          end
+
+          owner.directive(directive_class, **kwargs)
         end
       end
 

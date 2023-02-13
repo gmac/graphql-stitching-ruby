@@ -13,6 +13,10 @@ module GraphQL
       end
 
       attr_writer :stitch_directive
+
+      def stitching_directive_names
+        [stitch_directive]
+      end
     end
   end
 end

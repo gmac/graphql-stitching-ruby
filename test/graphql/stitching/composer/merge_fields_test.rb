@@ -26,6 +26,24 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     assert_equal "a/b", supergraph.schema.types["Test"].fields["field"].deprecation_reason
   end
 
+  def test_merges_field_directives
+    a = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on FIELD_DEFINITION
+      type Query { test(arg:String):String @fizzbuzz(arg:"a") }
+    GRAPHQL
+
+    b = <<~GRAPHQL
+      directive @fizzbuzz(arg: String!) on FIELD_DEFINITION
+      type Query { test(arg:String):String @fizzbuzz(arg:"b") }
+    GRAPHQL
+
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      directive_kwarg_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+    })
+
+    assert_equal "a/b", supergraph.schema.types["Query"].fields["test"].directives.first.arguments.keyword_arguments[:arg]
+  end
+
   def test_merged_fields_use_common_nullability
     a = "type Test { field: String! } type Query { test:Test }"
     b = "type Test { field: String! } type Query { test:Test }"

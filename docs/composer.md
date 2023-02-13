@@ -1,6 +1,6 @@
 ## GraphQL::Stitching::Composer
 
-The `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity. The resulting context provides a combined GraphQL schema and delegation maps used to route incoming requests:
+The `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity. The resulting supergraph provides a combined GraphQL schema and delegation maps used to route incoming requests:
 
 ```ruby
 storefronts_sdl = <<~GRAPHQL
@@ -33,7 +33,7 @@ products_sdl = <<~GRAPHQL
   }
 GRAPHQL
 
-supergraph = GraphQL::Stitching::Composer.new({
+supergraph = GraphQL::Stitching::Composer.new(schemas: {
   "storefronts" => GraphQL::Schema.from_definition(storefronts_sdl),
   "products" => GraphQL::Schema.from_definition(products_sdl),
 }).perform
@@ -47,9 +47,9 @@ The individual schemas provided to the composer are assigned a location name bas
 
 The strategy used to merge source schemas into the combined schema is based on each element type:
 
-- `Object` and `Interface` types merge their fields together:
+- `Object` and `Interface` types merge their fields and directives together:
   - Common fields across locations must share a value type, and the weakest nullability is used.
-  - Field arguments merge using the same rules as `InputObject`.
+  - Field and directive arguments merge using the same rules as `InputObject`.
   - Objects with unique fields across locations must implement [`@stitch` accessors](../README.md#merged-types).
   - Shared object types without `@stitch` accessors must contain identical fields.
   - Merged interfaces must remain compatible with all underlying implementations.
@@ -66,4 +66,30 @@ The strategy used to merge source schemas into the combined schema is based on e
 
 - `Scalar` types are added for all scalar names across all locations.
 
+- `Directive` definitions are added for all distinct names across locations:
+  - Arguments merge using the same rules as `InputObject`.
+  - Stitching directives (both definitions and assignments) are omitted.
+
 Note that the structure of a composed schema may change based on new schema additions and/or element usage (ie: changing input object arguments in one service may cause the intersection of arguments to change). Therefore, it's highly recommended that you use a [schema comparator](https://github.com/xuorig/graphql-schema_comparator) to flag regressions across composed schema versions.
+
+### Value merger functions
+
+The composer has no way of intelligently merging static data values that are embedded into a schema. These include:
+
+- Element descriptions
+- Element deprecations
+- Directive keyword argument values
+
+By default, the first non-null value encountered across locations is used to fill these data slots. You may customize this aggregation process by providing value merger functions:
+
+
+```ruby
+supergraph = GraphQL::Stitching::Composer.new(
+  schemas: { ... },
+  description_merger: ->(values_by_location, info) { values_by_location.values.last },
+  deprecation_merger: ->(values_by_location, info) { values_by_location.values.last },
+  directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
+).perform
+```
+
+Each merger accepts a `values_by_location` and `info` argument. These provide a `location => value` mapping of all possible values encountered, and information about where this data is used (type name, field name, argument name, etc.). The function should then select a value (or compute a new one) and return that for use in the combined schema.

@@ -117,6 +117,9 @@ module GraphQL
         if visitor.changed?
           @string = nil
           @digest = nil
+          @operation = nil
+          @variable_definitions = nil
+          @fragment_definitions = nil
         end
         self
       end

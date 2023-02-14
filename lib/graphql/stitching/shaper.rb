@@ -39,6 +39,7 @@ module GraphQL
               resolve_object_scope(raw_object[field_name], named_type, node.selections)
             end
 
+            byebug if raw_object[field_name].nil? && node_type.non_null?
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment

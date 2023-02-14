@@ -35,7 +35,7 @@ def compose_definitions(schemas, options={})
   GraphQL::Stitching::Composer.new(schemas: schemas, **options).perform
 end
 
-def plan_and_execute(supergraph, query, variables={})
+def plan_and_execute(supergraph, query, variables={}, raw: false)
   request = GraphQL::Stitching::Request.new(query, variables: variables)
 
   plan = GraphQL::Stitching::Planner.new(
@@ -45,11 +45,11 @@ def plan_and_execute(supergraph, query, variables={})
 
   executor = GraphQL::Stitching::Executor.new(
     supergraph: supergraph,
-    plan: plan.to_h,
     request: request,
+    plan: plan.to_h,
   )
 
-  result = executor.perform
+  result = executor.perform(raw: raw)
 
   yield(plan, executor) if block_given?
   result

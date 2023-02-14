@@ -56,15 +56,15 @@ module GraphQL
 
       attr_reader :document, :variables, :operation_name, :context
 
-      def initialize(document, variables: nil, operation_name: nil, context: nil)
+      def initialize(document, operation_name: nil, variables: nil, context: nil)
         @document = if document.is_a?(String)
           GraphQL.parse(document)
         else
           document
         end
 
-        @variables = variables || {}
         @operation_name = operation_name
+        @variables = variables || {}
         @context = context || EMPTY_CONTEXT
       end
 

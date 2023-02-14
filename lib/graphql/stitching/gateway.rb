@@ -26,15 +26,17 @@ module GraphQL
       def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)
         request = GraphQL::Stitching::Request.new(
           query,
-          variables: variables,
           operation_name: operation_name,
+          variables: variables,
           context: context,
-        ).prepare!
+        )
 
         if validate
           validation_errors = @supergraph.schema.validate(request.document)
           return error_result(validation_errors) if validation_errors.any?
         end
+
+        request.prepare!
 
         begin
           plan = fetch_plan(request) do
@@ -46,8 +48,8 @@ module GraphQL
 
           GraphQL::Stitching::Executor.new(
             supergraph: @supergraph,
-            plan: plan,
             request: request,
+            plan: plan,
           ).perform
         rescue StandardError => e
           custom_message = @on_error.call(e, request.context) if @on_error

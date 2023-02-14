@@ -7,8 +7,9 @@ module GraphQL
     class Executor
 
       class RootSource < GraphQL::Dataloader::Source
-        def initialize(executor)
+        def initialize(executor, location)
           @executor = executor
+          @location = location
         end
 
         def fetch(ops)
@@ -24,7 +25,8 @@ module GraphQL
             result["errors"].each { _1.delete("locations") }
             @executor.errors.concat(result["errors"])
           end
-          op["key"]
+
+          ops.map { op["key"] }
         end
 
         def build_query(op)
@@ -214,6 +216,7 @@ module GraphQL
         @data = {}
         @errors = []
         @query_count = 0
+        @exec_cycles = 0
         @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking)
       end
 
@@ -237,13 +240,18 @@ module GraphQL
       private
 
       def exec!(after_keys = [0])
+        if @exec_cycles > @queue.length
+          # sanity check... if we've exceeded queue size, then something went wrong.
+          raise StitchingError, "Too many execution requests attempted."
+        end
+
         @dataloader.append_job do
           tasks = @queue
             .select { after_keys.include?(_1["after_key"]) }
-            .group_by { _1["location"] }
-            .map do |location, ops|
-              if ops.first["after_key"].zero?
-                @dataloader.with(RootSource, self).request_all(ops)
+            .group_by { [_1["location"], _1["boundary"].nil?] }
+            .map do |(location, root_source), ops|
+              if root_source
+                @dataloader.with(RootSource, self, location).request_all(ops)
               else
                 @dataloader.with(BoundarySource, self, location).request_all(ops)
               end
@@ -251,6 +259,8 @@ module GraphQL
 
           tasks.each(&method(:exec_task))
         end
+
+        @exec_cycles += 1
         @dataloader.run
       end
 

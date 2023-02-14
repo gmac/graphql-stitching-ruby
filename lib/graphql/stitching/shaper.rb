@@ -10,7 +10,8 @@ module GraphQL
       end
 
       def perform!(raw)
-        raw["data"] = resolve_object_scope(raw["data"], @schema.query, @request.operation.selections)
+        root_type = @schema.public_send(@request.operation.operation_type)
+        raw["data"] = resolve_object_scope(raw["data"], root_type, @request.operation.selections)
         raw
       end
 
@@ -39,7 +40,6 @@ module GraphQL
               resolve_object_scope(raw_object[field_name], named_type, node.selections)
             end
 
-            byebug if raw_object[field_name].nil? && node_type.non_null?
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment

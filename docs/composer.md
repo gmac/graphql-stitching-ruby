@@ -92,4 +92,19 @@ supergraph = GraphQL::Stitching::Composer.new(
 ).perform
 ```
 
-Each merger accepts a `values_by_location` and `info` argument. These provide a `location => value` mapping of all possible values encountered, and information about where this data is used (type name, field name, argument name, etc.). The function should then select a value (or compute a new one) and return that for use in the combined schema.
+Each merger accepts a `values_by_location` and an `info` argument; these provide the values found across locations and info about where in schema they were encountered:
+
+```ruby
+values_by_location = {
+  "storefronts" => "A fabulous data type.",
+  "products" => "An excellent data type.",
+}
+
+info = {
+  type_name: "Product",
+  # field_name: ...,
+  # argument_name: ...,
+}
+```
+
+The function should then select a value (or compute a new one) and return that for use in the combined schema.

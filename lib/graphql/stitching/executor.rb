@@ -222,19 +222,20 @@ module GraphQL
 
       def perform(raw: false)
         exec!
-
         result = {}
-        result["data"] = @data if @data && @data.length > 0
-        result["errors"] = @errors if @errors.length > 0
 
-        if result["data"] && !raw
-          GraphQL::Stitching::Shaper.new(
+        if @data && @data.length > 0
+          result["data"] = raw ? @data : GraphQL::Stitching::Shaper.new(
             schema: @supergraph.schema,
             request: @request,
-          ).perform!(result)
-        else
-          result
+          ).perform!(@data)
         end
+
+        if @errors.length > 0
+          result["errors"] = @errors
+        end
+
+        result
       end
 
       private

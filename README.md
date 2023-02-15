@@ -291,7 +291,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 ## Example
 
-This repo includes a working example of several stitched schemas running across Rack servers. Try running it:
+This repo includes a working example of several stitched schemas running across small Rack servers. Try running it:
 
 ```shell
 bundle install

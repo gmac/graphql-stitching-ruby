@@ -11,8 +11,7 @@ module GraphQL
 
       def perform!(raw)
         root_type = @schema.public_send(@request.operation.operation_type)
-        raw["data"] = resolve_object_scope(raw["data"], root_type, @request.operation.selections)
-        raw
+        resolve_object_scope(raw, root_type, @request.operation.selections)
       end
 
       private

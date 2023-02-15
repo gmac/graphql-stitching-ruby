@@ -37,7 +37,11 @@ module GraphQL
           extract_locale_selections(location, parent_type, selections, insertion_path, parent_key)
         end
 
-        grouping = [after_key, location, parent_type.graphql_name, *insertion_path].join("/")
+        grouping = String.new
+        grouping << after_key.to_s << "/" << location << "/" << parent_type.graphql_name
+        grouping = insertion_path.reduce(grouping) do |memo, segment|
+          memo << "/" << segment
+        end
 
         if op = @operations_by_grouping[grouping]
           op.selections += selection_set if selection_set
@@ -161,8 +165,10 @@ module GraphQL
             if Util.is_leaf_type?(field_type)
               selections_result << node
             else
-              expanded_path = [*insertion_path, node.alias || node.name]
-              selection_set, variables = extract_locale_selections(current_location, field_type, node.selections, expanded_path, after_key)
+              insertion_path.push(node.alias || node.name)
+              selection_set, variables = extract_locale_selections(current_location, field_type, node.selections, insertion_path, after_key)
+              insertion_path.pop
+
               selections_result << node.merge(selections: selection_set)
               variables_result.merge!(variables)
             end
@@ -260,7 +266,7 @@ module GraphQL
               location: location,
               selections: selections_by_location[location],
               parent_type: parent_type,
-              insertion_path: insertion_path,
+              insertion_path: insertion_path.dup,
               boundary: boundary,
               after_key: after_key,
             )

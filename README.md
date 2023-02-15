@@ -146,7 +146,7 @@ type Query {
 }
 ```
 
-* The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type is inferred from the field return.
+* The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible (more on arguments later).
 
 Each location that provides a unique variant of a type must provide _exactly one_ stitching query per possible key (more on multiple keys later). The exception to this requirement are types that contain only a single key field:

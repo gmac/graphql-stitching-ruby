@@ -1,9 +1,9 @@
 ## GraphQL::Stitching::Planner
 
-A `Planner` generates a query plan for a given [`Supergraph`](./supergraph.md) and request [`Document`](./document.md). The generated plan breaks down all the discrete GraphQL operations that must be delegated across locations and their sequencing.
+A `Planner` generates a query plan for a given [`Supergraph`](./supergraph.md) and [`Request`](./request.md). The generated plan breaks down all the discrete GraphQL operations that must be delegated across locations and their sequencing.
 
 ```ruby
-request = <<~GRAPHQL
+document = <<~GRAPHQL
   query MyQuery($id: ID!) {
     product(id:$id) {
       title
@@ -12,11 +12,11 @@ request = <<~GRAPHQL
   }
 GRAPHQL
 
-document = GraphQL::Stitching::Document.new(request, operation_name: "MyQuery")
+request = GraphQL::Stitching::Request.new(document, operation_name: "MyQuery").prepare!
 
 plan = GraphQL::Stitching::Planner.new(
   supergraph: supergraph,
-  document: document,
+  request: request,
 ).perform
 ```
 
@@ -25,17 +25,17 @@ plan = GraphQL::Stitching::Planner.new(
 Plans are designed to be cacheable. This is very useful for redundant GraphQL documents (commonly sent by frontend clients) where there's no sense in planning every request individually. It's far more efficient to generate a plan once and cache it, then simply retreive the plan and execute it for future requests.
 
 ```ruby
-cached_plan = $redis.get(document.digest)
+cached_plan = $redis.get(request.digest)
 
 plan = if cached_plan
   JSON.parse(cached_plan)
 else
   plan_hash = GraphQL::Stitching::Planner.new(
     supergraph: supergraph,
-    document: document,
+    request: request,
   ).perform.to_h
 
-  $redis.set(document.digest, JSON.generate(plan_hash))
+  $redis.set(request.digest, JSON.generate(plan_hash))
   plan_hash
 end
 

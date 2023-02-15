@@ -76,7 +76,7 @@ While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one graph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.
-- [Document](./docs/document.md) - manages a parsed GraphQL request document.
+- [Request](./docs/request.md) - prepares a requested GraphQL document and variables for stitching.
 - [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
 
@@ -146,7 +146,7 @@ type Query {
 }
 ```
 
-* The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type is inferred from the field return.
+* The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible (more on arguments later).
 
 Each location that provides a unique variant of a type must provide _exactly one_ stitching query per possible key (more on multiple keys later). The exception to this requirement are types that contain only a single key field:
@@ -261,29 +261,29 @@ GraphQL::Stitching.stitch_directive = "merge"
 
 ## Executables
 
-A [Supergraph](./docs/supergraph.md) will delegate requests to the individual `GraphQL::Schema` classes that composed it. You may change this behavior by assigning new executables: these may be `GraphQL::Schema` classes, or objects that respond to `.call` with the following arguments...
+An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or objects that respond to `.call` with the following arguments...
 
 ```ruby
 class MyExecutable
-  def call(location, query_string, variables)
+  def call(location, query_string, variables, context)
     # process a GraphQL request...
   end
 end
 ```
 
-Executables are assigned to a supergraph using `assign_executable`:
+By default, a [Supergraph](./docs/supergraph.md) will use the individual `GraphQL::Schema` classes that composed it as executable resources for each location. You may assign new executables using `assign_executable`:
 
 ```ruby
 supergraph = GraphQL::Stitching::Composer.new(...)
 
 supergraph.assign_executable("location1", MyExecutable.new)
-supergraph.assign_executable("location2", ->(loc, query, vars) { ... })
-supergraph.assign_executable("location3") do |loc, query vars|
+supergraph.assign_executable("location2", ->(loc, query, vars, ctx) { ... })
+supergraph.assign_executable("location3") do |loc, query vars, ctx|
   # ...
 end
 ```
 
-The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you _must_ manually assign all executables to a `Supergraph` instance when rehydrating it from cache ([see docs](./docs/supergraph.md)).
+The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
 ## Concurrency
 

@@ -9,14 +9,14 @@ module GraphQL
     class RemoteClient
       def initialize(url:, headers:{})
         @url = url
-        @headers = headers
+        @headers = { "Content-Type" => "application/json" }.merge!(headers)
       end
 
-      def call(location, document, variables)
+      def call(_location, document, variables, _context)
         response = Net::HTTP.post(
           URI(@url),
-          { "query" => document, "variables" => variables }.to_json,
-          { "Content-Type" => "application/json" }.merge!(@headers)
+          JSON.generate({ "query" => document, "variables" => variables }),
+          @headers,
         )
         JSON.parse(response.body)
       end

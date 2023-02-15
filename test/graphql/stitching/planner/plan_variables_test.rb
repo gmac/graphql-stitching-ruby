@@ -36,7 +36,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -58,7 +58,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(mutation),
+      request: GraphQL::Stitching::Request.new(mutation),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -80,7 +80,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(mutation),
+      request: GraphQL::Stitching::Request.new(mutation),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -101,7 +101,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     ).perform
 
     assert_equal 1, plan.operations.length
@@ -120,7 +120,7 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     ).perform
 
     assert_equal 1, plan.operations.length

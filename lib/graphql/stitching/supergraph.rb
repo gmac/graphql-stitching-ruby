@@ -57,27 +57,28 @@ module GraphQL
       def assign_executable(location, executable = nil, &block)
         executable ||= block
         unless executable.is_a?(Class) && executable <= GraphQL::Schema
-          raise "A client or block handler must be provided." unless executable
-          raise "A client must be callable" unless executable.respond_to?(:call)
+          raise StitchingError, "A client or block handler must be provided." unless executable
+          raise StitchingError, "A client must be callable" unless executable.respond_to?(:call)
         end
         @executables[location] = executable
       end
 
-      def execute_at_location(location, query, variables)
+      def execute_at_location(location, query, variables, context)
         executable = executables[location]
 
         if executable.nil?
-          raise "No executable assigned for #{location} location."
+          raise StitchingError, "No executable assigned for #{location} location."
         elsif executable.is_a?(Class) && executable <= GraphQL::Schema
           executable.execute(
             query: query,
             variables: variables,
+            context: context,
             validate: false,
           )
         elsif executable.respond_to?(:call)
-          executable.call(location, query, variables)
+          executable.call(location, query, variables, context)
         else
-          raise "Missing valid executable for #{location} location."
+          raise StitchingError, "Missing valid executable for #{location} location."
         end
       end
 

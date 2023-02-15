@@ -19,7 +19,7 @@ ComposerError = GraphQL::Stitching::Composer::ComposerError
 ValidationError = GraphQL::Stitching::Composer::ValidationError
 
 def squish_string(str)
-  str.gsub(/\s+/, " ").strip!
+  str.gsub(/\s+/, " ").strip
 end
 
 def compose_definitions(schemas, options={})
@@ -35,21 +35,21 @@ def compose_definitions(schemas, options={})
   GraphQL::Stitching::Composer.new(schemas: schemas, **options).perform
 end
 
-def plan_and_execute(supergraph, query, variables={})
-  document = GraphQL::Stitching::Document.new(query)
+def plan_and_execute(supergraph, query, variables={}, raw: false)
+  request = GraphQL::Stitching::Request.new(query, variables: variables)
 
   plan = GraphQL::Stitching::Planner.new(
     supergraph: supergraph,
-    document: document,
+    request: request,
   ).perform
 
   executor = GraphQL::Stitching::Executor.new(
     supergraph: supergraph,
+    request: request,
     plan: plan.to_h,
-    variables: variables
   )
 
-  result = executor.perform(document)
+  result = executor.perform(raw: raw)
 
   yield(plan, executor) if block_given?
   result

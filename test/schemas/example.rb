@@ -87,10 +87,14 @@ module Schemas
       class Storefront < GraphQL::Schema::Object
         field :id, ID, null: false
         field :name, String, null: false
-        field :products, [Product], null: false
+        field :products, [Product], null: false do
+          argument :first, Integer, required: false
+        end
 
-        def products
-          object[:product_upcs].map { |upc| { upc: upc } }
+        def products(first: nil)
+          fks = object[:product_upcs]
+          fks.take(first) if first
+          fks.map { |upc| { upc: upc } }
         end
       end
 

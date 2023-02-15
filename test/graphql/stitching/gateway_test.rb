@@ -9,10 +9,10 @@ describe "GraphQL::Stitching::Gateway" do
       manufacturers: {
         schema: Schemas::Example::Manufacturers,
       },
-      "storefronts" => {
+      storefronts: {
         schema: Schemas::Example::Storefronts,
       },
-      "products": {
+      products: {
         schema: Schemas::Example::Products,
       }
     })
@@ -89,6 +89,40 @@ describe "GraphQL::Stitching::Gateway" do
       variables: { "id" => "1" },
       operation_name: "MyStore",
     )
+
+    assert_equal @expected_result, result
+  end
+
+  def test_prepares_requests_before_handling
+    setup_example_gateway
+
+    @query_string = <<~GRAPHQL
+      query MyStore($id: ID!, $products: Int = 2) {
+        storefront(id: $id) {
+          id
+          name
+          products(first: $products) @skip(if: true) {
+            upc
+            name
+          }
+        }
+      }
+    GRAPHQL
+
+    result = @gateway.execute(
+      query: GraphQL.parse(@query_string),
+      variables: { "id" => "1" },
+      operation_name: "MyStore",
+    )
+
+    @expected_result = {
+      "data" => {
+        "storefront" => {
+          "id" => "1",
+          "name" => "eShoppe",
+        }
+      }
+    }
 
     assert_equal @expected_result, result
   end

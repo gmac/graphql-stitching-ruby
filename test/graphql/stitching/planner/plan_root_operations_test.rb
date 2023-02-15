@@ -35,7 +35,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(document),
+      request: GraphQL::Stitching::Request.new(document),
     ).perform
 
     assert_equal 2, plan.operations.length
@@ -68,7 +68,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      document: GraphQL::Stitching::Document.new(document),
+      request: GraphQL::Stitching::Request.new(document),
     ).perform
 
     assert_equal 3, plan.operations.length

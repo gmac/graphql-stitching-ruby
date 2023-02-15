@@ -7,16 +7,17 @@ module GraphQL
     class Executor
 
       class RootSource < GraphQL::Dataloader::Source
-        def initialize(executor)
+        def initialize(executor, location)
           @executor = executor
+          @location = location
         end
 
         def fetch(ops)
           op = ops.first # There should only ever be one per location at a time
 
           query_document = build_query(op)
-          query_variables = @executor.variables.slice(*op["variables"].keys)
-          result = @executor.supergraph.execute_at_location(op["location"], query_document, query_variables)
+          query_variables = @executor.request.variables.slice(*op["variables"].keys)
+          result = @executor.supergraph.execute_at_location(op["location"], query_document, query_variables, @executor.request.context)
           @executor.query_count += 1
 
           @executor.data.merge!(result["data"]) if result["data"]
@@ -24,7 +25,8 @@ module GraphQL
             result["errors"].each { _1.delete("locations") }
             @executor.errors.concat(result["errors"])
           end
-          op["key"]
+
+          ops.map { op["key"] }
         end
 
         def build_query(op)
@@ -61,8 +63,8 @@ module GraphQL
 
           if origin_sets_by_operation.any?
             query_document, variable_names = build_query(origin_sets_by_operation)
-            variables = @executor.variables.slice(*variable_names)
-            raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables)
+            variables = @executor.request.variables.slice(*variable_names)
+            raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request.context)
             @executor.query_count += 1
 
             merge_results!(origin_sets_by_operation, raw_result.dig("data"))
@@ -165,23 +167,26 @@ module GraphQL
 
         private
 
-        # traverses forward through origin data, expanding arrays to follow all paths
+        # traverse forward through origin data, expanding arrays to follow all paths
         # any errors found for an origin object_id have their path prefixed by the object path
         def repath_errors!(pathed_errors_by_object_id, forward_path, current_path=[], root=@executor.data)
-          current_path << forward_path.first
-          forward_path = forward_path[1..-1]
+          current_path.push(forward_path.shift)
           scope = root[current_path.last]
 
           if forward_path.any? && scope.is_a?(Array)
             scope.each_with_index do |element, index|
               inner_elements = element.is_a?(Array) ? element.flatten : [element]
               inner_elements.each do |inner_element|
-                repath_errors!(pathed_errors_by_object_id, forward_path, [*current_path, index], inner_element)
+                current_path << index
+                repath_errors!(pathed_errors_by_object_id, forward_path, current_path, inner_element)
+                current_path.pop
               end
             end
 
           elsif forward_path.any?
-            repath_errors!(pathed_errors_by_object_id, forward_path, [*current_path, index], scope)
+            current_path << index
+            repath_errors!(pathed_errors_by_object_id, forward_path, current_path, scope)
+            current_path.pop
 
           elsif scope.is_a?(Array)
             scope.each_with_index do |element, index|
@@ -196,33 +201,36 @@ module GraphQL
             errors = pathed_errors_by_object_id[scope.object_id]
             errors.each { _1["path"] = [*current_path, *_1["path"]] } if errors
           end
+
+          forward_path.unshift(current_path.pop)
         end
       end
 
-      attr_reader :supergraph, :data, :errors, :variables
+      attr_reader :supergraph, :request, :data, :errors
       attr_accessor :query_count
 
-      def initialize(supergraph:, plan:, variables: {}, nonblocking: false)
+      def initialize(supergraph:, request:, plan:, nonblocking: false)
         @supergraph = supergraph
-        @variables = variables
+        @request = request
         @queue = plan["ops"]
         @data = {}
         @errors = []
         @query_count = 0
+        @exec_cycles = 0
         @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking)
       end
 
-      def perform(document=nil)
+      def perform(raw: false)
         exec!
 
         result = {}
         result["data"] = @data if @data && @data.length > 0
         result["errors"] = @errors if @errors.length > 0
 
-        if document && result["data"]
+        if result["data"] && !raw
           GraphQL::Stitching::Shaper.new(
             schema: @supergraph.schema,
-            document: document,
+            request: @request,
           ).perform!(result)
         else
           result
@@ -232,25 +240,32 @@ module GraphQL
       private
 
       def exec!(after_keys = [0])
+        if @exec_cycles > @queue.length
+          # sanity check... if we've exceeded queue size, then something went wrong.
+          raise StitchingError, "Too many execution requests attempted."
+        end
+
         @dataloader.append_job do
-          requests = @queue
+          tasks = @queue
             .select { after_keys.include?(_1["after_key"]) }
-            .group_by { _1["location"] }
-            .map do |location, ops|
-              if ops.first["after_key"].zero?
-                @dataloader.with(RootSource, self).request_all(ops)
+            .group_by { [_1["location"], _1["boundary"].nil?] }
+            .map do |(location, root_source), ops|
+              if root_source
+                @dataloader.with(RootSource, self, location).request_all(ops)
               else
                 @dataloader.with(BoundarySource, self, location).request_all(ops)
               end
             end
 
-          requests.each(&method(:exec_request))
+          tasks.each(&method(:exec_task))
         end
+
+        @exec_cycles += 1
         @dataloader.run
       end
 
-      def exec_request(request)
-        next_keys = request.load
+      def exec_task(task)
+        next_keys = task.load
         next_keys.compact!
         exec!(next_keys) if next_keys.any?
       end

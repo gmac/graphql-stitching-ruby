@@ -12,28 +12,29 @@ query = <<~GRAPHQL
   }
 GRAPHQL
 
-variables = { "id" => "123" }
-
-document = GraphQL::Stitching::Document.new(query, operation_name: "MyQuery")
+request = GraphQL::Stitching::Request.new(query, variables: { "id" => "123" }, operation_name: "MyQuery")
 
 plan = GraphQL::Stitching::Planner.new(
   supergraph: supergraph,
-  document: document,
+  request: request,
 ).perform
 
+result = GraphQL::Stitching::Executor.new(
+  supergraph: supergraph,
+  plan: plan.to_h,
+  request: request,
+).perform
+```
+
+### Raw results
+
+By default, execution results are always returned with document shaping (stitching additions removed, missing fields added, null bubbling applied). You may access the raw execution result by calling the `perform` method with a `raw: true` argument:
+
+```ruby
 # get the raw result without shaping
 raw_result = GraphQL::Stitching::Executor.new(
   supergraph: supergraph,
   plan: plan.to_h,
-  variables: variables,
-).perform
-
-# get the final result with shaping
-final_result = GraphQL::Stitching::Executor.new(
-  supergraph: supergraph,
-  plan: plan.to_h,
-  variables: variables,
-).perform(document)
+  request: request,
+).perform(raw: true)
 ```
-
-Note that an executor's `perform` method accepts a document argument. When provided, the raw execution result will be shaped for delivery to match the document. Without a document, the raw result will be returned with stitching inclusions and no null bubbling applied.

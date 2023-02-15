@@ -8,7 +8,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { __typename req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { __typename req opt } }"),
     )
     raw = {
       "data" => {
@@ -38,7 +38,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { req opt } }"),
+      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
       "data" => {
@@ -65,7 +65,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new("{ test { ... on Test { ... on Test { req opt } } } }"),
+      request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
     )
     raw = {
       "data" => {
@@ -97,7 +97,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     GRAPHQL
     shaper = GraphQL::Stitching::Shaper.new(
       schema: GraphQL::Schema.from_definition(schema_sdl),
-      document: GraphQL::Stitching::Document.new(query),
+      request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
       "data" => {
@@ -124,7 +124,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     schema = GraphQL::Schema.from_definition(schema_sdl)
     shaper = GraphQL::Stitching::Shaper.new(
-      document: GraphQL::Stitching::Document.new(INTROSPECTION_QUERY),
+      request: GraphQL::Stitching::Request.new(INTROSPECTION_QUERY),
       schema: schema,
     )
 

@@ -57,7 +57,10 @@ module GraphQL
       attr_reader :document, :variables, :operation_name, :context
 
       def initialize(document, operation_name: nil, variables: nil, context: nil)
+        @may_contain_runtime_directives = true
+
         @document = if document.is_a?(String)
+          @may_contain_runtime_directives = document.include?("@")
           GraphQL.parse(document)
         else
           document
@@ -110,6 +113,8 @@ module GraphQL
         operation.variables.each do |v|
           @variables[v.name] ||= v.default_value
         end
+
+        return self unless @may_contain_runtime_directives
 
         visitor = ApplyRuntimeDirectives.new(@document, @variables)
         @document = visitor.visit

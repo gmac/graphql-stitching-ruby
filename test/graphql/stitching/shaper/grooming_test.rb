@@ -11,23 +11,19 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       request: GraphQL::Stitching::Request.new("{ test { __typename req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_req" => "yes",
-          "_STITCH_typename" => "Test",
-          "__typename" => "Test",
-          "req" => "yes",
-          "opt" => nil,
-        }
+      "test" => {
+        "_STITCH_req" => "yes",
+        "_STITCH_typename" => "Test",
+        "__typename" => "Test",
+        "req" => "yes",
+        "opt" => nil,
       }
     }
     expected = {
-      "data" => {
-        "test" => {
-          "__typename" => "Test",
-          "req" => "yes",
-          "opt" => nil,
-        }
+      "test" => {
+        "__typename" => "Test",
+        "req" => "yes",
+        "opt" => nil,
       }
     }
 
@@ -41,20 +37,16 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_req" => "yes",
-          "_STITCH_typename" => "Test",
-          "req" => "yes",
-        }
+      "test" => {
+        "_STITCH_req" => "yes",
+        "_STITCH_typename" => "Test",
+        "req" => "yes",
       }
     }
     expected = {
-      "data" => {
-        "test" => {
-          "req" => "yes",
-          "opt" => nil,
-        }
+      "test" => {
+        "req" => "yes",
+        "opt" => nil,
       }
     }
 
@@ -68,20 +60,16 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_req" => "yes",
-          "_STITCH_typename" => "Test",
-          "req" => "yes",
-        }
+      "test" => {
+        "_STITCH_req" => "yes",
+        "_STITCH_typename" => "Test",
+        "req" => "yes",
       }
     }
     expected = {
-      "data" => {
-        "test" => {
-          "req" => "yes",
-          "opt" => nil,
-        }
+      "test" => {
+        "req" => "yes",
+        "opt" => nil,
       }
     }
 
@@ -100,20 +88,16 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_req" => "yes",
-          "_STITCH_typename" => "Test",
-          "req" => "yes",
-        }
+      "test" => {
+        "_STITCH_req" => "yes",
+        "_STITCH_typename" => "Test",
+        "req" => "yes",
       }
     }
     expected = {
-      "data" => {
-        "test" => {
-          "req" => "yes",
-          "opt" => nil,
-        }
+      "test" => {
+        "req" => "yes",
+        "opt" => nil,
       }
     }
 

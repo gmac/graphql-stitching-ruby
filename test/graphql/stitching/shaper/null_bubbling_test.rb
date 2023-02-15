@@ -10,19 +10,15 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "req" => "yes",
-          "opt" => nil
-        }
+      "test" => {
+        "req" => "yes",
+        "opt" => nil
       }
     }
     expected = {
-      "data" => {
-        "test" => {
-          "req" => "yes",
-          "opt" => nil
-        }
+      "test" => {
+        "req" => "yes",
+        "opt" => nil
       }
     }
 
@@ -36,14 +32,12 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "req" => nil,
-          "opt" => "yes"
-        }
+      "test" => {
+        "req" => nil,
+        "opt" => "yes"
       }
     }
-    expected = { "data" => { "test" => nil } }
+    expected = { "test" => nil }
 
     assert_equal expected, shaper.perform!(raw)
   end
@@ -55,16 +49,13 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "req" => nil,
-          "opt" => "yes"
-        }
+      "test" => {
+        "req" => nil,
+        "opt" => "yes"
       }
     }
-    expected = { "data" => nil }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_nil shaper.perform!(raw)
   end
 
   def test_basic_list_structure
@@ -74,20 +65,16 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          { "req" => "yes", "opt" => "yes" },
-        ]
-      }
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        { "req" => "yes", "opt" => "yes" },
+      ]
     }
     expected = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          { "req" => "yes", "opt" => "yes" },
-        ]
-      }
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        { "req" => "yes", "opt" => "yes" },
+      ]
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -100,20 +87,16 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          { "req" => nil, "opt" => "yes" },
-        ]
-      }
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        { "req" => nil, "opt" => "yes" },
+      ]
     }
     expected = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          nil,
-        ]
-      }
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        nil,
+      ]
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -126,17 +109,13 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          { "req" => nil, "opt" => "yes" },
-        ]
-      }
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        { "req" => nil, "opt" => "yes" },
+      ]
     }
     expected = {
-      "data" => {
-        "test" => nil,
-      }
+      "test" => nil,
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -149,18 +128,13 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          { "req" => "yes", "opt" => nil },
-          { "req" => nil, "opt" => "yes" },
-        ]
-      }
-    }
-    expected = {
-      "data" => nil
+      "test" => [
+        { "req" => "yes", "opt" => nil },
+        { "req" => nil, "opt" => "yes" },
+      ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_nil shaper.perform!(raw)
   end
 
   def test_basic_nested_list_structure
@@ -170,20 +144,16 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => "yes", "opt" => "yes" }],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => "yes", "opt" => "yes" }],
+      ]
     }
     expected = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => "yes", "opt" => "yes" }],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => "yes", "opt" => "yes" }],
+      ]
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -196,20 +166,16 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => nil, "opt" => "yes" }],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => nil, "opt" => "yes" }],
+      ]
     }
     expected = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [nil],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [nil],
+      ]
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -222,20 +188,16 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => nil, "opt" => "yes" }],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => nil, "opt" => "yes" }],
+      ]
     }
     expected = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          nil,
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        nil,
+      ]
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -248,17 +210,13 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => nil, "opt" => "yes" }],
-        ]
-      }
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => nil, "opt" => "yes" }],
+      ]
     }
     expected = {
-      "data" => {
-        "test" => nil
-      }
+      "test" => nil
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -271,18 +229,13 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
-      "data" => {
-        "test" => [
-          [{ "req" => "yes", "opt" => nil }],
-          [{ "req" => nil, "opt" => "yes" }],
-        ]
-      }
-    }
-    expected = {
-      "data" => nil
+      "test" => [
+        [{ "req" => "yes", "opt" => nil }],
+        [{ "req" => nil, "opt" => "yes" }],
+      ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_nil shaper.perform!(raw)
   end
 
   def test_bubble_through_inline_fragment
@@ -292,18 +245,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_typename" => "Test",
-          "req" => nil,
-          "opt" => nil
-        }
+      "test" => {
+        "_STITCH_typename" => "Test",
+        "req" => nil,
+        "opt" => nil
       }
     }
     expected = {
-      "data" => {
-        "test" => nil
-      }
+      "test" => nil
     }
 
     assert_equal expected, shaper.perform!(raw)
@@ -321,18 +270,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
-      "data" => {
-        "test" => {
-          "_STITCH_typename" => "Test",
-          "req" => nil,
-          "opt" => nil
-        }
+      "test" => {
+        "_STITCH_typename" => "Test",
+        "req" => nil,
+        "opt" => nil
       }
     }
     expected = {
-      "data" => {
-        "test" => nil
-      }
+      "test" => nil
     }
 
     assert_equal expected, shaper.perform!(raw)

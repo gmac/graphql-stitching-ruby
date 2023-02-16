@@ -114,18 +114,19 @@ module GraphQL
           @variables[v.name] ||= v.default_value
         end
 
-        return self unless @may_contain_runtime_directives
+        if @may_contain_runtime_directives
+          visitor = ApplyRuntimeDirectives.new(@document, @variables)
+          @document = visitor.visit
 
-        visitor = ApplyRuntimeDirectives.new(@document, @variables)
-        @document = visitor.visit
-
-        if visitor.changed?
-          @string = nil
-          @digest = nil
-          @operation = nil
-          @variable_definitions = nil
-          @fragment_definitions = nil
+          if visitor.changed?
+            @string = nil
+            @digest = nil
+            @operation = nil
+            @variable_definitions = nil
+            @fragment_definitions = nil
+          end
         end
+
         self
       end
     end

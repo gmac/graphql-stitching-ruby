@@ -214,8 +214,8 @@ type Product {
   upc: ID!
 }
 type Query {
-  productById(id: ID): Product @stitch(key: "id")
-  productByUpc(upc: ID): Product @stitch(key: "upc")
+  productById(id: ID!): Product @stitch(key: "id")
+  productByUpc(upc: ID!): Product @stitch(key: "upc")
 }
 ```
 

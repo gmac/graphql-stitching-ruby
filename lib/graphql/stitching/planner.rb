@@ -67,7 +67,7 @@ module GraphQL
             next_location
           end
 
-          location_groups.reduce(@sequence_key) do |after_key, group|
+          location_groups.reduce(0) do |after_key, group|
             add_operation(
               location: group[:location],
               selections: group[:selections],
@@ -99,6 +99,9 @@ module GraphQL
           []
         end
 
+        # groupings coalesce similar operation parameters into a single operation
+        # multiple operations per service may still occur with different insertion points,
+        # but those will get query-batched together during execution.
         grouping = String.new
         grouping << after_key.to_s << "/" << location << "/" << parent_type.graphql_name
         grouping = insertion_path.reduce(grouping) do |memo, segment|
@@ -220,6 +223,8 @@ module GraphQL
           )
         end
 
+        # always include a __typename on abstracts and types that implement fragments
+        # this provides type information to inspect while shaping the final result
         if parent_type.kind.abstract? || implements_fragments
           locale_selections << TYPENAME_NODE
         end

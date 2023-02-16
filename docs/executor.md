@@ -12,7 +12,11 @@ query = <<~GRAPHQL
   }
 GRAPHQL
 
-request = GraphQL::Stitching::Request.new(query, variables: { "id" => "123" }, operation_name: "MyQuery")
+request = GraphQL::Stitching::Request.new(
+  query,
+  variables: { "id" => "123" },
+  operation_name: "MyQuery",
+)
 
 plan = GraphQL::Stitching::Planner.new(
   supergraph: supergraph,
@@ -21,8 +25,8 @@ plan = GraphQL::Stitching::Planner.new(
 
 result = GraphQL::Stitching::Executor.new(
   supergraph: supergraph,
-  plan: plan.to_h,
   request: request,
+  plan: plan.to_h,
 ).perform
 ```
 
@@ -34,7 +38,7 @@ By default, execution results are always returned with document shaping (stitchi
 # get the raw result without shaping
 raw_result = GraphQL::Stitching::Executor.new(
   supergraph: supergraph,
-  plan: plan.to_h,
   request: request,
+  plan: plan.to_h,
 ).perform(raw: true)
 ```

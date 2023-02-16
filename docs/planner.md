@@ -12,7 +12,11 @@ document = <<~GRAPHQL
   }
 GRAPHQL
 
-request = GraphQL::Stitching::Request.new(document, operation_name: "MyQuery").prepare!
+request = GraphQL::Stitching::Request.new(
+  document,
+  variables: { "id" => "1" },
+  operation_name: "MyQuery",
+).prepare!
 
 plan = GraphQL::Stitching::Planner.new(
   supergraph: supergraph,

@@ -17,7 +17,7 @@ request.fragment_definitions # a mapping of fragment names to their fragment def
 
 ### Preparing requests
 
-A request should be prepared using the `prepare!` method before using it:
+A request should be prepared for stitching using the `prepare!` method _after_ validations have been run:
 
 ```ruby
 document = <<~GRAPHQL
@@ -37,6 +37,9 @@ request = GraphQL::Stitching::Request.new(
   variables: { "id" => "1" },
   operation_name: "FetchMovie",
 )
+
+errors = MySchema.validate(request.document)
+# return early with any static validation errors...
 
 request.prepare!
 ```

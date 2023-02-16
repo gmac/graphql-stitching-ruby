@@ -12,6 +12,15 @@ module GraphQL
         type
       end
 
+      # gets a named type, including hidden root introspection types
+      def self.get_named_type_for_field_node(schema, parent_type, node)
+        if node.name == "__schema" && parent_type == schema.query
+          schema.types["__Schema"] # type mapped to phantom introspection field
+        else
+          get_named_type(parent_type.fields[node.name].type)
+        end
+      end
+
       # strips non-null wrappers from a type
       def self.unwrap_non_null(type)
         while type.is_a?(GraphQL::Schema::NonNull)
@@ -57,14 +66,6 @@ module GraphQL
       # Specifies if a type is a leaf node (no children)
       def self.is_leaf_type?(type)
         type.kind.scalar? || type.kind.enum?
-      end
-
-      def self.get_named_type_for_field_node(schema, parent_type, node)
-        if node.name == "__schema" && parent_type == schema.query
-          schema.types["__Schema"] # type mapped to phantom introspection field
-        else
-          Util.get_named_type(parent_type.fields[node.name].type)
-        end
       end
     end
   end

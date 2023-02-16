@@ -5,7 +5,6 @@ module GraphQL
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
       TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
-      EMPTY_OBJECT = {}.freeze
 
       def initialize(supergraph:, request:)
         @supergraph = supergraph
@@ -85,7 +84,7 @@ module GraphQL
       def add_operation(
         location:,
         parent_type:,
-        selections: nil,
+        selections:,
         insertion_path: [],
         operation_type: "query",
         after_key: 0,
@@ -93,10 +92,10 @@ module GraphQL
       )
         parent_key = @sequence_key += 1
         locale_variables = {}
-        locale_selections = if selections&.any?
+        locale_selections = if selections.any?
           extract_locale_selections(location, parent_type, selections, insertion_path, parent_key, locale_variables)
         else
-          []
+          selections
         end
 
         # groupings coalesce similar operation parameters into a single operation
@@ -204,7 +203,7 @@ module GraphQL
           )
         end
 
-        # always include a __typename on abstracts and types that implement fragments
+        # always include a __typename on abstracts and scopes that implement fragments
         # this provides type information to inspect while shaping the final result
         if parent_type.kind.abstract? || implements_fragments
           locale_selections << TYPENAME_NODE
@@ -239,7 +238,7 @@ module GraphQL
               end
             end
           else
-            EMPTY_OBJECT
+            GraphQL::Stitching::EMPTY_OBJECT
           end
 
           remote_selections.each do |node|
@@ -268,26 +267,28 @@ module GraphQL
         routes.values.each_with_object({}) do |route, ops_by_location|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
-            next ops_by_location[location] if ops_by_location[location]
+            new_operation = false
 
-            op = ops_by_location[location] = add_operation(
-              location: location,
-              selections: selections_by_location[location],
-              parent_type: parent_type,
-              insertion_path: insertion_path.dup,
-              boundary: boundary,
-              after_key: after_key,
-            )
+            unless op = ops_by_location[location]
+              new_operation = true
+              op = ops_by_location[location] = add_operation(
+                location: location,
+                # routing locations added as intermediaries have no initial selections,
+                # but will be given foreign keys by subsequent operations
+                selections: selections_by_location[location] || [],
+                parent_type: parent_type,
+                insertion_path: insertion_path.dup,
+                boundary: boundary,
+                after_key: after_key,
+              )
+            end
 
-            foreign_key_node = GraphQL::Language::Nodes::Field.new(
-              alias: "_STITCH_#{boundary["selection"]}",
-              name: boundary["selection"]
-            )
+            foreign_key = "_STITCH_#{boundary["selection"]}"
+            parent_selections = parent_op ? parent_op.selections : locale_selections
 
-            if parent_op
-              parent_op.selections << foreign_key_node << TYPENAME_NODE
-            else
-              locale_selections << foreign_key_node << TYPENAME_NODE
+            if new_operation || parent_selections.none? { _1.is_a?(GraphQL::Language::Nodes::Field) && _1.alias == foreign_key }
+              foreign_key_node = GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["selection"])
+              parent_selections << foreign_key_node << TYPENAME_NODE
             end
 
             op

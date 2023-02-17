@@ -48,6 +48,28 @@ describe "GraphQL::Stitching::Planner, variables" do
     assert_equal expected_vars, plan.operations[1].variable_set
   end
 
+  def test_extracts_variables_from_field_directives
+    query = "
+      query($a: String!, $b: String, $c: Int) {
+        widget { id name @dir(a: $a, c: $c) }
+        sprocket { id name @dir(b: $b, c: $c) }
+      }
+    "
+
+    plan = GraphQL::Stitching::Planner.new(
+      supergraph: @supergraph,
+      request: GraphQL::Stitching::Request.new(query),
+    ).perform
+
+    assert_equal 2, plan.operations.length
+
+    expected_vars = { "a" => "String!", "c" => "Int" }
+    assert_equal expected_vars, plan.operations[0].variable_set
+
+    expected_vars = { "b" => "String", "c" => "Int" }
+    assert_equal expected_vars, plan.operations[1].variable_set
+  end
+
   def test_extracts_variables_from_inline_input_objects
     mutation = "
       mutation($wname1: String!, $wname2: String!, $sname1: String!, $sname2: String!, $lang: String) {

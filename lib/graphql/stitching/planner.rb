@@ -159,7 +159,7 @@ module GraphQL
             end
 
             field_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
-            extract_node_variables!(node, locale_variables)
+            extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)
               locale_selections << node
@@ -211,6 +211,23 @@ module GraphQL
         end
 
         locale_selections
+      end
+
+      def extract_node_variables(node_with_args, variable_definitions)
+        node_with_args.arguments.each do |argument|
+          case argument.value
+          when GraphQL::Language::Nodes::InputObject
+            extract_node_variables(argument.value, variable_definitions)
+          when GraphQL::Language::Nodes::VariableIdentifier
+            variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+          end
+        end
+
+        if node_with_args.respond_to?(:directives)
+          node_with_args.directives.each do |directive|
+            extract_node_variables(directive, variable_definitions)
+          end
+        end
       end
 
       def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after_key)
@@ -291,17 +308,6 @@ module GraphQL
             end
 
             op
-          end
-        end
-      end
-
-      def extract_node_variables!(node_with_args, variables={})
-        node_with_args.arguments.each_with_object(variables) do |argument, memo|
-          case argument.value
-          when GraphQL::Language::Nodes::InputObject
-            extract_node_variables!(argument.value, memo)
-          when GraphQL::Language::Nodes::VariableIdentifier
-            memo[argument.value.name] ||= @request.variable_definitions[argument.value.name]
           end
         end
       end

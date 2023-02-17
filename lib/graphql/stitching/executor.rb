@@ -29,6 +29,8 @@ module GraphQL
           ops.map { op["key"] }
         end
 
+        # Builds root queries
+        # "query($var:VarType) { rootSelections ... }"
         def build_query(op)
           if op["variables"].any?
             variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
@@ -76,6 +78,13 @@ module GraphQL
           ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
         end
 
+        # Builds batched boundary queries
+        # "query($var:VarType) {
+        #   _0_result: list(keys:["a","b","c"]) { boundarySelections... }
+        #   _1_0_result: item(key:"x") { boundarySelections... }
+        #   _1_1_result: item(key:"y") { boundarySelections... }
+        #   _1_2_result: item(key:"z") { boundarySelections... }
+        # }"
         def build_query(origin_sets_by_operation)
           variable_defs = {}
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|

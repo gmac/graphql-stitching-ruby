@@ -138,29 +138,10 @@ module GraphQL
         locale_selections = []
         implements_fragments = false
 
+        # fields of a merged interface may not belong to the interface at the local level,
+        # so any non-local interface fields get expanded into typed fragments before planning
         if parent_type.kind.interface?
-          # fields of a merged interface may not belong to the interface at the local level,
-          # so these non-local interface fields get expanded into typed fragments for planning
-          local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
-          extended_selections = []
-
-          input_selections.reject! do |node|
-            if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
-              extended_selections << node
-              true
-            end
-          end
-
-          if extended_selections.any?
-            possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
-            possible_types.each do |possible_type|
-              next if possible_type.kind.abstract? # ignore child interfaces
-              next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
-
-              type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
-              input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
-            end
-          end
+          expland_interface_selections(current_location, parent_type, input_selections)
         end
 
         input_selections.each do |node|
@@ -321,6 +302,29 @@ module GraphQL
             extract_node_variables!(argument.value, memo)
           when GraphQL::Language::Nodes::VariableIdentifier
             memo[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+          end
+        end
+      end
+
+      def expland_interface_selections(current_location, parent_type, input_selections)
+        local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
+        extended_selections = []
+
+        input_selections.reject! do |node|
+          if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
+            extended_selections << node
+            true
+          end
+        end
+
+        if extended_selections.any?
+          possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
+          possible_types.each do |possible_type|
+            next if possible_type.kind.abstract? # ignore child interfaces
+            next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
+
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
           end
         end
       end

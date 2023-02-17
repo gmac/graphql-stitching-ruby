@@ -48,11 +48,26 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
     }
   end
 
-  def test_builds_query_for_operation_batch
-    query_document, variable_names = @source.build_query(@origin_sets_by_operation)
+  def test_builds_document_for_operation_batch
+    query_document, variable_names = @source.build_document(@origin_sets_by_operation)
 
     expected = <<~GRAPHQL
       query($lang:String!,$currency:Currency!){
+        _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
+        _1_0_result: product(upc:"abc") { price(currency:$currency) }
+        _1_1_result: product(upc:"xyz") { price(currency:$currency) }
+      }
+    GRAPHQL
+
+    assert_equal squish_string(expected), query_document
+    assert_equal ["lang", "currency"], variable_names
+  end
+
+  def test_builds_document_with_operation_name
+    query_document, variable_names = @source.build_document(@origin_sets_by_operation, "MyOperation")
+
+    expected = <<~GRAPHQL
+      query MyOperation_2_3($lang:String!,$currency:Currency!){
         _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
         _1_0_result: product(upc:"abc") { price(currency:$currency) }
         _1_1_result: product(upc:"xyz") { price(currency:$currency) }

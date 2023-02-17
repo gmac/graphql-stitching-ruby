@@ -61,7 +61,7 @@ end
 
 # prints a wrapped field/argument value type as GraphQL SDL
 def print_value_type(type)
-  base_name = GraphQL::Stitching::Util.get_named_type(type).graphql_name
+  base_name = type.unwrap.graphql_name
   wrappers = []
 
   while type.respond_to?(:of_type)

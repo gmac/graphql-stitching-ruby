@@ -365,7 +365,7 @@ module GraphQL
 
       def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].compact.join(".")
-        named_types = type_candidates.map { Util.get_named_type(_1).graphql_name }.uniq
+        named_types = type_candidates.map { _1.unwrap.graphql_name }.uniq
 
         unless named_types.all? { _1 == named_types.first }
           raise ComposerError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
@@ -422,7 +422,7 @@ module GraphQL
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
-            boundary_type_name = Util.get_named_type(field_candidate.type).graphql_name
+            boundary_type_name = field_candidate.type.unwrap.graphql_name
             boundary_list = Util.get_list_structure(field_candidate.type)
 
             field_candidate.directives.each do |directive|
@@ -488,18 +488,18 @@ module GraphQL
 
             if type.kind.object? || type.kind.interface?
               type.fields.values.each do |field|
-                field_type = Util.get_named_type(field.type)
+                field_type = field.type.unwrap
                 reads << field_type.graphql_name if field_type.kind.enum?
 
                 field.arguments.values.each do |argument|
-                  argument_type = Util.get_named_type(argument.type)
+                  argument_type = argument.type.unwrap
                   writes << argument_type.graphql_name if argument_type.kind.enum?
                 end
               end
 
             elsif type.kind.input_object?
               type.arguments.values.each do |argument|
-                argument_type = Util.get_named_type(argument.type)
+                argument_type = argument.type.unwrap
                 writes << argument_type.graphql_name if argument_type.kind.enum?
               end
             end

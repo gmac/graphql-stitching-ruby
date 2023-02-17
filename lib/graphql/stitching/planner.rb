@@ -213,23 +213,6 @@ module GraphQL
         locale_selections
       end
 
-      def extract_node_variables(node_with_args, variable_definitions)
-        node_with_args.arguments.each do |argument|
-          case argument.value
-          when GraphQL::Language::Nodes::InputObject
-            extract_node_variables(argument.value, variable_definitions)
-          when GraphQL::Language::Nodes::VariableIdentifier
-            variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
-          end
-        end
-
-        if node_with_args.respond_to?(:directives)
-          node_with_args.directives.each do |directive|
-            extract_node_variables(directive, variable_definitions)
-          end
-        end
-      end
-
       def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after_key)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
@@ -308,6 +291,23 @@ module GraphQL
             end
 
             op
+          end
+        end
+      end
+
+      def extract_node_variables(node_with_args, variable_definitions)
+        node_with_args.arguments.each do |argument|
+          case argument.value
+          when GraphQL::Language::Nodes::InputObject
+            extract_node_variables(argument.value, variable_definitions)
+          when GraphQL::Language::Nodes::VariableIdentifier
+            variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+          end
+        end
+
+        if node_with_args.respond_to?(:directives)
+          node_with_args.directives.each do |directive|
+            extract_node_variables(directive, variable_definitions)
           end
         end
       end

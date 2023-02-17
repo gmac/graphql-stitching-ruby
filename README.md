@@ -92,7 +92,7 @@ To facilitate this merging of types, stitching must know how to cross-reference 
 directive @stitch(key: String!) repeatable on FIELD_DEFINITION
 ```
 
-This directive is applied to root queries where a merged type may be accessed in each location, and a `key` argument specifies a field needed from other locations to be used as a query argument.
+This directive (or [static configuration](#sdl-based-schemas)) is applied to root queries where a merged type may be accessed in each location, and a `key` argument specifies a field needed from other locations to be used as a query argument.
 
 ```ruby
 products_schema = <<~GRAPHQL
@@ -249,6 +249,35 @@ class Query < GraphQL::Schema::Object
     argument :id, ID, required: true
   end
 end
+```
+
+The `@stitch` directive can be exported from a class-based schema to an SDL string by calling `schema.to_definition`.
+
+#### SDL-based schemas
+
+A clean SDL string may also have stitching directives applied via static configuration using the `GraphQL::Stitching` module to build the SDL into a schema:
+
+```ruby
+sdl_string = <<~GRAPHQL
+  type Product {
+    id: ID!
+    upc: ID!
+  }
+  type Query {
+    productById(id: ID!): Product
+    productByUpc(upc: ID!): Product
+  }
+GRAPHQL
+
+decorated_schema = GraphQL::Stitching.schema_from_definition(sdl_string, stitch_directives: [
+  { type_name: "Query", field_name: "productById", key: "id" },
+  { type_name: "Query", field_name: "productByUpc", key: "upc" },
+])
+
+supergraph = GraphQL::Stitching::Composer.new(schemas: {
+  "products" => decorated_schema,
+  # ...
+})
 ```
 
 #### Custom directive names

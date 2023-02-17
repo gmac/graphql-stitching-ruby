@@ -42,3 +42,17 @@ raw_result = GraphQL::Stitching::Executor.new(
   plan: plan.to_h,
 ).perform(raw: true)
 ```
+
+### Batching
+
+The Executor batches together as many requests as possible to a given location at a given time. Batched queries are written with the operation name suffixed by all operation keys in the batch, and root stitching fields are each prefixed by their batch index and collection index (for non-list fields):
+
+```graphql
+query MyOperation_2_3($lang:String!,$currency:Currency!){
+  _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
+  _1_0_result: product(upc:"abc") { price(currency:$currency) }
+  _1_1_result: product(upc:"xyz") { price(currency:$currency) }
+}
+```
+
+All told, the executor will make one request per location per generation of data. Generations started on separate forks of the resolution tree will be resolved independently.

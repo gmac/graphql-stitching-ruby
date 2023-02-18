@@ -4,6 +4,8 @@ require "graphql"
 
 module GraphQL
   module Stitching
+    EMPTY_OBJECT = {}.freeze
+
     class StitchingError < StandardError; end
 
     class << self

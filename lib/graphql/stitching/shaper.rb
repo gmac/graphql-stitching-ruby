@@ -67,7 +67,7 @@ module GraphQL
         return nil if raw_list.nil?
 
         next_node_type = Util.unwrap_non_null(current_node_type).of_type
-        named_type = Util.get_named_type(next_node_type)
+        named_type = next_node_type.unwrap
         contains_null = false
 
         resolved_list = raw_list.map! do |raw_list_element|

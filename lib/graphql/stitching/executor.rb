@@ -15,7 +15,7 @@ module GraphQL
         def fetch(ops)
           op = ops.first # There should only ever be one per location at a time
 
-          query_document = build_query(op)
+          query_document = build_document(op, @executor.request.operation_name)
           query_variables = @executor.request.variables.slice(*op["variables"].keys)
           result = @executor.supergraph.execute_at_location(op["location"], query_document, query_variables, @executor.request.context)
           @executor.query_count += 1
@@ -29,13 +29,23 @@ module GraphQL
           ops.map { op["key"] }
         end
 
-        def build_query(op)
+        # Builds root source documents
+        # "query MyOperation_1($var:VarType) { rootSelections ... }"
+        def build_document(op, operation_name = nil)
+          doc = String.new
+          doc << op["operation_type"]
+
+          if operation_name
+            doc << " " << operation_name << "_" << op["key"].to_s
+          end
+
           if op["variables"].any?
             variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
-            "#{op["operation_type"]}(#{variable_defs})#{op["selections"]}"
-          else
-            "#{op["operation_type"]}#{op["selections"]}"
+            doc << "(" << variable_defs << ")"
           end
+
+          doc << op["selections"]
+          doc
         end
       end
 
@@ -62,7 +72,7 @@ module GraphQL
           end
 
           if origin_sets_by_operation.any?
-            query_document, variable_names = build_query(origin_sets_by_operation)
+            query_document, variable_names = build_document(origin_sets_by_operation, @executor.request.operation_name)
             variables = @executor.request.variables.slice(*variable_names)
             raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request.context)
             @executor.query_count += 1
@@ -76,7 +86,14 @@ module GraphQL
           ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
         end
 
-        def build_query(origin_sets_by_operation)
+        # Builds batched boundary queries
+        # "query MyOperation_2_3($var:VarType) {
+        #   _0_result: list(keys:["a","b","c"]) { boundarySelections... }
+        #   _1_0_result: item(key:"x") { boundarySelections... }
+        #   _1_1_result: item(key:"y") { boundarySelections... }
+        #   _1_2_result: item(key:"z") { boundarySelections... }
+        # }"
+        def build_document(origin_sets_by_operation, operation_name = nil)
           variable_defs = {}
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
             variable_defs.merge!(op["variables"])
@@ -94,14 +111,24 @@ module GraphQL
             end
           end
 
-          query_document = if variable_defs.any?
-            query_variables = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
-            "query(#{query_variables}){ #{query_fields.join(" ")} }"
-          else
-            "query{ #{query_fields.join(" ")} }"
+          doc = String.new
+          doc << "query" # << boundary fulfillment always uses query
+
+          if operation_name
+            doc << " " << operation_name
+            origin_sets_by_operation.each_key do |op|
+              doc << "_" << op["key"].to_s
+            end
           end
 
-          return query_document, variable_defs.keys
+          if variable_defs.any?
+            variable_str = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
+            doc << "(" << variable_str << ")"
+          end
+
+          doc << "{ " << query_fields.join(" ") << " }"
+
+          return doc, variable_defs.keys
         end
 
         def merge_results!(origin_sets_by_operation, raw_result)

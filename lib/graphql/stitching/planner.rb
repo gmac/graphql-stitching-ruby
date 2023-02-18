@@ -5,7 +5,6 @@ module GraphQL
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
       TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
-      EMPTY_OBJECT = {}.freeze
 
       def initialize(supergraph:, request:)
         @supergraph = supergraph
@@ -85,7 +84,7 @@ module GraphQL
       def add_operation(
         location:,
         parent_type:,
-        selections: nil,
+        selections:,
         insertion_path: [],
         operation_type: "query",
         after_key: 0,
@@ -93,10 +92,10 @@ module GraphQL
       )
         parent_key = @sequence_key += 1
         locale_variables = {}
-        locale_selections = if selections&.any?
+        locale_selections = if selections.any?
           extract_locale_selections(location, parent_type, selections, insertion_path, parent_key, locale_variables)
         else
-          []
+          selections
         end
 
         # groupings coalesce similar operation parameters into a single operation
@@ -138,29 +137,10 @@ module GraphQL
         locale_selections = []
         implements_fragments = false
 
+        # fields of a merged interface may not belong to the interface at the local level,
+        # so any non-local interface fields get expanded into typed fragments before planning
         if parent_type.kind.interface?
-          # fields of a merged interface may not belong to the interface at the local level,
-          # so these non-local interface fields get expanded into typed fragments for planning
-          local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
-          extended_selections = []
-
-          input_selections.reject! do |node|
-            if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
-              extended_selections << node
-              true
-            end
-          end
-
-          if extended_selections.any?
-            possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
-            possible_types.each do |possible_type|
-              next if possible_type.kind.abstract? # ignore child interfaces
-              next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
-
-              type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
-              input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
-            end
-          end
+          expland_interface_selections(current_location, parent_type, input_selections)
         end
 
         input_selections.each do |node|
@@ -178,7 +158,7 @@ module GraphQL
             end
 
             field_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
-            extract_node_variables!(node, locale_variables)
+            extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)
               locale_selections << node
@@ -223,7 +203,7 @@ module GraphQL
           )
         end
 
-        # always include a __typename on abstracts and types that implement fragments
+        # always include a __typename on abstracts and scopes that implement fragments
         # this provides type information to inspect while shaping the final result
         if parent_type.kind.abstract? || implements_fragments
           locale_selections << TYPENAME_NODE
@@ -258,7 +238,7 @@ module GraphQL
               end
             end
           else
-            EMPTY_OBJECT
+            GraphQL::Stitching::EMPTY_OBJECT
           end
 
           remote_selections.each do |node|
@@ -287,26 +267,28 @@ module GraphQL
         routes.values.each_with_object({}) do |route, ops_by_location|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
-            next ops_by_location[location] if ops_by_location[location]
+            new_operation = false
 
-            op = ops_by_location[location] = add_operation(
-              location: location,
-              selections: selections_by_location[location],
-              parent_type: parent_type,
-              insertion_path: insertion_path.dup,
-              boundary: boundary,
-              after_key: after_key,
-            )
+            unless op = ops_by_location[location]
+              new_operation = true
+              op = ops_by_location[location] = add_operation(
+                location: location,
+                # routing locations added as intermediaries have no initial selections,
+                # but will be given foreign keys by subsequent operations
+                selections: selections_by_location[location] || [],
+                parent_type: parent_type,
+                insertion_path: insertion_path.dup,
+                boundary: boundary,
+                after_key: after_key,
+              )
+            end
 
-            foreign_key_node = GraphQL::Language::Nodes::Field.new(
-              alias: "_STITCH_#{boundary["selection"]}",
-              name: boundary["selection"]
-            )
+            foreign_key = "_STITCH_#{boundary["selection"]}"
+            parent_selections = parent_op ? parent_op.selections : locale_selections
 
-            if parent_op
-              parent_op.selections << foreign_key_node << TYPENAME_NODE
-            else
-              locale_selections << foreign_key_node << TYPENAME_NODE
+            if new_operation || parent_selections.none? { _1.is_a?(GraphQL::Language::Nodes::Field) && _1.alias == foreign_key }
+              foreign_key_node = GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["selection"])
+              parent_selections << foreign_key_node << TYPENAME_NODE
             end
 
             op
@@ -314,13 +296,42 @@ module GraphQL
         end
       end
 
-      def extract_node_variables!(node_with_args, variables={})
-        node_with_args.arguments.each_with_object(variables) do |argument, memo|
+      def extract_node_variables(node_with_args, variable_definitions)
+        node_with_args.arguments.each do |argument|
           case argument.value
           when GraphQL::Language::Nodes::InputObject
-            extract_node_variables!(argument.value, memo)
+            extract_node_variables(argument.value, variable_definitions)
           when GraphQL::Language::Nodes::VariableIdentifier
-            memo[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+            variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+          end
+        end
+
+        if node_with_args.respond_to?(:directives)
+          node_with_args.directives.each do |directive|
+            extract_node_variables(directive, variable_definitions)
+          end
+        end
+      end
+
+      def expland_interface_selections(current_location, parent_type, input_selections)
+        local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
+        extended_selections = []
+
+        input_selections.reject! do |node|
+          if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
+            extended_selections << node
+            true
+          end
+        end
+
+        if extended_selections.any?
+          possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
+          possible_types.each do |possible_type|
+            next if possible_type.kind.abstract? # ignore child interfaces
+            next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
+
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
           end
         end
       end

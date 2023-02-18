@@ -4,7 +4,6 @@ module GraphQL
   module Stitching
     class Request
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
-      EMPTY_CONTEXT = {}.freeze
 
       class ApplyRuntimeDirectives < GraphQL::Language::Visitor
         def initialize(document, variables)
@@ -68,7 +67,7 @@ module GraphQL
 
         @operation_name = operation_name
         @variables = variables || {}
-        @context = context || EMPTY_CONTEXT
+        @context = context || GraphQL::Stitching::EMPTY_OBJECT
       end
 
       def string

@@ -4,20 +4,12 @@ module GraphQL
   module Stitching
     class Util
 
-      # gets the named type at the bottom of a non-null/list wrapper tree
-      def self.get_named_type(type)
-        while type.respond_to?(:of_type)
-          type = type.of_type
-        end
-        type
-      end
-
       # gets a named type, including hidden root introspection types
       def self.get_named_type_for_field_node(schema, parent_type, node)
         if node.name == "__schema" && parent_type == schema.query
           schema.types["__Schema"] # type mapped to phantom introspection field
         else
-          get_named_type(parent_type.fields[node.name].type)
+          parent_type.fields[node.name].type.unwrap
         end
       end
 

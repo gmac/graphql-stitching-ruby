@@ -19,8 +19,8 @@ describe "GraphQL::Stitching::Executor, RootSource" do
     @source = GraphQL::Stitching::Executor::RootSource.new({}, "a")
   end
 
-  def test_builds_query_for_an_operation
-    query_document = @source.build_query(@op)
+  def test_builds_document_for_an_operation
+    source_document = @source.build_document(@op)
 
     expected = <<~GRAPHQL
       query($id:ID!){
@@ -28,6 +28,18 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       }
     GRAPHQL
 
-    assert_equal squish_string(expected), query_document
+    assert_equal squish_string(expected), source_document
+  end
+
+  def test_builds_document_with_operation_name
+    source_document = @source.build_document(@op, "MyOperation")
+
+    expected = <<~GRAPHQL
+      query MyOperation_1($id:ID!){
+        storefront(id:$id) { products { _STITCH_id: id } }
+      }
+    GRAPHQL
+
+    assert_equal squish_string(expected), source_document
   end
 end

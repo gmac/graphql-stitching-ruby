@@ -302,8 +302,8 @@ module GraphQL
         end
       end
 
-      # extracts variable definitions used by a node,
-      # allowing each operation to track the specific variables it needs
+      # extracts variable definitions used by a node
+      # (each operation tracks the specific variables used in its tree)
       def extract_node_variables(node_with_args, variable_definitions)
         node_with_args.arguments.each do |argument|
           case argument.value
@@ -325,21 +325,22 @@ module GraphQL
       # so any non-local interface fields get expanded into typed fragments before planning
       def expand_interface_selections(current_location, parent_type, input_selections)
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
-        extended_selections = []
 
+        expanded_selections = nil
         input_selections.reject! do |node|
           if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
-            extended_selections << node
+            expanded_selections ||= []
+            expanded_selections << node
             true
           end
         end
 
-        if extended_selections.any?
+        if expanded_selections
           @supergraph.schema.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
-            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
       end
@@ -350,22 +351,22 @@ module GraphQL
         @operations_by_grouping.each do |_grouping, op|
           next unless op.boundary
 
-          boundary_type = @supergraph.schema.get_type(op.boundary["type_name"])
+          boundary_type = @supergraph.schema.types[op.boundary["type_name"]]
           next unless boundary_type.kind.abstract?
+          next if boundary_type == op.parent_type
 
-          unless op.parent_type == boundary_type
-            to_typed_selections = []
-            op.selections.reject! do |node|
-              if node.is_a?(GraphQL::Language::Nodes::Field)
-                to_typed_selections << node
-                true
-              end
+          expanded_selections = nil
+          op.selections.reject! do |node|
+            if node.is_a?(GraphQL::Language::Nodes::Field)
+              expanded_selections ||= []
+              expanded_selections << node
+              true
             end
+          end
 
-            if to_typed_selections.any?
-              type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
-              op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: to_typed_selections)
-            end
+          if expanded_selections
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
+            op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
       end

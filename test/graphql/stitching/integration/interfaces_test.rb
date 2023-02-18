@@ -126,7 +126,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_queries_merged_split_interface
-    query = <<~GRAPHQL
+    query1 = <<~GRAPHQL
       query($ids: [ID!]!) {
         result: productsSplit(ids: $ids) {
           id
@@ -136,23 +136,37 @@ describe 'GraphQL::Stitching, merged interfaces' do
       }
     GRAPHQL
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1", "2"] })
+    query2 = <<~GRAPHQL
+      query($ids: [ID!]!) {
+        result: bundlesSplit(ids: $ids) {
+          id
+          name
+          price
+        }
+      }
+    GRAPHQL
+
+    result1 = plan_and_execute(@supergraph, query1, { "ids" => ["1", "2"] })
+    result2 = plan_and_execute(@supergraph, query2, { "ids" => ["1", "2"] })
 
     expected_result = {
-      "result" => [
-        {
-          "id" => "1",
-          "name" => "Widget",
-          "price" => 10.99,
-        },
-        {
-          "id" => "2",
-          "name" => "Sprocket",
-          "price" => 9.99,
-        },
-      ],
+      "data" => {
+        "result" => [
+          {
+            "id" => "1",
+            "name" => "Widget",
+            "price" => 10.99,
+          },
+          {
+            "id" => "2",
+            "name" => "Sprocket",
+            "price" => 9.99,
+          },
+        ],
+      },
     }
 
-    assert_equal expected_result, result["data"]
+    assert_equal expected_result, result1
+    assert_equal expected_result, result2
   end
 end

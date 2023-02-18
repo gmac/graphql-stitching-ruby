@@ -88,6 +88,7 @@ module Schemas
         TYPES.fetch(obj[:__typename])
       end
 
+      orphan_types [Gizmo]
       query Query
     end
 
@@ -162,6 +163,7 @@ module Schemas
         TYPES.fetch(obj[:__typename])
       end
 
+      orphan_types [Gizmo]
       query Query
     end
   end

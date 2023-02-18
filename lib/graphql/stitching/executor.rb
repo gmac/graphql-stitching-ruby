@@ -16,6 +16,7 @@ module GraphQL
           op = ops.first # There should only ever be one per location at a time
 
           query_document = build_document(op, @executor.request.operation_name)
+          puts query_document
           query_variables = @executor.request.variables.slice(*op["variables"].keys)
           result = @executor.supergraph.execute_at_location(op["location"], query_document, query_variables, @executor.request.context)
           @executor.query_count += 1
@@ -73,6 +74,7 @@ module GraphQL
 
           if origin_sets_by_operation.any?
             query_document, variable_names = build_document(origin_sets_by_operation, @executor.request.operation_name)
+            puts query_document
             variables = @executor.request.variables.slice(*variable_names)
             raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request.context)
             @executor.query_count += 1

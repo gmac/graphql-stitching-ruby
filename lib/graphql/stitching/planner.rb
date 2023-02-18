@@ -31,10 +31,12 @@ module GraphQL
 
       private
 
+      # groups root fields by operational strategy:
+      # - query immedaitely groups all root fields by location for async resolution
+      # - mutation groups sequential root fields by location for serial resolution
       def build_root_operations
         case @request.operation.operation_type
         when "query"
-          # plan steps grouping all fields by location for async execution
           parent_type = @supergraph.schema.query
 
           selections_by_location = @request.operation.selections.each_with_object({}) do |node, memo|
@@ -50,7 +52,6 @@ module GraphQL
           end
 
         when "mutation"
-          # plan steps grouping sequential fields by location for serial execution
           parent_type = @supergraph.schema.mutation
           location_groups = []
 
@@ -81,6 +82,9 @@ module GraphQL
         end
       end
 
+      # adds an operation (data access) to the plan which maps a data selection to an insertion point.
+      # note that planned operations are NOT always 1:1 with executed requests, as the executor can
+      # frequently batch different insertion points with the same location into a single request.
       def add_operation(
         location:,
         parent_type:,
@@ -132,15 +136,15 @@ module GraphQL
         end
       end
 
+      # extracts a selection tree that can all be fulfilled through the current planning location.
+      # adjoining remote selections will fork new insertion points and extract selections at those locations.
       def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after_key, locale_variables)
         remote_selections = []
         locale_selections = []
         implements_fragments = false
 
-        # fields of a merged interface may not belong to the interface at the local level,
-        # so any non-local interface fields get expanded into typed fragments before planning
         if parent_type.kind.interface?
-          expland_interface_selections(current_location, parent_type, input_selections)
+          expand_interface_selections(current_location, parent_type, input_selections)
         end
 
         input_selections.each do |node|
@@ -212,6 +216,8 @@ module GraphQL
         locale_selections
       end
 
+      # distributes remote selections across locations,
+      # while spawning new operations for each new fulfillment.
       def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after_key)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
@@ -296,6 +302,8 @@ module GraphQL
         end
       end
 
+      # extracts variable definitions used by a node,
+      # allowing each operation to track the specific variables it needs
       def extract_node_variables(node_with_args, variable_definitions)
         node_with_args.arguments.each do |argument|
           case argument.value
@@ -313,7 +321,9 @@ module GraphQL
         end
       end
 
-      def expland_interface_selections(current_location, parent_type, input_selections)
+      # fields of a merged interface may not belong to the interface at the local level,
+      # so any non-local interface fields get expanded into typed fragments before planning
+      def expand_interface_selections(current_location, parent_type, input_selections)
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
         extended_selections = []
 
@@ -325,9 +335,7 @@ module GraphQL
         end
 
         if extended_selections.any?
-          possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
-          possible_types.each do |possible_type|
-            next if possible_type.kind.abstract? # ignore child interfaces
+          @supergraph.schema.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)

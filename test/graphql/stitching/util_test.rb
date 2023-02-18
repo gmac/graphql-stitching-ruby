@@ -60,24 +60,17 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
     assert_equal ["list", "list", "non_null_element"], Util.get_list_structure(field_type("list4"))
   end
 
-  def test_get_possible_types_for_interface
-    result = Util.get_possible_types(TestSchema, TestSchema.get_type("ParentInterface"))
+  def test_expand_abstract_type_for_interface
+    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("ParentInterface"))
     assert_equal ["ChildInterface", "FirstObject", "SecondObject"], result.map(&:graphql_name).sort
 
-    result = Util.get_possible_types(TestSchema, TestSchema.get_type("ChildInterface"))
+    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("ChildInterface"))
     assert_equal ["SecondObject"], result.map(&:graphql_name).sort
   end
 
-  def test_get_possible_types_for_union
-    result = Util.get_possible_types(TestSchema, TestSchema.get_type("TestUnion"))
+  def test_expand_abstract_type_for_union
+    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("TestUnion"))
     assert_equal ["FirstObject", "SecondObject"], result.map(&:graphql_name).sort
-  end
-
-  def test_get_possible_types_for_non_abstract_types
-    ["FirstObject", "TestEnum", "String"].each do |type_name|
-      result = Util.get_possible_types(TestSchema, TestSchema.get_type(type_name))
-      assert_equal [type_name], result.map(&:graphql_name).sort
-    end
   end
 
   def test_is_leaf_type

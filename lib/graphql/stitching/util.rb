@@ -27,7 +27,7 @@ module GraphQL
       end
 
       # expands interfaces and unions to an array of their memberships
-      # unlike `possible_types`, this includes child interfaces
+      # like `schema.possible_types`, but includes child interfaces
       def self.expand_abstract_type(schema, parent_type)
         return [] unless parent_type.kind.abstract?
         return parent_type.possible_types if parent_type.kind.union?

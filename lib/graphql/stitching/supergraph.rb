@@ -83,6 +83,7 @@ module GraphQL
       end
 
       # inverts fields map to provide fields for a type/location
+      # "Type" => "location" => ["field1", "field2", ...]
       def fields_by_type_and_location
         @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
@@ -94,12 +95,15 @@ module GraphQL
         end
       end
 
+      # "Type" => ["location1", "location2", ...]
       def locations_by_type
         @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.values.flatten.uniq
         end
       end
 
+      # collects possible boundary keys for a given type and location
+      # ("Type", "location") => ["id", ...]
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= begin

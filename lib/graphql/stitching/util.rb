@@ -16,9 +16,8 @@ module GraphQL
         type
       end
 
-      # gets a named type for a field node, including hidden root introspection fields
-      def self.get_named_type_for_field_node(schema, parent_type, node)
-        # "__schema" is a hidden root introspection field
+      # gets a named type for a field node, including hidden root introspections
+      def self.named_type_for_field_node(schema, parent_type, node)
         if node.name == "__schema" && parent_type == schema.query
           schema.types["__Schema"]
         else

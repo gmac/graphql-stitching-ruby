@@ -161,7 +161,7 @@ module GraphQL
               next
             end
 
-            field_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+            field_type = Util.named_type_for_field_node(@supergraph.schema, parent_type, node)
             extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)

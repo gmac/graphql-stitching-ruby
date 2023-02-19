@@ -46,11 +46,36 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
 
   Util = GraphQL::Stitching::Util
 
+  def test_is_leaf_type
+    assert_equal true, Util.is_leaf_type?(TestSchema.get_type("String"))
+    assert_equal true, Util.is_leaf_type?(TestSchema.get_type("TestEnum"))
+    assert_equal false, Util.is_leaf_type?(TestSchema.get_type("FirstObject"))
+    assert_equal false, Util.is_leaf_type?(TestSchema.get_type("ParentInterface"))
+    assert_equal false, Util.is_leaf_type?(TestSchema.get_type("TestUnion"))
+  end
+
   def test_unwrap_non_null
     field = field_type("first")
     assert_equal true, field.non_null?
     assert_equal false, Util.unwrap_non_null(field).non_null?
     assert_equal "FirstObject", Util.unwrap_non_null(field).graphql_name
+  end
+
+  def test_unwrap_non_null_list
+    field = field_type("list1")
+    assert_equal true, field.non_null?
+    assert_equal false, Util.unwrap_non_null(field).non_null?
+    assert_equal "String", Util.unwrap_non_null(field).unwrap.graphql_name
+  end
+
+  def test_named_type_for_field_node_with_schema_field
+    node = GraphQL.parse("{ first }").definitions.first.selections.first
+    assert_equal "FirstObject", Util.named_type_for_field_node(TestSchema, TestSchema.query, node).graphql_name
+  end
+
+  def test_named_type_for_field_node_with_introspection_field
+    node = GraphQL.parse("{ __schema }").definitions.first.selections.first
+    assert_equal "__Schema", Util.named_type_for_field_node(TestSchema, TestSchema.query, node).graphql_name
   end
 
   def test_get_list_structure
@@ -73,11 +98,9 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
     assert_equal ["FirstObject", "SecondObject"], result.map(&:graphql_name).sort
   end
 
-  def test_is_leaf_type
-    assert_equal true, Util.is_leaf_type?(TestSchema.get_type("String"))
-    assert_equal true, Util.is_leaf_type?(TestSchema.get_type("TestEnum"))
-    assert_equal false, Util.is_leaf_type?(TestSchema.get_type("FirstObject"))
-    assert_equal false, Util.is_leaf_type?(TestSchema.get_type("ParentInterface"))
+  def test_expand_abstract_type_for_non_abstract
+    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("String"))
+    assert_equal [], result.map(&:graphql_name).sort
   end
 
   private

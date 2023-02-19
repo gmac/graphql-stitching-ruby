@@ -29,7 +29,7 @@ module GraphQL
 
             field_name = node.alias || node.name
             node_type = parent_type.fields[node.name].type
-            named_type = Util.get_named_type_for_field_node(@schema, parent_type, node)
+            named_type = Util.named_type_for_field_node(@schema, parent_type, node)
 
             raw_object[field_name] = if node_type.list?
               resolve_list_scope(raw_object[field_name], Util.unwrap_non_null(node_type), node.selections)

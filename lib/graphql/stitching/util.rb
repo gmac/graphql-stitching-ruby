@@ -3,14 +3,9 @@
 module GraphQL
   module Stitching
     class Util
-
-      # gets a named type, including hidden root introspection types
-      def self.get_named_type_for_field_node(schema, parent_type, node)
-        if node.name == "__schema" && parent_type == schema.query
-          schema.types["__Schema"] # type mapped to phantom introspection field
-        else
-          parent_type.fields[node.name].type.unwrap
-        end
+      # specifies if a type is a primitive leaf value
+      def self.is_leaf_type?(type)
+        type.kind.scalar? || type.kind.enum?
       end
 
       # strips non-null wrappers from a type
@@ -19,6 +14,31 @@ module GraphQL
           type = type.of_type
         end
         type
+      end
+
+      # gets a named type for a field node, including hidden root introspections
+      def self.named_type_for_field_node(schema, parent_type, node)
+        if node.name == "__schema" && parent_type == schema.query
+          schema.types["__Schema"]
+        else
+          parent_type.fields[node.name].type.unwrap
+        end
+      end
+
+      # expands interfaces and unions to an array of their memberships
+      # like `schema.possible_types`, but includes child interfaces
+      def self.expand_abstract_type(schema, parent_type)
+        return [] unless parent_type.kind.abstract?
+        return parent_type.possible_types if parent_type.kind.union?
+
+        result = []
+        schema.types.values.each do |type|
+          next unless type <= GraphQL::Schema::Interface && type != parent_type
+          next unless type.interfaces.include?(parent_type)
+          result << type
+          result.push(*expand_abstract_type(schema, type)) if type.kind.interface?
+        end
+        result.uniq
       end
 
       # gets a deep structural description of a list value type
@@ -38,26 +58,6 @@ module GraphQL
           type = type.of_type
         end
         structure
-      end
-
-      # Gets all objects and interfaces that implement a given interface
-      def self.get_possible_types(schema, parent_type)
-        return [parent_type] unless parent_type.kind.abstract?
-        return parent_type.possible_types if parent_type.kind.union?
-
-        result = []
-        schema.types.values.each do |type|
-          next unless type <= GraphQL::Schema::Interface && type != parent_type
-          next unless type.interfaces.include?(parent_type)
-          result << type
-          result.push(*get_possible_types(schema, type)) if type.kind.interface?
-        end
-        result.uniq
-      end
-
-      # Specifies if a type is a leaf node (no children)
-      def self.is_leaf_type?(type)
-        type.kind.scalar? || type.kind.enum?
       end
     end
   end

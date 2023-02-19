@@ -470,10 +470,10 @@ module GraphQL
           boundary_type = schema.types[type_name]
           next unless boundary_type.kind.abstract?
 
-          possible_types = Util.get_possible_types(schema, boundary_type)
-          possible_types.select { @subschema_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |possible_type|
-            @boundary_map[possible_type.graphql_name] ||= []
-            @boundary_map[possible_type.graphql_name].push(*@boundary_map[type_name])
+          expanded_types = Util.expand_abstract_type(schema, boundary_type)
+          expanded_types.select { @subschema_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
+            @boundary_map[expanded_type.graphql_name] ||= []
+            @boundary_map[expanded_type.graphql_name].push(*@boundary_map[type_name])
           end
         end
       end

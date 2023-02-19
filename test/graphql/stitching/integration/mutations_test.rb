@@ -5,6 +5,8 @@ require_relative "../../../schemas/mutations"
 
 describe 'GraphQL::Stitching, mutations' do
   def setup
+    Schemas::Mutations.reset
+
     @supergraph = compose_definitions({
       "a" => Schemas::Mutations::MutationsA,
       "b" => Schemas::Mutations::MutationsB,
@@ -12,8 +14,6 @@ describe 'GraphQL::Stitching, mutations' do
   end
 
   def test_mutates_serially_and_stitches_results
-    Schemas::Mutations.reset
-
     mutations = <<~GRAPHQL
       mutation AddRecords {
         first:  addViaA { id via a b }

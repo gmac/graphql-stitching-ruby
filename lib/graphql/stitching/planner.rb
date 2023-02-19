@@ -31,10 +31,12 @@ module GraphQL
 
       private
 
+      # groups root fields by operational strategy:
+      # - query immedaitely groups all root fields by location for async resolution
+      # - mutation groups sequential root fields by location for serial resolution
       def build_root_operations
         case @request.operation.operation_type
         when "query"
-          # plan steps grouping all fields by location for async execution
           parent_type = @supergraph.schema.query
 
           selections_by_location = @request.operation.selections.each_with_object({}) do |node, memo|
@@ -50,7 +52,6 @@ module GraphQL
           end
 
         when "mutation"
-          # plan steps grouping sequential fields by location for serial execution
           parent_type = @supergraph.schema.mutation
           location_groups = []
 
@@ -81,6 +82,9 @@ module GraphQL
         end
       end
 
+      # adds an operation (data access) to the plan which maps a data selection to an insertion point.
+      # note that planned operations are NOT always 1:1 with executed requests, as the executor can
+      # frequently batch different insertion points with the same location into a single request.
       def add_operation(
         location:,
         parent_type:,
@@ -132,15 +136,15 @@ module GraphQL
         end
       end
 
+      # extracts a selection tree that can all be fulfilled through the current planning location.
+      # adjoining remote selections will fork new insertion points and extract selections at those locations.
       def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after_key, locale_variables)
         remote_selections = []
         locale_selections = []
         implements_fragments = false
 
-        # fields of a merged interface may not belong to the interface at the local level,
-        # so any non-local interface fields get expanded into typed fragments before planning
         if parent_type.kind.interface?
-          expland_interface_selections(current_location, parent_type, input_selections)
+          expand_interface_selections(current_location, parent_type, input_selections)
         end
 
         input_selections.each do |node|
@@ -157,7 +161,7 @@ module GraphQL
               next
             end
 
-            field_type = Util.get_named_type_for_field_node(@supergraph.schema, parent_type, node)
+            field_type = Util.named_type_for_field_node(@supergraph.schema, parent_type, node)
             extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)
@@ -212,6 +216,8 @@ module GraphQL
         locale_selections
       end
 
+      # distributes remote selections across locations,
+      # while spawning new operations for each new fulfillment.
       def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after_key)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
@@ -296,6 +302,8 @@ module GraphQL
         end
       end
 
+      # extracts variable definitions used by a node
+      # (each operation tracks the specific variables used in its tree)
       def extract_node_variables(node_with_args, variable_definitions)
         node_with_args.arguments.each do |argument|
           case argument.value
@@ -313,25 +321,26 @@ module GraphQL
         end
       end
 
-      def expland_interface_selections(current_location, parent_type, input_selections)
+      # fields of a merged interface may not belong to the interface at the local level,
+      # so any non-local interface fields get expanded into typed fragments before planning
+      def expand_interface_selections(current_location, parent_type, input_selections)
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
-        extended_selections = []
 
+        expanded_selections = nil
         input_selections.reject! do |node|
           if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
-            extended_selections << node
+            expanded_selections ||= []
+            expanded_selections << node
             true
           end
         end
 
-        if extended_selections.any?
-          possible_types = Util.get_possible_types(@supergraph.schema, parent_type)
-          possible_types.each do |possible_type|
-            next if possible_type.kind.abstract? # ignore child interfaces
+        if expanded_selections
+          @supergraph.schema.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
-            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: extended_selections)
+            input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
       end
@@ -342,22 +351,22 @@ module GraphQL
         @operations_by_grouping.each do |_grouping, op|
           next unless op.boundary
 
-          boundary_type = @supergraph.schema.get_type(op.boundary["type_name"])
+          boundary_type = @supergraph.schema.types[op.boundary["type_name"]]
           next unless boundary_type.kind.abstract?
+          next if boundary_type == op.parent_type
 
-          unless op.parent_type == boundary_type
-            to_typed_selections = []
-            op.selections.reject! do |node|
-              if node.is_a?(GraphQL::Language::Nodes::Field)
-                to_typed_selections << node
-                true
-              end
+          expanded_selections = nil
+          op.selections.reject! do |node|
+            if node.is_a?(GraphQL::Language::Nodes::Field)
+              expanded_selections ||= []
+              expanded_selections << node
+              true
             end
+          end
 
-            if to_typed_selections.any?
-              type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
-              op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: to_typed_selections)
-            end
+          if expanded_selections
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
+            op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
       end

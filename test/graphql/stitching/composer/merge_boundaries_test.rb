@@ -19,6 +19,9 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   end
 
   def test_merges_boundaries_with_multiple_keys
+    # repeatable directives don't work before v2.0.15
+    skip if before_graphql_version?("2.0.15")
+
     a = %{
       type T { upc:ID! }
       type Query { a(upc:ID!):T @stitch(key: "upc") }

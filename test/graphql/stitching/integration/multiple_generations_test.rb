@@ -3,7 +3,7 @@
 require "test_helper"
 require_relative "../../../schemas/example"
 
-describe 'GraphQL::Stitching, example' do
+describe 'GraphQL::Stitching, multiple generations' do
   def setup
     @supergraph = compose_definitions({
       "products" => Schemas::Example::Products,

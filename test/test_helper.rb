@@ -22,6 +22,14 @@ def squish_string(str)
   str.gsub(/\s+/, " ").strip
 end
 
+def before_graphql_version?(versioning)
+  lib_versioning = GraphQL::VERSION.split(".").map(&:to_i)
+  versioning.split(".").map(&:to_i).each_with_index.any? do |version, i|
+    lib_version = lib_versioning[i] || 0
+    lib_version < version
+  end
+end
+
 def compose_definitions(schemas, options={})
   schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|
     memo[location] = if schema_or_sdl.is_a?(String)

@@ -29,6 +29,7 @@ module GraphQL
           end
         end
 
+        @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
         @executables = { LOCATION => @schema }.merge!(executables)
       end
@@ -72,7 +73,7 @@ module GraphQL
           executable.execute(
             query: query,
             variables: variables,
-            context: context,
+            context: context.frozen? ? context.dup : context,
             validate: false,
           )
         elsif executable.respond_to?(:call)
@@ -95,10 +96,20 @@ module GraphQL
         end
       end
 
-      # "Type" => ["location1", "location2", ...]
+      # { "Type" => ["location1", "location2", ...] }
       def locations_by_type
         @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.values.flatten.uniq
+        end
+      end
+
+      # collects all possible boundary keys for a given type
+      # { "Type" => ["id", ...] }
+      def possible_keys_for_type(type_name)
+        @possible_keys_by_type[type_name] ||= begin
+          keys = @boundaries[type_name].map { _1["selection"] }
+          keys.uniq!
+          keys
         end
       end
 
@@ -108,14 +119,32 @@ module GraphQL
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= begin
           location_fields = fields_by_type_and_location[type_name][location] || []
-          location_fields & @boundaries[type_name].map { _1["selection"] }
+          location_fields & possible_keys_for_type(type_name)
         end
       end
 
-      # For a given type, route from one origin service to one or more remote locations.
-      # Tunes a-star search to favor paths with fewest joining locations, ie:
-      # favor longer paths through target locations over shorter paths with additional locations.
+      # For a given type, route from one origin location to one or more remote locations
+      # used to connect a partial type across locations via boundary queries
       def route_type_to_locations(type_name, start_location, goal_locations)
+        if possible_keys_for_type(type_name).length > 1
+          # multiple keys use an a-star search to traverse intermediary locations
+          return route_type_to_locations_via_search(type_name, start_location, goal_locations)
+        end
+
+        # types with a single key attribute must all be within a single hop of each other,
+        # so can use a simple match to collect boundaries for the goal locations.
+        @boundaries[type_name].each_with_object({}) do |boundary, memo|
+          if goal_locations.include?(boundary["location"])
+            memo[boundary["location"]] = [boundary]
+          end
+        end
+      end
+
+      private
+
+      # tunes a-star search to favor paths with fewest joining locations, ie:
+      # favor longer paths through target locations over shorter paths with additional locations.
+      def route_type_to_locations_via_search(type_name, start_location, goal_locations)
         results = {}
         costs = {}
 

@@ -139,7 +139,7 @@ module GraphQL
       # extracts a selection tree that can all be fulfilled through the current planning location.
       # adjoining remote selections will fork new insertion points and extract selections at those locations.
       def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after_key, locale_variables)
-        remote_selections = []
+        remote_selections = nil
         locale_selections = []
         implements_fragments = false
 
@@ -157,6 +157,7 @@ module GraphQL
 
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             unless possible_locations.include?(current_location)
+              remote_selections ||= []
               remote_selections << node
               next
             end
@@ -196,7 +197,7 @@ module GraphQL
           end
         end
 
-        if remote_selections.any?
+        if remote_selections
           delegate_remote_selections(
             current_location,
             parent_type,

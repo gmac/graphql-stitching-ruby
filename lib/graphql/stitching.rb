@@ -61,7 +61,13 @@ module GraphQL
           })
         end
 
-        GraphQL::Schema::BuildFromDefinition.from_document(GraphQL::Schema, ast, default_resolve: nil)
+        if GraphQL::Schema::BuildFromDefinition.method(:from_document).parameters.first.last == :document
+          # GraphQL v1.13.x
+          GraphQL::Schema::BuildFromDefinition.from_document(ast, default_resolve: nil)
+        else
+          # GraphQL v2
+          GraphQL::Schema::BuildFromDefinition.from_document(GraphQL::Schema, ast, default_resolve: nil)
+        end
       end
     end
   end

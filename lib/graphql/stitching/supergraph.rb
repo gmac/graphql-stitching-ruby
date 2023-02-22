@@ -96,7 +96,7 @@ module GraphQL
         end
       end
 
-      # { "Type" => ["location1", "location2", ...] }
+      # "Type" => ["location1", "location2", ...]
       def locations_by_type
         @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.values.flatten.uniq
@@ -104,7 +104,7 @@ module GraphQL
       end
 
       # collects all possible boundary keys for a given type
-      # { "Type" => ["id", ...] }
+      # ("Type") => ["id", ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
           keys = @boundaries[type_name].map { _1["selection"] }

@@ -219,7 +219,7 @@ type Query {
 }
 ```
 
-The `@stitch` directive is also repeatable (_requires graphql-ruby v2.0.15_), allowing a single query to associate with multiple keys:
+The `@stitch` directive is also repeatable (_requires graphql-ruby >= v2.0.15_), allowing a single query to associate with multiple keys:
 
 ```graphql
 type Product {

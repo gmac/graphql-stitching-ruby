@@ -67,7 +67,17 @@ module GraphQL
       end
 
       def validate_as_shared(ctx, type, subschema_types_by_location)
-        expected_fields = type.fields.keys.sort
+        expected_fields = begin
+          type.fields.keys.sort
+        rescue StandardError => e
+          # bug with inherited interfaces in older versions of GraphQL
+          if type.interfaces.any? { _1.is_a?(GraphQL::Schema::LateBoundType) }
+            raise Composer::ComposerError, "Merged interface inheritance requires GraphQL >= v2.0.3"
+          else
+            raise e
+          end
+        end
+
         subschema_types_by_location.each do |location, subschema_type|
           if subschema_type.fields.keys.sort != expected_fields
             raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations,

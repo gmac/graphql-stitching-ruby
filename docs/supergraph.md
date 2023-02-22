@@ -30,7 +30,7 @@ end
 
 ### Export and caching
 
-A Supergraph is designed to be composed, cached, and restored. Calling the `export` method will return an SDL (Schema Definition Language) print of the combined graph schema and a deletation mapping hash. These can be persisted in any raw format that suits your stack:
+A Supergraph is designed to be composed, cached, and restored. Calling the `export` method will return an SDL (Schema Definition Language) print of the combined graph schema and a delegation mapping hash. These can be persisted in any raw format that suits your stack:
 
 ```ruby
 supergraph_sdl, delegation_map = supergraph.export

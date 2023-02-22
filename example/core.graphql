@@ -10,8 +10,6 @@ schema {
   mutation: Mutation
 }
 
-directive @boundary(key: String!) repeatable on FIELD_DEFINITION
-
 """
 Marks an element of a GraphQL schema as having restricted access.
 """
@@ -70952,7 +70950,7 @@ type QueryRoot {
     The IDs of the Nodes to return.
     """
     ids: [ID!]!
-  ): [Node]! @boundary(key: "id")
+  ): [Node]!
 
   """
   The shop's online store channel.

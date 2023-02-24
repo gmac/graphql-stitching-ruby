@@ -9,7 +9,7 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
     b = %{"""b""" interface Test { field: String } type Query { test:Test }}
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].description
@@ -29,7 +29,7 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
     GRAPHQL
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].directives.first.arguments.keyword_arguments[:arg]

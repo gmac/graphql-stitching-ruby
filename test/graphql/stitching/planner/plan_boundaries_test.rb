@@ -4,7 +4,7 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Planner, boundaries" do
   def build_sample_graph
-    @storefronts_sdl = "
+    @storefronts_sdl = %|
       type Storefront {
         id: ID!
         name: String!
@@ -16,9 +16,9 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       type Query {
         storefront(id: ID!): Storefront
       }
-    "
+    |
 
-    @products_sdl = "
+    @products_sdl = %|
       type Product {
         upc: ID!
         name: String!
@@ -34,9 +34,9 @@ describe "GraphQL::Stitching::Planner, boundaries" do
         product(upc: ID!): Product @stitch(key: \"upc\")
         productsManufacturer(id: ID!): Manufacturer @stitch(key: \"id\")
       }
-    "
+    |
 
-    @manufacturers_sdl = "
+    @manufacturers_sdl = %|
       type Manufacturer {
         id: ID!
         name: String!
@@ -45,7 +45,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       type Query {
         manufacturer(id: ID!): Manufacturer @stitch(key: \"id\")
       }
-    "
+    |
 
     compose_definitions({
       "storefronts" => @storefronts_sdl,
@@ -55,9 +55,9 @@ describe "GraphQL::Stitching::Planner, boundaries" do
   end
 
   def test_collects_unique_fields_across_boundary_locations
-    document = "
+    document = %|
       query {
-        storefront(id: \"1\") {
+        storefront(id: "1") {
           name
           products {
             name
@@ -70,7 +70,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
           }
         }
       }
-    "
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: build_sample_graph,
@@ -83,7 +83,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "storefronts", first.location
     assert_equal "query", first.operation_type
     assert_equal [], first.insertion_path
-    assert_equal "{ storefront(id: \"1\") { name products { _STITCH_upc: upc _STITCH_typename: __typename } } }", first.selection_set
+    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH_typename: __typename } } }|, first.selection_set
     assert_equal 1, first.key
     assert_equal 0, first.after_key
     assert_nil first.boundary
@@ -109,8 +109,8 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
   def test_collects_common_fields_from_first_available_location
     supergraph = build_sample_graph
-    document1 = "{         manufacturer(id: \"1\") { name products { name } } }"
-    document2 = "{ productsManufacturer(id: \"1\") { name products { name } } }"
+    document1 = %|{         manufacturer(id: "1") { name products { name } } }|
+    document2 = %|{ productsManufacturer(id: "1") { name products { name } } }|
 
     plan1 = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
@@ -129,7 +129,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "manufacturers", p1_first.location
     assert_equal "query", p1_first.operation_type
     assert_equal [], p1_first.insertion_path
-    assert_equal "{ manufacturer(id: \"1\") { name _STITCH_id: id _STITCH_typename: __typename } }", p1_first.selection_set
+    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH_typename: __typename } }|, p1_first.selection_set
     assert_equal 1, p1_first.key
     assert_equal 0, p1_first.after_key
     assert_nil p1_first.boundary
@@ -147,34 +147,36 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "products", p2_first.location
     assert_equal "query", p2_first.operation_type
     assert_equal [], p2_first.insertion_path
-    assert_equal "{ productsManufacturer(id: \"1\") { name products { name } } }", p2_first.selection_set
+    assert_equal %|{ productsManufacturer(id: "1") { name products { name } } }|, p2_first.selection_set
     assert_equal 1, p2_first.key
     assert_equal 0, p2_first.after_key
     assert_nil p2_first.boundary
   end
 
   def test_expands_selections_targeting_interface_locations
-    a = "
+    a = %|
       type Apple { id:ID! name:String }
-      type Query { apple(id:ID!):Apple @stitch(key:\"id\") }
-    "
-    b = "
+      type Query { apple(id:ID!):Apple @stitch(key:"id") }
+    |
+
+    b = %|
       interface Node { id:ID! }
       type Apple implements Node { id:ID! weight:Int }
       type Banana implements Node { id:ID! weight:Int }
-      type Query { node(id:ID!):Node @stitch(key:\"id\") }
-    "
+      type Query { node(id:ID!):Node @stitch(key:"id") }
+    |
+
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
+      request: GraphQL::Stitching::Request.new(%|{ apple(id:"1") { id name weight } }|),
     ).perform
 
     first = plan.operations[0]
     assert_equal "a", first.location
     assert_equal [], first.insertion_path
-    assert_equal "{ apple(id: \"1\") { id name _STITCH_id: id _STITCH_typename: __typename } }", first.selection_set
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selection_set
     assert_equal 1, first.key
     assert_equal 0, first.after_key
     assert_nil first.boundary
@@ -189,16 +191,18 @@ describe "GraphQL::Stitching::Planner, boundaries" do
   end
 
   def test_expands_selections_targeting_union_locations
-    a = "
+    a = %|
       type Apple { id:ID! name:String }
-      type Query { apple(id:ID!):Apple @stitch(key:\"id\") }
-    "
-    b = "
+      type Query { apple(id:ID!):Apple @stitch(key:"id") }
+    |
+
+    b = %|
       type Apple { id:ID! weight:Int }
       type Banana { id:ID! weight:Int }
-      union Node = Apple | Banana
-      type Query { node(id:ID!):Node @stitch(key:\"id\") }
-    "
+      union Node = Apple \| Banana
+      type Query { node(id:ID!):Node @stitch(key:"id") }
+    |
+
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Planner.new(
@@ -209,7 +213,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     first = plan.operations[0]
     assert_equal "a", first.location
     assert_equal [], first.insertion_path
-    assert_equal "{ apple(id: \"1\") { id name _STITCH_id: id _STITCH_typename: __typename } }", first.selection_set
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selection_set
     assert_equal 1, first.key
     assert_equal 0, first.after_key
     assert_nil first.boundary
@@ -224,28 +228,30 @@ describe "GraphQL::Stitching::Planner, boundaries" do
   end
 
   def test_expands_selections_for_abstracts_targeting_abstract_locations
-    a = "
+    a = %|
       interface Node { id:ID! }
       type Apple implements Node { id:ID! name:String }
-      type Query { node(id:ID!):Node @stitch(key:\"id\") }
-    "
-    b = "
+      type Query { node(id:ID!):Node @stitch(key:"id") }
+    |
+
+    b = %|
       type Apple { id:ID! weight:Int }
       type Banana { id:ID! weight:Int }
-      union Fruit = Apple | Banana
-      type Query { fruit(id:ID!):Fruit @stitch(key:\"id\") }
-    "
+      union Fruit = Apple \| Banana
+      type Query { fruit(id:ID!):Fruit @stitch(key:"id") }
+    |
+
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new("{ node(id:\"1\") { id ...on Apple { name weight } } }"),
+      request: GraphQL::Stitching::Request.new(%|{ node(id:"1") { id ...on Apple { name weight } } }|),
     ).perform
 
     first = plan.operations[0]
     assert_equal "a", first.location
     assert_equal [], first.insertion_path
-    assert_equal "{ node(id: \"1\") { id ... on Apple { name _STITCH_id: id _STITCH_typename: __typename } _STITCH_typename: __typename } }", first.selection_set
+    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH_typename: __typename } _STITCH_typename: __typename } }|, first.selection_set
     assert_equal 1, first.key
     assert_equal 0, first.after_key
     assert_nil first.boundary

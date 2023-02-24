@@ -43,6 +43,22 @@ raw_result = GraphQL::Stitching::Executor.new(
 ).perform(raw: true)
 ```
 
+The raw result will contain many irregularities from the stitching process, however may be insightful when debugging inconsistencies in results:
+
+```ruby
+{
+  "data" => {
+    "product" => {
+      "upc" => "1",
+      "_STITCH_upc" => "1",
+      "_STITCH_typename" => "Product",
+      "name" => "iPhone",
+      "price" => nil,
+    }
+  }
+}
+```
+
 ### Batching
 
 The Executor batches together as many requests as possible to a given location at a given time. Batched queries are written with the operation name suffixed by all operation keys in the batch, and root stitching fields are each prefixed by their batch index and collection index (for non-list fields):

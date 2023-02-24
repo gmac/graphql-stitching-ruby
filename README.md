@@ -70,12 +70,12 @@ result = gateway.execute(
 )
 ```
 
-Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md) for more information on how schemas get merged.
+Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
 
 While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
-- [Composer](./docs/composer.md) - merges and validates many schemas into one graph.
-- [Supergraph](./docs/supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.
+- [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
+- [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
 - [Request](./docs/request.md) - prepares a requested GraphQL document and variables for stitching.
 - [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
@@ -121,17 +121,16 @@ shipping_schema = <<~GRAPHQL
   }
 GRAPHQL
 
-supergraph = GraphQL::Stitching::Composer.new(schemas: {
-  "products" => GraphQL::Schema.from_definition(products_schema),
-  "shipping" => GraphQL::Schema.from_definition(shipping_schema),
+supergraph = GraphQL::Stitching::Composer.new.perform({
+  products: {
+    schema: GraphQL::Schema.from_definition(products_schema),
+    executable:  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+  },
+  shipping: {
+    schema: GraphQL::Schema.from_definition(shipping_schema),
+    executable:  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002"),
+  },
 })
-
-supergraph.assign_executable("products",
-  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001")
-)
-supergraph.assign_executable("shipping",
-  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002")
-)
 ```
 
 Focusing on the `@stitch` directive usage:
@@ -255,7 +254,7 @@ The `@stitch` directive can be exported from a class-based schema to an SDL stri
 
 #### SDL-based schemas
 
-A clean SDL string may also have stitching directives applied via static configuration using the `GraphQL::Stitching` module to build the SDL into a schema:
+A clean SDL string may also have stitching directives applied via static configuration by passing a `stitch` array in [location settings](./docs/composer.md#performing-composition):
 
 ```ruby
 sdl_string = <<~GRAPHQL
@@ -269,13 +268,15 @@ sdl_string = <<~GRAPHQL
   }
 GRAPHQL
 
-decorated_schema = GraphQL::Stitching.schema_from_definition(sdl_string, stitch_directives: [
-  { type_name: "Query", field_name: "productById", key: "id" },
-  { type_name: "Query", field_name: "productByUpc", key: "upc" },
-])
-
-supergraph = GraphQL::Stitching::Composer.new(schemas: {
-  "products" => decorated_schema,
+supergraph = GraphQL::Stitching::Composer.new.perform({
+  products:  {
+    schema: GraphQL::Schema.from_definition(sdl_string),
+    executable: ->() { ... },
+    stitch: [
+      { field_name: "productById", key: "id" },
+      { field_name: "productByUpc", key: "upc" },
+    ]
+  },
   # ...
 })
 ```
@@ -290,26 +291,41 @@ GraphQL::Stitching.stitch_directive = "merge"
 
 ## Executables
 
-An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or objects that respond to `.call` with the following arguments...
+An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(location, source, variables, context)` and returns a raw GraphQL response:
 
 ```ruby
 class MyExecutable
-  def call(location, query_string, variables, context)
+  def call(location, source, variables, context)
     # process a GraphQL request...
+    return {
+      "data" => { ... },
+      "errors" => [ ... ],
+    }
   end
 end
 ```
 
-By default, a [Supergraph](./docs/supergraph.md) will use the individual `GraphQL::Schema` classes that composed it as executable resources for each location. You may assign new executables using `assign_executable`:
+A [Supergraph](./docs/supergraph.md) is composed with executable resource provided for each location. Any location that omits the `executable` option will use the provided `schema` as the default executable:
 
 ```ruby
-supergraph = GraphQL::Stitching::Composer.new(...)
-
-supergraph.assign_executable("location1", MyExecutable.new)
-supergraph.assign_executable("location2", ->(loc, query, vars, ctx) { ... })
-supergraph.assign_executable("location3") do |loc, query vars, ctx|
-  # ...
-end
+supergraph = GraphQL::Stitching::Composer.new.perform({
+  first: {
+    schema: FirstSchema,
+    # executable: ^^^^^ delegates to FirstSchema,
+  },
+  second: {
+    schema: SecondSchema,
+    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001", headers: { ... }),
+  },
+  third: {
+    schema: ThirdSchema,
+    executable: MyExecutable.new,
+  },
+  fourth: {
+    schema: FourthSchema,
+    executable: ->(loc, query, vars, ctx) { ... },
+  },
+})
 ```
 
 The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).

@@ -1,47 +1,92 @@
 ## GraphQL::Stitching::Composer
 
-The `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity. The resulting supergraph provides a combined GraphQL schema and delegation maps used to route incoming requests:
+A `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity.
+
+### Configuring composition
+
+A `Composer` may be constructed with optional settings that tune how it builds a schema:
 
 ```ruby
-storefronts_sdl = <<~GRAPHQL
-  type Storefront {
-    id:ID!
-    name: String!
-    products: [Product]
-  }
+composer = GraphQL::Stitching::Composer.new(
+  query_name: "Query",
+  mutation_name: "Mutation",
+  description_merger: ->(values_by_location, info) { values_by_location.values.join("\n") },
+  deprecation_merger: ->(values_by_location, info) { values_by_location.values.first },
+  directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
+)
+```
 
-  type Product {
-    id:ID!
-  }
+Constructor arguments:
 
-  type Query {
-    storefront(id: ID!): Storefront
-  }
-GRAPHQL
+- **`query_name:`** _optional_, the name of the root query type in the composed schema; `Query` by default. The root query types from all location schemas will be merged into this type, regardless of their local names.
 
-products_sdl = <<~GRAPHQL
-  directive @stitch(key: String!) repeatable on FIELD_DEFINITION
+- **`mutation_name:`** _optional_, the name of the root mutation type in the composed schema; `Mutation` by default. The root mutation types from all location schemas will be merged into this type, regardless of their local names.
 
-  type Product {
-    id:ID!
-    name: String
-    price: Int
-  }
+- **`description_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element description strings from across locations.
 
-  type Query {
-    product(id: ID!): Product @stitch(key: "id")
-  }
-GRAPHQL
+- **`deprecation_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element deprecation strings from across locations.
 
-supergraph = GraphQL::Stitching::Composer.new(schemas: {
-  "storefronts" => GraphQL::Schema.from_definition(storefronts_sdl),
-  "products" => GraphQL::Schema.from_definition(products_sdl),
-}).perform
+- **`directive_kwarg_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging directive keyword arguments from across locations.
+
+#### Value merger functions
+
+Static data values such as element descriptions and directive arguments must also merge across locations. By default, the first non-null value encountered for a given element attribute is used. A value merger function may customize this process by selecting a different value or computing a new one:
+
+```ruby
+supergraph = GraphQL::Stitching::Composer.new(
+  description_merger: ->(values_by_location, info) { values_by_location.values.compact.join("\n") },
+)
+```
+
+A merger function receives `values_by_location` and `info` arguments; these provide possible values keyed by location and info about where in the schema these values were encountered:
+
+```ruby
+values_by_location = {
+  "storefronts" => "A fabulous data type.",
+  "products" => "An excellent data type.",
+}
+
+info = {
+  type_name: "Product",
+  # field_name: ...,
+  # argument_name: ...,
+  # directive_name: ...,
+}
+```
+
+### Performing composition
+
+Construct a `Composer` and call its `perform` method with location settings to compose a supergraph:
+
+```ruby
+storefronts_sdl = "type Query { ..."
+products_sdl = "type Query { ..."
+
+supergraph = GraphQL::Stitching::Composer.new.perform({
+  storefronts: {
+    schema: GraphQL::Schema.from_definition(storefronts_sdl),
+    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+    stitch: [{ field_name: "storefront", key: "id" }],
+  },
+  products: {
+    schema: GraphQL::Schema.from_definition(products_sdl),
+    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002"),
+  },
+  my_local: {
+    schema: MyLocalSchema,
+  },
+})
 
 combined_schema = supergraph.schema
 ```
 
-The individual schemas provided to the composer are assigned a location name based on their input key. These source schemas may be built from SDL (Schema Definition Language) strings using `GraphQL::Schema.from_definition`, or may be structured Ruby classes that inherit from `GraphQL::Schema`. The source schemas are used exclusively for type reference and do NOT need any real data resolvers. Likewise, the resulting combined schema is only used for type reference and resolving introspections.
+Location settings have top-level keys that specify arbitrary location names, each of which provide:
+
+- **`schema:`** _required_, provides a `GraphQL::Schema` class for the location. This may be a class-based schema that inherits from `GraphQL::Schema`, or built from SDL (Schema Definition Language) string using `GraphQL::Schema.from_definition` and mapped to a remote location. The provided schema is only used for type reference and does not require any real data resolvers (unless it is also used as the location's executable, see below).
+
+- **`executable:`** _optional_, provides an executable resource to be called when delegating a request to this location. Executables are `GraphQL::Schema` classes or any object with a `.call(location, source, variables, context)` method that returns a GraphQL response. Omitting the executable option will use the location's provided `schema` as the executable resource.
+
+- **`stitch:`** _optional_, an array of configs used to dynamically apply `@stitch` directives to select root fields prior to composing. This is useful when you can't easily render stitching directives into a location's source schema.
 
 ### Merge patterns
 
@@ -71,40 +116,3 @@ The strategy used to merge source schemas into the combined schema is based on e
   - Stitching directives (both definitions and assignments) are omitted.
 
 Note that the structure of a composed schema may change based on new schema additions and/or element usage (ie: changing input object arguments in one service may cause the intersection of arguments to change). Therefore, it's highly recommended that you use a [schema comparator](https://github.com/xuorig/graphql-schema_comparator) to flag regressions across composed schema versions.
-
-### Value merger functions
-
-The composer has no way of intelligently merging static data values that are embedded into a schema. These include:
-
-- Element descriptions
-- Element deprecations
-- Directive keyword argument values
-
-By default, the first non-null value encountered across locations is used to fill these data slots. You may customize this aggregation process by providing value merger functions:
-
-
-```ruby
-supergraph = GraphQL::Stitching::Composer.new(
-  schemas: { ... },
-  description_merger: ->(values_by_location, info) { values_by_location.values.last },
-  deprecation_merger: ->(values_by_location, info) { values_by_location.values.last },
-  directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
-).perform
-```
-
-Each merger accepts a `values_by_location` and an `info` argument; these provide the values found across locations and info about where in schema they were encountered:
-
-```ruby
-values_by_location = {
-  "storefronts" => "A fabulous data type.",
-  "products" => "An excellent data type.",
-}
-
-info = {
-  type_name: "Product",
-  # field_name: ...,
-  # argument_name: ...,
-}
-```
-
-The function should then select a value (or compute a new one) and return that for use in the combined schema.

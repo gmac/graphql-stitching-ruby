@@ -90,7 +90,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = %{input Test { """b""" arg:String } type Query { test("""b""" arg:Test):String }}
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].arguments["arg"].description
@@ -102,7 +102,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = %{input Test { arg:String @deprecated(reason:"b") } type Query { test(arg:Test @deprecated(reason:"b")):String }}
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      deprecation_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+      deprecation_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].arguments["arg"].deprecation_reason
@@ -121,7 +121,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     GRAPHQL
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _supergraph) { str_by_location.values.join("/") }
+      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
     directive = supergraph.schema.types["Query"].fields["test"].arguments["arg"].directives.first

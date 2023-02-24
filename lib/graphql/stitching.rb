@@ -19,56 +19,6 @@ module GraphQL
       def stitching_directive_names
         [stitch_directive]
       end
-
-      def schema_from_definition(sdl, stitch_directives:)
-        ast = GraphQL.parse(sdl)
-
-        if stitch_directives&.any?
-          directive_definition = ast.definitions.find do |d|
-            d.is_a?(GraphQL::Language::Nodes::DirectiveDefinition) && d.name == stitch_directive
-          end
-
-          if !directive_definition
-            directive_sdl = "directive @#{stitch_directive}(key: String!) repeatable on FIELD_DEFINITION"
-            directive_definition = GraphQL.parse(directive_sdl).definitions.first
-            ast.send(:merge!, { definitions: [directive_definition, *ast.definitions] })
-          end
-        end
-
-        stitch_directives.each do |config|
-          config[:type_name] ||= "Query"
-
-          type_node = ast.definitions.find do |d|
-            d.is_a?(GraphQL::Language::Nodes::ObjectTypeDefinition) && d.name == config[:type_name]
-          end
-
-          raise StitchingError, "invalid type name `#{config[:type_name]}`." unless type_node
-
-          field_node = type_node.fields.find do |f|
-            f.name == config[:field_name]
-          end
-
-          raise StitchingError, "invalid field name `#{config[:field_name]}`." unless field_node
-
-          field_node.send(:merge!, {
-            directives: [
-              *field_node.directives,
-              GraphQL::Language::Nodes::Directive.new(
-                arguments: [GraphQL::Language::Nodes::Argument.new(name: "key", value: config[:key])],
-                name: stitch_directive,
-              )
-            ]
-          })
-        end
-
-        if GraphQL::Schema::BuildFromDefinition.method(:from_document).parameters.first.last == :document
-          # GraphQL v1.13.x
-          GraphQL::Schema::BuildFromDefinition.from_document(ast, default_resolve: nil)
-        else
-          # GraphQL v2
-          GraphQL::Schema::BuildFromDefinition.from_document(GraphQL::Schema, ast, default_resolve: nil)
-        end
-      end
     end
   end
 end

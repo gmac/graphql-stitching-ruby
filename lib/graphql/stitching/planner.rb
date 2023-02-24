@@ -254,7 +254,7 @@ module GraphQL
 
             # hill climbing selects highest scoring locations to use
             preferred_location = possible_locations.reduce(possible_locations.first) do |best_location, possible_location|
-              score = selections_by_location[location] ? remote_selections.length : 0
+              score = selections_by_location[possible_location] ? remote_selections.length : 0
               score += location_weights.fetch(possible_location, 0)
 
               if score > preferred_location_score

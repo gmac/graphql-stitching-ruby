@@ -114,6 +114,7 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {},
     )
 
     mapping = supergraph.fields_by_type_and_location
@@ -127,6 +128,7 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {},
     )
 
     mapping = supergraph.locations_by_type
@@ -140,6 +142,7 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {},
     )
 
     assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products")
@@ -152,6 +155,7 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {},
     )
 
     ["__Schema", "__Type", "__Field"].each do |introspection_type|
@@ -160,65 +164,61 @@ describe "GraphQL::Stitching::Supergraph" do
     end
   end
 
-  def test_assign_executable_as_schema
+  def test_assign_valid_executables_with_string_locations
+    executable1 = Schemas::Example::Products
+    executable2 = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
+    executable3 = Proc.new { true }
+
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {
+        "products" => executable1,
+        "storefronts" => executable2,
+        "manufacturers" => executable3,
+      },
     )
 
-    assert_equal 1, supergraph.executables.length
-    subschema = Schemas::Example::Products
-    supergraph.assign_executable("products", subschema)
-
-    assert_equal 2, supergraph.executables.length
-    assert_equal subschema, supergraph.executables["products"]
+    assert_equal ["__super", "manufacturers", "products", "storefronts"], supergraph.executables.keys.sort
+    assert_equal executable1, supergraph.executables["products"]
+    assert_equal executable2, supergraph.executables["storefronts"]
+    assert_equal executable3, supergraph.executables["manufacturers"]
   end
 
-  def test_assign_executable_as_remote_client
+  def test_assign_valid_executables_with_symbol_locations
+    executable1 = Schemas::Example::Products
+    executable2 = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
+    executable3 = Proc.new { true }
+
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
+      executables: {
+        products: executable1,
+        storefronts: executable2,
+        manufacturers: executable3,
+      },
     )
 
-    client = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
-
-    assert_equal 1, supergraph.executables.length
-    supergraph.assign_executable("products", client)
-
-    assert_equal 2, supergraph.executables.length
-    assert_equal client, supergraph.executables["products"]
+    assert_equal ["__super", "manufacturers", "products", "storefronts"], supergraph.executables.keys.sort
+    assert_equal executable1, supergraph.executables["products"]
+    assert_equal executable2, supergraph.executables["storefronts"]
+    assert_equal executable3, supergraph.executables["manufacturers"]
   end
 
-  def test_assign_executable_as_proc
-    supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
-      fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
-    )
-
-    client = ->() { true }
-
-    assert_equal 1, supergraph.executables.length
-    supergraph.assign_executable("products", client)
-
-    assert_equal 2, supergraph.executables.length
-    assert_equal client, supergraph.executables["products"]
-  end
-
-  def test_assign_executable_as_block
-    supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
-      fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
-    )
-
-    assert_equal 1, supergraph.executables.length
-    supergraph.assign_executable("products") { true }
-
-    assert_equal 2, supergraph.executables.length
-    assert supergraph.executables["products"].respond_to?(:call)
+  def test_rejects_invalid_executables_with_error
+    assert_error "Invalid executable provided for location" do
+      GraphQL::Stitching::Supergraph.new(
+        schema: ComposedSchema,
+        fields: FIELDS_MAP.dup,
+        boundaries: BOUNDARIES_MAP,
+        executables: {
+          products: "nope",
+        },
+      )
+    end
   end
 
   def test_route_type_to_locations_connects_types_across_locations
@@ -315,25 +315,77 @@ describe "GraphQL::Stitching::Supergraph" do
     assert_nil routes["a"]
   end
 
-  def test_exports_and_restores_supergraph
-    a = %{
-      type T { id:ID! a:String }
-      type Query { a(id:ID!):T @stitch(key: "id") }
-    }
-    b = %{
-      type T { id:ID! b:String }
-      type Query { b(id:ID!):T @stitch(key: "id") }
-    }
+  describe "GraphQL::Stitching::Supergraph" do
+    def setup
+      alpha = %{
+        type T { id:ID! a:String }
+        type Query { a(id:ID!):T @stitch(key: "id") }
+      }
+      bravo = %{
+        type T { id:ID! b:String }
+        type Query { b(id:ID!):T @stitch(key: "id") }
+      }
 
-    supergraph1 = compose_definitions({ "a" => a, "b" => b })
-    schema_sdl, delegation_map = supergraph1.export
+      @supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
+      @schema_sdl, @delegation_map = @supergraph.export
+    end
 
-    assert_equal delegation_map["fields"], supergraph1.fields
-    assert_equal delegation_map["boundaries"], supergraph1.boundaries
+    def test_exports_and_restores_supergraph
+      assert_equal @delegation_map["fields"], @supergraph.fields
+      assert_equal @delegation_map["boundaries"], @supergraph.boundaries
+      assert_equal @delegation_map["locations"], @supergraph.locations
 
-    supergraph2 = GraphQL::Stitching::Supergraph.from_export(schema_sdl, delegation_map)
-    assert_equal supergraph1.fields, supergraph2.fields
-    assert_equal supergraph1.boundaries, supergraph2.boundaries
-    assert_equal supergraph1.schema.types.keys.sort, supergraph2.schema.types.keys.sort
+      supergraph_import = GraphQL::Stitching::Supergraph.from_export(
+        schema: @schema_sdl,
+        delegation_map: @delegation_map,
+        executables: {
+          "alpha" => Proc.new { true },
+          "bravo" => Proc.new { true },
+        }
+      )
+
+      assert_equal @supergraph.fields, supergraph_import.fields
+      assert_equal @supergraph.boundaries, supergraph_import.boundaries
+      assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
+      assert_equal @supergraph.schema.types.keys.sort, supergraph_import.schema.types.keys.sort
+    end
+
+    def test_normalizes_executable_location_names
+      supergraph_import = GraphQL::Stitching::Supergraph.from_export(
+        schema: @schema_sdl,
+        delegation_map: @delegation_map,
+        executables: {
+          alpha: Proc.new { true },
+          bravo: Proc.new { true },
+        }
+      )
+
+      assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
+    end
+
+    def test_errors_for_invalid_executables
+      assert_error "Invalid executable provided for location" do
+        GraphQL::Stitching::Supergraph.from_export(
+          schema: @schema_sdl,
+          delegation_map: @delegation_map,
+          executables: {
+            alpha: Proc.new { true },
+            bravo: "nope",
+          }
+        )
+      end
+    end
+
+    def test_errors_for_missing_executables
+      assert_error "Invalid executable provided for location" do
+        GraphQL::Stitching::Supergraph.from_export(
+          schema: @schema_sdl,
+          delegation_map: @delegation_map,
+          executables: {
+            alpha: Proc.new { true },
+          }
+        )
+      end
+    end
   end
 end

@@ -1,10 +1,6 @@
 ## GraphQL::Stitching::Gateway
 
-The `Gateway` is an out-of-the-box convenience with all stitching components assembled into a default workflow. A gateway is designed to work for most common needs, though you're welcome to assemble the component parts into your own configuration.
-
-### Building
-
-The Gateway constructor accepts configuration to build a [`Supergraph`](./supergraph.md) for you. Location names are root keys, and each location config provides a `schema` and an optional [executable](../README.md#executables).
+The `Gateway` is an out-of-the-box convenience with all stitching components assembled into a default workflow. A gateway is designed to work for most common needs, though you're welcome to assemble the component parts into your own configuration. A Gateway is constructed with the same [location settings](./composer.md#performing-composition) used to perform supergraph composition:
 
 ```ruby
 movies_schema = "type Query { ..."
@@ -14,6 +10,7 @@ gateway = GraphQL::Stitching::Gateway.new(locations: {
   products: {
     schema: GraphQL::Schema.from_definition(movies_schema),
     executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),
+    stitch: [{ field_name: "products", key: "id" }],
   },
   showtimes: {
     schema: GraphQL::Schema.from_definition(showtimes_schema),
@@ -25,23 +22,23 @@ gateway = GraphQL::Stitching::Gateway.new(locations: {
 })
 ```
 
-Locations provided with only a `schema` will assign the schema as the location executable (these are locally-executable schemas, and must have locally-implemented resolvers). Locations that provide an `executable` will perform requests using the executable.
-
-#### From exported supergraph
-
-It's possible to [export and rehydrate](./supergraph.md#export-and-caching) `Supergraph` instances, allowing a supergraph to be cached as static artifacts and then rehydrated quickly at runtime without going through composition. To setup a gateway with a prebuilt supergraph, you may pass it as a `supergraph` argument:
+Alternatively, you may pass a prebuilt `Supergraph` instance to the Gateway constructor. This is useful when [exporting and rehydrating](./supergraph.md#export-and-caching) supergraph instances, which bypasses the need for runtime composition:
 
 ```ruby
-exported_schema = "..."
+exported_schema = "type Query { ..."
 exported_mapping = JSON.parse("{ ... }")
-supergraph = GraphQL::Stitching::Supergraph.from_export(exported_schema, exported_mapping)
+supergraph = GraphQL::Stitching::Supergraph.from_export(
+  schema: exported_schema,
+  delegation_map: exported_mapping,
+  executables: { ... },
+)
 
 gateway = GraphQL::Stitching::Gateway.new(supergraph: supergraph)
 ```
 
 ### Execution
 
-A gateway provides an `execute` method with a subset of arguments provided by [`GraphQL::Schema.execute`](https://graphql-ruby.org/queries/executing_queries). Executing requests to a stitched gateway becomes mostly a drop-in replacement to executing a `GraphQL::Schema` instance:
+A gateway provides an `execute` method with a subset of arguments provided by [`GraphQL::Schema.execute`](https://graphql-ruby.org/queries/executing_queries). Executing requests on a stitched gateway becomes mostly a drop-in replacement to executing on a `GraphQL::Schema` instance:
 
 ```ruby
 result = gateway.execute(
@@ -57,7 +54,7 @@ Arguments for the `execute` method include:
 * `variables`: a hash of variables for the request.
 * `operation_name`: the name of the operation to execute (when multiple are provided).
 * `validate`: true if static validation should run on the supergraph schema before execution.
-* `context`: an object that gets passed through to gateway caching and error hooks.
+* `context`: an object passed through to executable calls and gateway hooks.
 
 ### Cache hooks
 

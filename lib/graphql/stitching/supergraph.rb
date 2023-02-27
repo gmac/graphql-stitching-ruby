@@ -15,38 +15,22 @@ module GraphQL
         "__DirectiveLocation",
       ].freeze
 
-      attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
+      def self.validate_executable!(location, executable)
+        return true if executable.is_a?(Class) && executable <= GraphQL::Schema
+        return true if executable && executable.respond_to?(:call)
+        raise StitchingError, "Invalid executable provided for location `#{location}`."
+      end
 
-      def initialize(schema:, fields:, boundaries:, executables: {})
-        @schema = schema
-        @boundaries = boundaries
-        @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
-          introspection_type = schema.get_type(type_name)
-          next unless introspection_type.kind.fields?
+      def self.from_export(schema:, delegation_map:, executables:)
+        schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
 
-          memo[type_name] = introspection_type.fields.keys.each_with_object({}) do |field_name, m|
-            m[field_name] = [LOCATION]
+        executables = delegation_map["locations"].each_with_object({}) do |location, memo|
+          executable = executables[location] || executables[location.to_sym]
+          if validate_executable!(location, executable)
+            memo[location] = executable
           end
         end
 
-        @possible_keys_by_type = {}
-        @possible_keys_by_type_and_location = {}
-        @executables = { LOCATION => @schema }.merge!(executables)
-      end
-
-      def fields
-        @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) }
-      end
-
-      def export
-        return GraphQL::Schema::Printer.print_schema(@schema), {
-          "fields" => fields,
-          "boundaries" => @boundaries,
-        }
-      end
-
-      def self.from_export(schema, delegation_map, executables: {})
-        schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
         new(
           schema: schema,
           fields: delegation_map["fields"],
@@ -55,29 +39,62 @@ module GraphQL
         )
       end
 
-      def assign_executable(location, executable = nil, &block)
-        executable ||= block
-        unless executable.is_a?(Class) && executable <= GraphQL::Schema
-          raise StitchingError, "A client or block handler must be provided." unless executable
-          raise StitchingError, "A client must be callable" unless executable.respond_to?(:call)
-        end
-        @executables[location] = executable
+      attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
+
+      def initialize(schema:, fields:, boundaries:, executables:)
+        @schema = schema
+        @boundaries = boundaries
+        @possible_keys_by_type = {}
+        @possible_keys_by_type_and_location = {}
+
+        # add introspection types into the fields mapping
+        @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
+          introspection_type = schema.get_type(type_name)
+          next unless introspection_type.kind.fields?
+
+          memo[type_name] = introspection_type.fields.keys.each_with_object({}) do |field_name, m|
+            m[field_name] = [LOCATION]
+          end
+        end.freeze
+
+        # validate and normalize executable references
+        @executables = executables.each_with_object({ LOCATION => @schema }) do |(location, executable), memo|
+          if self.class.validate_executable!(location, executable)
+            memo[location.to_s] = executable
+          end
+        end.freeze
       end
 
-      def execute_at_location(location, query, variables, context)
+      def fields
+        @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) }
+      end
+
+      def locations
+        @executables.keys.reject { _1 == LOCATION }
+      end
+
+      def export
+        return GraphQL::Schema::Printer.print_schema(@schema), {
+          "locations" => locations,
+          "fields" => fields,
+          "boundaries" => @boundaries,
+        }
+      end
+
+      def execute_at_location(location, source, variables, context)
         executable = executables[location]
 
         if executable.nil?
           raise StitchingError, "No executable assigned for #{location} location."
         elsif executable.is_a?(Class) && executable <= GraphQL::Schema
           executable.execute(
-            query: query,
+            query: source,
             variables: variables,
             context: context.frozen? ? context.dup : context,
             validate: false,
           )
         elsif executable.respond_to?(:call)
-          executable.call(location, query, variables, context)
+          executable.call(location, source, variables, context)
         else
           raise StitchingError, "Missing valid executable for #{location} location."
         end

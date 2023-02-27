@@ -30,17 +30,18 @@ def before_graphql_version?(versioning)
   end
 end
 
-def compose_definitions(schemas, options={})
-  schemas = schemas.each_with_object({}) do |(location, schema_or_sdl), memo|
-    memo[location] = if schema_or_sdl.is_a?(String)
+def compose_definitions(locations, options={})
+  locations = locations.each_with_object({}) do |(location, schema_or_sdl), memo|
+    schema = if schema_or_sdl.is_a?(String)
       boundary = "directive @stitch(key: String!) repeatable on FIELD_DEFINITION\n"
       schema_or_sdl = boundary + schema_or_sdl if schema_or_sdl.include?("@stitch")
       GraphQL::Schema.from_definition(schema_or_sdl)
     else
       schema_or_sdl
     end
+    memo[location.to_s] = { schema: schema }
   end
-  GraphQL::Stitching::Composer.new(schemas: schemas, **options).perform
+  GraphQL::Stitching::Composer.new(**options).perform(locations)
 end
 
 def plan_and_execute(supergraph, query, variables={}, raw: false)

@@ -9,17 +9,16 @@ module GraphQL
 
       attr_reader :supergraph
 
-      def initialize(locations: nil, supergraph: nil)
+      def initialize(locations: nil, supergraph: nil, composer: nil)
         @supergraph = if locations && supergraph
           raise GatewayError, "Cannot provide both locations and a supergraph."
-        elsif supergraph && !supergraph.is_a?(Supergraph)
+        elsif supergraph && !supergraph.is_a?(GraphQL::Stitching::Supergraph)
           raise GatewayError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
         elsif supergraph
           supergraph
-        elsif locations
-          build_supergraph_from_locations_config(locations)
         else
-          raise GatewayError, "No locations or supergraph provided."
+          composer ||= GraphQL::Stitching::Composer.new
+          composer.perform(locations)
         end
       end
 
@@ -73,28 +72,6 @@ module GraphQL
       end
 
       private
-
-      def build_supergraph_from_locations_config(locations)
-        schemas = locations.each_with_object({}) do |(location, config), memo|
-          schema = config[:schema]
-          if schema.nil?
-            raise GatewayError, "A schema is required for `#{location}` location."
-          elsif !(schema.is_a?(Class) && schema <= GraphQL::Schema)
-            raise GatewayError, "The schema for `#{location}` location must be a GraphQL::Schema class."
-          else
-            memo[location.to_s] = schema
-          end
-        end
-
-        supergraph = GraphQL::Stitching::Composer.new(schemas: schemas).perform
-
-        locations.each do |location, config|
-          executable = config[:executable]
-          supergraph.assign_executable(location.to_s, executable) if executable
-        end
-
-        supergraph
-      end
 
       def fetch_plan(request)
         if @on_cache_read

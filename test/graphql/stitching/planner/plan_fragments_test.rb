@@ -11,7 +11,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       "base" => Schemas::Conditionals::Abstracts,
     })
 
-    @expected_root_query = <<~GRAPHQL
+    @expected_root_query = %|
       {
         fruits(ids: $ids) {
           ... on Apple {
@@ -31,18 +31,18 @@ describe "GraphQL::Stitching::Planner, fragments" do
           _STITCH_typename: __typename
         }
       }
-    GRAPHQL
+    |
   end
 
   def test_plans_through_inline_fragments
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
           ...on Apple { id extensions { color } }
           ...on Banana { id extensions { shape } }
         }
       }
-    GRAPHQL
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -71,7 +71,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
   end
 
   def test_plans_through_fragment_spreads
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
           ...AppleAttrs
@@ -80,7 +80,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       }
       fragment AppleAttrs on Apple { id extensions { color } }
       fragment BananaAttrs on Banana { id extensions { shape } }
-    GRAPHQL
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -106,5 +106,46 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal "BananaExtension", third.type_condition
     assert_equal ["fruits", "extensions"], third.insertion_path
     assert_equal first.key, third.after_key
+  end
+
+  def test_plans_repeat_selections_and_fragments_into_grouped_operations
+    alpha = %|
+      type Test { id:ID! a: String x: Int y: Int }
+      type Query { testA(id: ID!): Test! @stitch(key: "id") }
+    |
+
+    bravo = %|
+      type Test { id:ID! b: String }
+      type Namespace { test: Test }
+      type Query { namespace: Namespace! testB(id: ID!): Test! @stitch(key: "id") }
+    |
+
+    query = %|
+      query {
+        namespace {
+          test { a }
+          test { b }
+          test { ...on Test { x } ...TestAttrs }
+        }
+      }
+      fragment TestAttrs on Test { y }
+    |
+
+    @supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
+
+    plan = GraphQL::Stitching::Planner.new(
+      supergraph: @supergraph,
+      request: GraphQL::Stitching::Request.new(query),
+    ).perform
+
+    assert_equal 2, plan.operations.length
+
+    first = plan.operations[0]
+    assert_equal "bravo", first.location
+
+    second = plan.operations[1]
+    assert_equal "alpha", second.location
+    assert_equal ["namespace", "test"], second.insertion_path
+    assert_equal "{ a x y }", second.selection_set
   end
 end

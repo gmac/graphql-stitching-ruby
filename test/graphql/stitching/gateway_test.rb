@@ -17,7 +17,7 @@ describe "GraphQL::Stitching::Gateway" do
       }
     })
 
-    @query_string = <<~GRAPHQL
+    @query_string = %|
       query MyStore($id: ID!){
         storefront(id: $id) {
           id
@@ -32,7 +32,7 @@ describe "GraphQL::Stitching::Gateway" do
           }
         }
       }
-    GRAPHQL
+    |
 
     @expected_result = {
       "data" => {
@@ -96,7 +96,7 @@ describe "GraphQL::Stitching::Gateway" do
   def test_prepares_requests_before_handling
     setup_example_gateway
 
-    @query_string = <<~GRAPHQL
+    @query_string = %|
       query MyStore($id: ID!, $products: Int = 2) {
         storefront(id: $id) {
           id
@@ -107,7 +107,7 @@ describe "GraphQL::Stitching::Gateway" do
           }
         }
       }
-    GRAPHQL
+    |
 
     result = @gateway.execute(
       query: GraphQL.parse(@query_string),
@@ -128,9 +128,13 @@ describe "GraphQL::Stitching::Gateway" do
   end
 
   def test_gateway_builds_with_provided_supergraph
-    export_schema = "type Thing { id: String } type Query { thing: Thing }"
-    export_mapping = { "fields" => {}, "boundaries" => {} }
-    supergraph = GraphQL::Stitching::Supergraph.from_export(export_schema, export_mapping)
+    supergraph = GraphQL::Stitching::Supergraph.from_export(
+      schema: "type Thing { id: String } type Query { thing: Thing }",
+      delegation_map: { "fields" => {}, "boundaries" => {}, "locations" => ["alpha"] },
+      executables: {
+        alpha: Proc.new { true },
+      }
+    )
     assert GraphQL::Stitching::Gateway.new(supergraph: supergraph)
   end
 
@@ -149,14 +153,14 @@ describe "GraphQL::Stitching::Gateway" do
   def test_query_with_operation_name
     setup_example_gateway
 
-    queries = <<~GRAPHQL
+    queries = %|
       query BestStorefront {
         storefront(id: "1") { id }
       }
       query SecondBest {
         storefront(id: "2") { id }
       }
-    GRAPHQL
+    |
 
     result = @gateway.execute(query: queries, operation_name: "SecondBest")
 
@@ -185,11 +189,11 @@ describe "GraphQL::Stitching::Gateway" do
       }
     })
 
-    query = <<~GRAPHQL
+    query = %|
       query BestStoreFront($storefrontID: ID!) {
         storefront(id: $storefrontID) { id }
       }
-    GRAPHQL
+    |
 
     result = gateway.execute(query: query, variables: { "storefrontID" => "1" })
 
@@ -201,11 +205,11 @@ describe "GraphQL::Stitching::Gateway" do
     setup_example_gateway
     cache = {}
 
-    test_query = <<~GRAPHQL
+    test_query = %|
       query {
         product(upc: "1") { price }
       }
-    GRAPHQL
+    |
 
     @gateway.on_cache_read { |key| cache[key] }
     @gateway.on_cache_write { |key, payload| cache[key] = payload.gsub("price", "name price") }

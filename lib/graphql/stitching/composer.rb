@@ -16,28 +16,25 @@ module GraphQL
       ].freeze
 
       def initialize(
-        schemas:,
         query_name: "Query",
         mutation_name: "Mutation",
         description_merger: nil,
         deprecation_merger: nil,
         directive_kwarg_merger: nil
       )
-        @schemas = schemas
         @query_name = query_name
         @mutation_name = mutation_name
-        @field_map = {}
-        @boundary_map = {}
-        @mapped_type_names = {}
-
         @description_merger = description_merger || DEFAULT_VALUE_MERGER
         @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
       end
 
-      def perform
+      def perform(locations_input)
+        reset!
+        schemas, executables = prepare_locations_input(locations_input)
+
         # "directive_name" => "location" => candidate_directive
-        @subschema_directives_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+        @subschema_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
@@ -52,7 +49,7 @@ module GraphQL
         @schema_directives.merge!(GraphQL::Schema.default_directives)
 
         # "Typename" => "location" => candidate_type
-        @subschema_types_by_name_and_location = @schemas.each_with_object({}) do |(location, schema), memo|
+        @subschema_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
@@ -74,7 +71,7 @@ module GraphQL
           end
         end
 
-        enum_usage = build_enum_usage_map(@schemas.values)
+        enum_usage = build_enum_usage_map(schemas.values)
 
         # "Typename" => merged_type
         schema_types = @subschema_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
@@ -119,7 +116,7 @@ module GraphQL
           schema: schema,
           fields: @field_map,
           boundaries: @boundary_map,
-          executables: @schemas,
+          executables: executables,
         )
 
         VALIDATORS.each do |validator|
@@ -128,6 +125,45 @@ module GraphQL
         end
 
         supergraph
+      end
+
+      def prepare_locations_input(locations_input)
+        schemas = {}
+        executables = {}
+
+        locations_input.each do |location, input|
+          schema = input[:schema]
+
+          if schema.nil?
+            raise ComposerError, "A schema is required for `#{location}` location."
+          elsif !(schema.is_a?(Class) && schema <= GraphQL::Schema)
+            raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
+          end
+
+          if input[:stitch]
+            stitch_directive = Class.new(GraphQL::Schema::Directive) do
+              graphql_name(GraphQL::Stitching.stitch_directive)
+              locations :FIELD_DEFINITION
+              argument :key, String
+              repeatable true
+            end
+
+            input[:stitch].each do |dir|
+              type = dir[:type_name] ? schema.types[dir[:type_name]] : schema.query
+              raise ComposerError, "Invalid stitch directive type `#{dir[:type_name]}`" unless type
+
+              field = type.fields[dir[:field_name]]
+              raise ComposerError, "Invalid stitch directive field `#{dir[:field_name]}`" unless field
+
+              field.directive(stitch_directive, **dir.slice(:key))
+            end
+          end
+
+          schemas[location.to_s] = schema
+          executables[location.to_s] = input[:executable] || schema
+        end
+
+        return schemas, executables
       end
 
       def build_directive(directive_name, directives_by_location)
@@ -514,6 +550,16 @@ module GraphQL
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end
+      end
+
+      private
+
+      def reset!
+        @field_map = {}
+        @boundary_map = {}
+        @mapped_type_names = {}
+        @subschema_directives_by_name_and_location = nil
+        @schema_directives = nil
       end
     end
   end

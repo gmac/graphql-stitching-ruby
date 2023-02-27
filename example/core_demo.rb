@@ -20,14 +20,12 @@ class StitchedApp
 
     @gateway = GraphQL::Stitching::Gateway.new(locations: {
       core: {
-        schema: GraphQL::Stitching.schema_from_definition(
-          core_schema_sdl,
-          stitch_directives: [{ type_name: "QueryRoot", field_name: "nodes", key: "id" }],
-        ),
+        schema: GraphQL::Schema.from_definition(core_schema_sdl),
         executable: GraphQL::Stitching::RemoteClient.new(
           url: "https://morebanana.myshopify.com/admin/api/2023-01/graphql.json",
           headers: headers,
         ),
+        stitch: [{ field_name: "nodes", key: "id" }],
       },
       brands: {
         schema: MyBrandsSchema,

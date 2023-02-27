@@ -12,11 +12,9 @@
 .envrc
 Gemfile.lock
 
-/example/env.json
-
 # Used by dotenv library to load environment variables.
 # .env
-/example/env.json
+env.json
 
 # Ignore Byebug command history file.
 .byebug_history
@@ -30,6 +28,8 @@ build/
 *.bridgesupport
 build-iPhoneOS/
 build-iPhoneSimulator/
+node_modules
+package-lock.json
 
 ## Specific to RubyMotion (use of CocoaPods):
 #

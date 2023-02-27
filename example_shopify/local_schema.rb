@@ -1,14 +1,14 @@
 BRANDS = [
-  { id: "gid://shopify/Brand/1", name: "Lego" },
-  { id: "gid://shopify/Brand/2", name: "McTesting" },
+  { id: "1", name: "Lego" },
+  { id: "2", name: "McTesting" },
 ]
 
 PRODUCTS_REL_BRANDS = [
-  ["gid://shopify/Product/6885875646486", "gid://shopify/Brand/1"],
-  ["gid://shopify/Product/6561850556438", "gid://shopify/Brand/1"],
-  ["gid://shopify/Product/6561850785814", "gid://shopify/Brand/1"],
-  ["gid://shopify/Product/6561850884118", "gid://shopify/Brand/1"],
-  ["gid://shopify/Product/7501637156886", "gid://shopify/Brand/2"],
+  ["gid://shopify/Product/6885875646486", "1"],
+  ["gid://shopify/Product/6561850556438", "1"],
+  ["gid://shopify/Product/6561850785814", "1"],
+  ["gid://shopify/Product/6561850884118", "1"],
+  ["gid://shopify/Product/7501637156886", "2"],
 ]
 
 class MyBrandsSchema < GraphQL::Schema

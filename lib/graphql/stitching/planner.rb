@@ -53,18 +53,16 @@ module GraphQL
 
         when "mutation"
           parent_type = @supergraph.schema.mutation
-          location_groups = []
 
-          @request.operation.selections.reduce(nil) do |last_location, node|
+          location_groups = @request.operation.selections.each_with_object([]) do |node, memo|
             # root fields currently just delegate to the last location that defined them; this should probably be smarter
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].last
 
-            if next_location != last_location
-              location_groups << { location: next_location, selections: [] }
+            if memo.none? || memo.last[:location] != next_location
+              memo << { location: next_location, selections: [] }
             end
 
-            location_groups.last[:selections] << node
-            next_location
+            memo.last[:selections] << node
           end
 
           location_groups.reduce(0) do |after_key, group|
@@ -144,7 +142,7 @@ module GraphQL
         implements_fragments = false
 
         if parent_type.kind.interface?
-          expand_interface_selections(current_location, parent_type, input_selections)
+          input_selections = expand_interface_selections(current_location, parent_type, input_selections)
         end
 
         input_selections.each do |node|
@@ -328,8 +326,8 @@ module GraphQL
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
 
         expanded_selections = nil
-        input_selections.reject! do |node|
-          if node.is_a?(GraphQL::Language::Nodes::Field) && !local_interface_fields.include?(node.name)
+        input_selections = input_selections.reject do |node|
+          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != "__typename" && !local_interface_fields.include?(node.name)
             expanded_selections ||= []
             expanded_selections << node
             true
@@ -344,6 +342,8 @@ module GraphQL
             input_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
+
+        input_selections
       end
 
       # expand concrete type selections into typed fragments when sending to abstract boundaries

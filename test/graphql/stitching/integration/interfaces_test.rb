@@ -27,12 +27,12 @@ describe 'GraphQL::Stitching, merged interfaces' do
       }
     GRAPHQL
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
+    result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
 
     expected_result = {
       "bundles" => [
         {
-          "id" => "1",
+          "id" => "10",
           "name" => "Apple Gear",
           "price" => 999.99,
           "products" => [
@@ -98,12 +98,12 @@ describe 'GraphQL::Stitching, merged interfaces' do
       }
     GRAPHQL
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
+    result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
 
     expected_result = {
       "result" => [
         {
-          "id" => "1",
+          "id" => "10",
           "name" => "Apple Gear",
           "price" => 999.99,
           "products" => [
@@ -146,19 +146,19 @@ describe 'GraphQL::Stitching, merged interfaces' do
       }
     GRAPHQL
 
-    result1 = plan_and_execute(@supergraph, query1, { "ids" => ["1", "2"] })
-    result2 = plan_and_execute(@supergraph, query2, { "ids" => ["1", "2"] })
+    result1 = plan_and_execute(@supergraph, query1, { "ids" => ["100", "200"] })
+    result2 = plan_and_execute(@supergraph, query2, { "ids" => ["100", "200"] })
 
     expected_result = {
       "data" => {
         "result" => [
           {
-            "id" => "1",
+            "id" => "100",
             "name" => "Widget",
             "price" => 10.99,
           },
           {
-            "id" => "2",
+            "id" => "200",
             "name" => "Sprocket",
             "price" => 9.99,
           },
@@ -168,5 +168,38 @@ describe 'GraphQL::Stitching, merged interfaces' do
 
     assert_equal expected_result, result1
     assert_equal expected_result, result2
+  end
+
+  def test_merges_within_interface_fragments
+    query = <<~GRAPHQL
+      query($ids: [ID!]!) {
+        result: nodes(ids: $ids) {
+          id
+          ...on Buyable { name price }
+          ...on Split { name price }
+          __typename
+        }
+      }
+    GRAPHQL
+
+    result = plan_and_execute(@supergraph, query, { "ids" => ["1", "100"] })
+
+    expected_result = {
+      "data" => {
+        "result"=> [{
+          "id" => "1",
+          "name" => "iPhone",
+          "price" => 699.99,
+          "__typename" => "Product",
+        }, {
+          "id" => "100",
+          "name" => "Widget",
+          "price" => 10.99,
+          "__typename" => "Gizmo",
+        }],
+      },
+    }
+
+    assert_equal expected_result, result
   end
 end

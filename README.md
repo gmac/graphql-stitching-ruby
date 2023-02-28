@@ -305,13 +305,13 @@ class MyExecutable
 end
 ```
 
-A [Supergraph](./docs/supergraph.md) is composed with executable resource provided for each location. Any location that omits the `executable` option will use the provided `schema` as the default executable:
+A [Supergraph](./docs/supergraph.md) is composed with executable resources provided for each location. Any location that omits the `executable` option will use the provided `schema` as its default executable:
 
 ```ruby
 supergraph = GraphQL::Stitching::Composer.new.perform({
   first: {
     schema: FirstSchema,
-    # executable: ^^^^^ delegates to FirstSchema,
+    # executable:^^^^^^ delegates to FirstSchema,
   },
   second: {
     schema: SecondSchema,

@@ -18,18 +18,23 @@ module Schemas
     ].freeze
 
     BUNDLES = [
-      { id: '1', name: 'Apple Gear', price: 999.99, product_ids: ['1', '2'], __typename: 'Bundle' },
-      { id: '2', name: 'Epicures', price: 20.99, product_ids: ['3', '4'], __typename: 'Bundle' },
+      { id: '10', name: 'Apple Gear', price: 999.99, product_ids: ['1', '2'], __typename: 'Bundle' },
+      { id: '20', name: 'Epicures', price: 20.99, product_ids: ['3', '4'], __typename: 'Bundle' },
     ].freeze
 
     GIZMOS = [
-      { id: '1', name: 'Widget', price: 10.99, __typename: 'Gizmo' },
-      { id: '2', name: 'Sprocket', price: 9.99, __typename: 'Gizmo' },
+      { id: '100', name: 'Widget', price: 10.99, __typename: 'Gizmo' },
+      { id: '200', name: 'Sprocket', price: 9.99, __typename: 'Gizmo' },
     ].freeze
 
     # Products
 
     class Products < GraphQL::Schema
+      module Node
+        include GraphQL::Schema::Interface
+        field :id, ID, null: false
+      end
+
       module Buyable
         include GraphQL::Schema::Interface
         field :id, ID, null: false
@@ -38,7 +43,7 @@ module Schemas
       end
 
       class Product < GraphQL::Schema::Object
-        implements Buyable
+        implements Node, Buyable
       end
 
       module Split
@@ -48,7 +53,7 @@ module Schemas
       end
 
       class Gizmo < GraphQL::Schema::Object
-        implements Split
+        implements Node, Split
       end
 
       class Query < GraphQL::Schema::Object
@@ -76,6 +81,15 @@ module Schemas
 
         def products_split(ids:)
           ids.map { |id| GIZMOS.find { _1[:id] == id } }
+        end
+
+        field :nodes, [Node, null: true], null: false do
+          argument :ids, [ID], required: true
+        end
+
+        def nodes(ids:)
+          nodes = PRODUCTS + GIZMOS
+          ids.map { |id| nodes.find { _1[:id] == id } }
         end
       end
 

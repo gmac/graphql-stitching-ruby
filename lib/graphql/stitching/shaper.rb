@@ -42,15 +42,16 @@ module GraphQL
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
-            next unless typename == node.type.name
             fragment_type = @schema.types[node.type.name]
+            next unless fragment_matches_typename?(fragment_type, typename)
+
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
             return nil if result.nil?
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
             fragment_type = @schema.types[fragment.type.name]
-            next unless typename == fragment_type.graphql_name
+            next unless fragment_matches_typename?(fragment_type, typename)
 
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
             return nil if result.nil?
@@ -90,6 +91,11 @@ module GraphQL
         return nil if contains_null && next_node_type.non_null?
 
         resolved_list
+      end
+
+      def fragment_matches_typename?(fragment_type, typename)
+        return true if fragment_type.graphql_name == typename
+        fragment_type.kind.interface? && @schema.possible_types(fragment_type).any? { _1.graphql_name == typename }
       end
     end
   end

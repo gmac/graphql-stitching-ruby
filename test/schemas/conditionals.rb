@@ -55,29 +55,45 @@ module Schemas
     end
 
     class Abstracts < GraphQL::Schema
-      class AppleExtension < GraphQL::Schema::Object
+      module Extension
+        include GraphQL::Schema::Interface
         field :id, ID, null: false
       end
 
+      module HasExtension
+        include GraphQL::Schema::Interface
+        field :abstract_extension, Extension, null: false
+
+        def abstract_extension
+          { id: object[:extension_id], __typename: "#{object[:__typename]}Extension" }
+        end
+      end
+
+      class AppleExtension < GraphQL::Schema::Object
+        implements Extension
+      end
+
       class Apple < GraphQL::Schema::Object
+        implements HasExtension
         field :id, ID, null: false
         field :extensions, AppleExtension, null: false
 
         def extensions
-          { id: object[:extension_id] }
+          { id: object[:extension_id], __typename: "AppleExtension" }
         end
       end
 
       class BananaExtension < GraphQL::Schema::Object
-        field :id, ID, null: false
+        implements Extension
       end
 
       class Banana < GraphQL::Schema::Object
+        implements HasExtension
         field :id, ID, null: false
         field :extensions, BananaExtension, null: false
 
         def extensions
-          { id: object[:extension_id] }
+          { id: object[:extension_id], __typename: "BananaExtension" }
         end
       end
 
@@ -98,6 +114,8 @@ module Schemas
       TYPES = {
         "Apple" => Apple,
         "Banana" => Banana,
+        "AppleExtension" => AppleExtension,
+        "BananaExtension" => BananaExtension,
       }.freeze
 
       def self.resolve_type(_type, obj, _ctx)

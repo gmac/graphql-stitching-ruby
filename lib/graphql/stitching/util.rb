@@ -10,10 +10,30 @@ module GraphQL
 
       # strips non-null wrappers from a type
       def self.unwrap_non_null(type)
-        while type.is_a?(GraphQL::Schema::NonNull)
-          type = type.of_type
-        end
+        type = type.of_type while type.non_null?
         type
+      end
+
+      def self.flatten_type_structure(type)
+        structure = []
+
+        while type.list?
+          structure << {
+            list: true,
+            null: !type.non_null?,
+            name: nil,
+          }
+
+          type = unwrap_non_null(type).of_type
+        end
+
+        structure << {
+          list: false,
+          null: !type.non_null?,
+          name: type.unwrap.graphql_name,
+        }
+
+        structure
       end
 
       # gets a named type for a field node, including hidden root introspections
@@ -39,25 +59,6 @@ module GraphQL
           result.push(*expand_abstract_type(schema, type)) if type.kind.interface?
         end
         result.uniq
-      end
-
-      # gets a deep structural description of a list value type
-      def self.get_list_structure(type)
-        structure = []
-        previous = nil
-        while type.respond_to?(:of_type)
-          if type.is_a?(GraphQL::Schema::List)
-            structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? "non_null_list" : "list")
-          end
-          if structure.any?
-            previous = type
-            if !type.of_type.respond_to?(:of_type)
-              structure.push(previous.is_a?(GraphQL::Schema::NonNull) ? "non_null_element" : "element")
-            end
-          end
-          type = type.of_type
-        end
-        structure
       end
     end
   end

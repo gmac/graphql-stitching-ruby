@@ -33,8 +33,9 @@ module GraphQL
         # only one boundary allowed per type/location/key
         boundaries_by_location_and_key = boundaries.each_with_object({}) do |boundary, memo|
           if memo.dig(boundary["location"], boundary["selection"])
-            raise Composer::ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["selection"]}` found in #{boundary["location"]}.
-            Limit one boundary query per type and key in each location. Abstract boundaries provide all possible types."
+            raise Composer::ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["selection"]}` "\
+              "found in #{boundary["location"]}. Limit one boundary query per type and key in each location. "\
+              "Abstract boundaries provide all possible types."
           end
           memo[boundary["location"]] ||= {}
           memo[boundary["location"]][boundary["selection"]] = boundary
@@ -60,8 +61,8 @@ module GraphQL
           remote_locations = bidirectional_access_locations.reject { _1 == location }
           paths = ctx.route_type_to_locations(type.graphql_name, location, remote_locations)
           if paths.length != remote_locations.length || paths.any? { |_loc, path| path.nil? }
-            raise Composer::ValidationError, "Cannot route `#{type.graphql_name}` boundaries in #{location} to all other locations.
-            All locations must provide a boundary accessor that uses a conjoining key."
+            raise Composer::ValidationError, "Cannot route `#{type.graphql_name}` boundaries in #{location} to all other locations. "\
+              "All locations must provide a boundary accessor that uses a conjoining key."
           end
         end
       end
@@ -80,8 +81,8 @@ module GraphQL
 
         subschema_types_by_location.each do |location, subschema_type|
           if subschema_type.fields.keys.sort != expected_fields
-            raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations,
-            or else define boundary queries so that its unique fields may be accessed remotely."
+            raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations, "\
+              "or else define boundary queries so that its unique fields may be accessed remotely."
           end
         end
       end

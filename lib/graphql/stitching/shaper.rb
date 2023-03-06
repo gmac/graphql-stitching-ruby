@@ -43,7 +43,7 @@ module GraphQL
 
           when GraphQL::Language::Nodes::InlineFragment
             fragment_type = @schema.types[node.type.name]
-            next unless fragment_matches_typename?(fragment_type, typename)
+            next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
             return nil if result.nil?
@@ -51,7 +51,7 @@ module GraphQL
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
             fragment_type = @schema.types[fragment.type.name]
-            next unless fragment_matches_typename?(fragment_type, typename)
+            next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
             return nil if result.nil?
@@ -93,9 +93,9 @@ module GraphQL
         resolved_list
       end
 
-      def fragment_matches_typename?(fragment_type, typename)
-        return true if fragment_type.graphql_name == typename
-        fragment_type.kind.interface? && @schema.possible_types(fragment_type).any? { _1.graphql_name == typename }
+      def typename_in_type?(typename, type)
+        return true if type.graphql_name == typename
+        type.kind.abstract? && @schema.possible_types(type).any? { _1.graphql_name == typename }
       end
     end
   end

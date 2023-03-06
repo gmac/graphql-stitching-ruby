@@ -77,7 +77,7 @@ module GraphQL
         schema_types = @subschema_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
-          unless kinds.all? { _1 == kinds.first }
+          if kinds.length > 1
             raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
@@ -96,7 +96,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kind}."
+            raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
           end
         end
 
@@ -307,12 +307,13 @@ module GraphQL
         fields_by_name_location.each do |field_name, fields_by_location|
           value_types = fields_by_location.values.map(&:type)
 
+          type = merge_value_types(type_name, value_types, field_name: field_name)
           schema_field = owner.field(
             field_name,
             description: merge_descriptions(type_name, fields_by_location, field_name: field_name),
             deprecation_reason: merge_deprecations(type_name, fields_by_location, field_name: field_name),
-            type: merge_value_types(type_name, value_types, field_name: field_name),
-            null: !value_types.all?(&:non_null?),
+            type: Util.unwrap_non_null(type),
+            null: !type.non_null?,
             camelize: false,
           )
 
@@ -345,12 +346,13 @@ module GraphQL
           # Getting double args sometimes... why?
           return if owner.arguments.any? { _1.first == argument_name }
 
+          type = merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name)
           schema_argument = owner.argument(
             argument_name,
             description: merge_descriptions(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
             deprecation_reason: merge_deprecations(type_name, arguments_by_location, argument_name: argument_name, field_name: field_name),
-            type: merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name),
-            required: value_types.any?(&:non_null?),
+            type: Util.unwrap_non_null(type),
+            required: type.non_null?,
             camelize: false,
           )
 
@@ -401,35 +403,30 @@ module GraphQL
 
       def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].compact.join(".")
-        named_types = type_candidates.map { _1.unwrap.graphql_name }.uniq
+        alt_structures = type_candidates.map { Util.flatten_type_structure(_1) }
+        basis_structure = alt_structures.shift
 
-        unless named_types.all? { _1 == named_types.first }
-          raise ComposerError, "Cannot compose mixed types at `#{path}`. Found: #{named_types.join(", ")}."
-        end
-
-        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(named_types.first, build_type_binding(named_types.first))
-        list_structures = type_candidates.map { Util.get_list_structure(_1) }
-
-        if list_structures.any?(&:any?)
-          if list_structures.any? { _1.length != list_structures.first.length }
+        alt_structures.each do |alt_structure|
+          if alt_structure.length != basis_structure.length
             raise ComposerError, "Cannot compose mixed list structures at `#{path}`."
           end
 
-          list_structures.each(&:reverse!)
-          list_structures.first.each_with_index do |current, index|
-            # input arguments use strongest nullability, readonly fields use weakest
-            non_null = list_structures.public_send(argument_name ? :any? : :all?) do |list_structure|
-              list_structure[index].start_with?("non_null")
-            end
-
-            case current
-            when "list", "non_null_list"
-              type = type.to_list_type
-              type = type.to_non_null_type if non_null
-            when "element", "non_null_element"
-              type = type.to_non_null_type if non_null
-            end
+          if alt_structure.last[:name] != basis_structure.last[:name]
+            raise ComposerError, "Cannot compose mixed types at `#{path}`."
           end
+        end
+
+        type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
+          basis_structure.last[:name],
+          build_type_binding(basis_structure.last[:name])
+        )
+
+        basis_structure.reverse!.each_with_index do |basis, index|
+          rev_index = basis_structure.length - index - 1
+          non_null = alt_structures.each_with_object([!basis[:null]]) { |s, m| m << !s[rev_index][:null] }
+
+          type = type.to_list_type if basis[:list]
+          type = type.to_non_null_type if argument_name ? non_null.any? : non_null.all?
         end
 
         type
@@ -459,7 +456,7 @@ module GraphQL
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
             boundary_type_name = field_candidate.type.unwrap.graphql_name
-            boundary_list = Util.get_list_structure(field_candidate.type)
+            boundary_structure = Util.flatten_type_structure(field_candidate.type)
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
@@ -482,8 +479,8 @@ module GraphQL
                 raise ComposerError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
               end
 
-              argument_list = Util.get_list_structure(argument.type)
-              if argument_list.length != boundary_list.length
+              argument_structure = Util.flatten_type_structure(argument.type)
+              if argument_structure.length != boundary_structure.length
                 raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
               end
 
@@ -493,7 +490,7 @@ module GraphQL
                 "selection" => key_selections[0].name,
                 "field" => field_candidate.name,
                 "arg" => argument_name,
-                "list" => boundary_list.any?,
+                "list" => boundary_structure.first[:list],
                 "type_name" => boundary_type_name,
               }
             end

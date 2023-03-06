@@ -78,11 +78,32 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
     assert_equal "__Schema", Util.named_type_for_field_node(TestSchema, TestSchema.query, node).graphql_name
   end
 
-  def test_get_list_structure
-    assert_equal ["list", "element"], Util.get_list_structure(field_type("list1"))
-    assert_equal ["list", "non_null_element"], Util.get_list_structure(field_type("list2"))
-    assert_equal ["list", "non_null_list", "element"], Util.get_list_structure(field_type("list3"))
-    assert_equal ["list", "list", "non_null_element"], Util.get_list_structure(field_type("list4"))
+  def test_flatten_type_structure
+    expected_list1 = [
+      { list: true, null: false, name: nil },
+      { list: false, null: true, name: "String" },
+    ]
+    assert_equal expected_list1, Util.flatten_type_structure(field_type("list1"))
+
+    expected_list2 = [
+      { list: true, null: true, name: nil },
+      { list: false, null: false, name: "String" },
+    ]
+    assert_equal expected_list2, Util.flatten_type_structure(field_type("list2"))
+
+    expected_list3 = [
+      { list: true, null: true, name: nil },
+      { list: true, null: false, name: nil },
+      { list: false, null: true, name: "Int" },
+    ]
+    assert_equal expected_list3, Util.flatten_type_structure(field_type("list3"))
+
+    expected_list4 = [
+      { list: true, null: false, name: nil },
+      { list: true, null: true, name: nil },
+      { list: false, null: false, name: "Int" },
+    ]
+    assert_equal expected_list4, Util.flatten_type_structure(field_type("list4"))
   end
 
   def test_expand_abstract_type_for_interface

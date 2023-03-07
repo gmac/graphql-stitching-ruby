@@ -68,33 +68,10 @@ def extract_types_of_kind(schema, kind)
   schema.types.values.select { _1.kind.object? && !_1.graphql_name.start_with?("__") }
 end
 
-# prints a wrapped field/argument value type as GraphQL SDL
-def print_value_type(type)
-  base_name = type.unwrap.graphql_name
-  wrappers = []
-
-  while type.respond_to?(:of_type)
-    if type.is_a?(GraphQL::Schema::NonNull)
-      wrappers << :non_null
-    elsif type.is_a?(GraphQL::Schema::List)
-      wrappers << :list
-    end
-    type = type.of_type
-  end
-
-  wrappers.reverse!.reduce(base_name) do |memo, wrapper|
-    case wrapper
-    when :non_null
-      "#{memo}!"
-    when :list
-      "[#{memo}]"
-    end
-  end
-end
-
 def assert_error(pattern, klass=nil)
   begin
     yield
+    flunk "No error was raised."
   rescue StandardError => e
     if pattern.is_a?(String)
       assert e.message.include?(pattern), "Unexpected error message: #{e.message}"

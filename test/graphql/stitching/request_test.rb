@@ -37,25 +37,25 @@ describe "GraphQL::Stitching::Request" do
     assert_equal "sprocket", request2.operation.selections.first.name
   end
 
-  def test_errors_for_multiple_operations_given_without_operation_name
+  def test_operation_errors_for_multiple_operations_given_without_operation_name
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
     assert_error "An operation name is required", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new(query)
+      GraphQL::Stitching::Request.new(query).operation
     end
   end
 
-  def test_errors_for_invalid_operation_names
+  def test_operation_errors_for_invalid_operation_names
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
     assert_error "Invalid root operation", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new(query, operation_name: "Invalid")
+      GraphQL::Stitching::Request.new(query, operation_name: "Invalid").operation
     end
   end
 
-  def test_errors_for_invalid_operation_types
+  def test_operation_errors_for_invalid_operation_types
     assert_error "Invalid root operation", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new("subscription { movie }")
+      GraphQL::Stitching::Request.new("subscription { movie }").operation
     end
   end
 

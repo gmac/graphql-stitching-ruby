@@ -14,6 +14,7 @@ module GraphQL
         type
       end
 
+      # builds a single-dimensional representation of a wrapped type structure
       def self.flatten_type_structure(type)
         structure = []
 

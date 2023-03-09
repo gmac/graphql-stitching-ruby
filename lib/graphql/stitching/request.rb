@@ -87,7 +87,7 @@ module GraphQL
           end
 
           if operation_defs.length < 1
-            raise GraphQL::ExecutionError, "Invalid root operation."
+            raise GraphQL::ExecutionError, "Invalid root operation for given name and operation type."
           elsif operation_defs.length > 1
             raise GraphQL::ExecutionError, "An operation name is required when sending multiple operations."
           end

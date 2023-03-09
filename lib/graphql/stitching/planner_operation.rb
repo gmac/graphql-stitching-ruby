@@ -3,6 +3,8 @@
 module GraphQL
   module Stitching
     class PlannerOperation
+      LANGUAGE_PRINTER = GraphQL::Language::Printer.new
+
       attr_reader :key, :location, :parent_type, :type_condition, :operation_type, :insertion_path
       attr_accessor :after_key, :selections, :variables, :boundary
 
@@ -32,12 +34,12 @@ module GraphQL
 
       def selection_set
         op = GraphQL::Language::Nodes::OperationDefinition.new(selections: @selections)
-        GraphQL::Language::Printer.new.print(op).gsub!(/\s+/, " ").strip!
+        LANGUAGE_PRINTER.print(op).gsub!(/\s+/, " ").strip!
       end
 
       def variable_set
         @variables.each_with_object({}) do |(variable_name, value_type), memo|
-          memo[variable_name] = GraphQL::Language::Printer.new.print(value_type)
+          memo[variable_name] = LANGUAGE_PRINTER.print(value_type)
         end
       end
 

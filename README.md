@@ -32,7 +32,7 @@ require "graphql/stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided [`Gateway`](./docs/gateway.md) component that assembles a stitched graph ready to execute requests:
+The quickest way to start is to use the provided [`Gateway`](./docs/gateway.md) component that wraps a stitched graph in an executable workflow with [caching hooks](./docs/gateway.md#cache-hooks):
 
 ```ruby
 movies_schema = <<~GRAPHQL

@@ -9,8 +9,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = "input Test { arg:Int! } type Query { test(arg:Test!):Int }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "Int!", print_value_type(supergraph.schema.types["Test"].arguments["arg"].type)
-    assert_equal "Test!", print_value_type(supergraph.schema.types["Query"].fields["test"].arguments["arg"].type)
+    assert_equal "Int!", supergraph.schema.types["Test"].arguments["arg"].type.to_type_signature
+    assert_equal "Test!", supergraph.schema.types["Query"].fields["test"].arguments["arg"].type.to_type_signature
   end
 
   def test_merged_arguments_use_strongest_nullability
@@ -18,8 +18,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = "input Test { arg:Int } type Query { test(arg:Test!):Int }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "Int!", print_value_type(supergraph.schema.types["Test"].arguments["arg"].type)
-    assert_equal "Test!", print_value_type(supergraph.schema.types["Query"].fields["test"].arguments["arg"].type)
+    assert_equal "Int!", supergraph.schema.types["Test"].arguments["arg"].type.to_type_signature
+    assert_equal "Test!", supergraph.schema.types["Query"].fields["test"].arguments["arg"].type.to_type_signature
   end
 
   def test_merged_object_arguments_must_have_matching_named_types
@@ -45,8 +45,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = "input Test { arg:[String!]! } type Query { test(arg:[Test!]!):String }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[String!]!", print_value_type(supergraph.schema.types["Test"].arguments["arg"].type)
-    assert_equal "[Test!]!", print_value_type(supergraph.schema.types["Query"].fields["test"].arguments["arg"].type)
+    assert_equal "[String!]!", supergraph.schema.types["Test"].arguments["arg"].type.to_type_signature
+    assert_equal "[Test!]!", supergraph.schema.types["Query"].fields["test"].arguments["arg"].type.to_type_signature
   end
 
   def test_merged_arguments_use_strongest_list_structure
@@ -54,8 +54,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = "input Test { arg:[String]! } type Query { test(arg:[Test!]):String }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[String!]!", print_value_type(supergraph.schema.types["Test"].arguments["arg"].type)
-    assert_equal "[Test!]!", print_value_type(supergraph.schema.types["Query"].fields["test"].arguments["arg"].type)
+    assert_equal "[String!]!", supergraph.schema.types["Test"].arguments["arg"].type.to_type_signature
+    assert_equal "[Test!]!", supergraph.schema.types["Query"].fields["test"].arguments["arg"].type.to_type_signature
   end
 
   def test_merged_arguments_allow_deep_list_structures
@@ -63,8 +63,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = "input Test { arg:[[String]!] } type Query { test(arg:[[Test]!]):String }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[[String!]!]!", print_value_type(supergraph.schema.types["Test"].arguments["arg"].type)
-    assert_equal "[[Test!]!]!", print_value_type(supergraph.schema.types["Query"].fields["test"].arguments["arg"].type)
+    assert_equal "[[String!]!]!", supergraph.schema.types["Test"].arguments["arg"].type.to_type_signature
+    assert_equal "[[Test!]!]!", supergraph.schema.types["Query"].fields["test"].arguments["arg"].type.to_type_signature
   end
 
   def test_merged_object_arguments_must_have_matching_list_structures

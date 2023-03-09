@@ -20,13 +20,11 @@ module GraphQL
       end
 
       def operations
-        ops = @operations_by_grouping.values
-        ops.sort_by!(&:key)
-        ops
+        @operations_by_grouping.values.sort_by!(&:key)
       end
 
       def to_h
-        { "ops" => operations.map(&:to_h) }
+        { "ops" => operations.map!(&:to_h) }
       end
 
       private
@@ -250,7 +248,7 @@ module GraphQL
             possible_locations = possible_locations_by_field[node.name]
             preferred_location_score = 0
 
-            # hill climbing selects highest scoring locations to use
+            # hill-climb to select highest scoring location for each field
             preferred_location = possible_locations.reduce(possible_locations.first) do |best_location, possible_location|
               score = selections_by_location[possible_location] ? remote_selections.length : 0
               score += location_weights.fetch(possible_location, 0)
@@ -268,6 +266,8 @@ module GraphQL
           end
         end
 
+        # route from current location to target locations via boundary queries,
+        # then translate those routes into planner operations
         routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
         routes.values.each_with_object({}) do |route, ops_by_location|
           route.reduce(nil) do |parent_op, boundary|

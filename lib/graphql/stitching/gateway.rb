@@ -35,9 +35,9 @@ module GraphQL
           return error_result(validation_errors) if validation_errors.any?
         end
 
-        request.prepare!
-
         begin
+          request.prepare!
+
           plan = fetch_plan(request) do
             GraphQL::Stitching::Planner.new(
               supergraph: @supergraph,

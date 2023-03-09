@@ -49,7 +49,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     b = "type Test { field: String! } type Query { test:Test }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "String!", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
+    assert_equal "String!", supergraph.schema.types["Test"].fields["field"].type.to_type_signature
   end
 
   def test_merged_fields_use_weakest_nullability
@@ -57,7 +57,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     b = "type Test { field: String } type Query { test:Test }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "String", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
+    assert_equal "String", supergraph.schema.types["Test"].fields["field"].type.to_type_signature
   end
 
   def test_merged_fields_must_have_matching_named_types
@@ -74,7 +74,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     b = "type Test { field: [String!]! } type Query { test:Test }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[String!]!", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
+    assert_equal "[String!]!", supergraph.schema.types["Test"].fields["field"].type.to_type_signature
   end
 
   def test_merged_fields_use_weakest_list_structure
@@ -83,7 +83,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     c = "type Test { field: [String]! } type Query { test:Test }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
-    assert_equal "[String]", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
+    assert_equal "[String]", supergraph.schema.types["Test"].fields["field"].type.to_type_signature
   end
 
   def test_merged_fields_allow_deep_list_structures
@@ -91,7 +91,7 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     b = "type Test { field: [[String]!] } type Query { test:Test }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal "[[String]!]", print_value_type(supergraph.schema.types["Test"].fields["field"].type)
+    assert_equal "[[String]!]", supergraph.schema.types["Test"].fields["field"].type.to_type_signature
   end
 
   def test_merged_fields_must_have_matching_list_structures

@@ -25,6 +25,8 @@ Gemfile.lock
 .dat*
 .repl_history
 build/
+node_modules/
+package-lock.json
 *.bridgesupport
 build-iPhoneOS/
 build-iPhoneSimulator/

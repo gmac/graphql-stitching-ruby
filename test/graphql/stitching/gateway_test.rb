@@ -168,6 +168,57 @@ describe "GraphQL::Stitching::Gateway" do
     assert_equal expected_result, result
   end
 
+  def test_returns_error_for_required_operation_name
+    setup_example_gateway
+
+    queries = %|
+      query BestStorefront {
+        storefront(id: "1") { id }
+      }
+      query SecondBest {
+        storefront(id: "2") { id }
+      }
+    |
+
+    result = @gateway.execute(query: queries)
+
+    expected_errors = [
+      { "message" => "An operation name is required when sending multiple operations." },
+    ]
+    assert_equal expected_errors, result["errors"]
+  end
+
+  def test_returns_error_for_operation_name_not_found
+    setup_example_gateway
+
+    queries = %|
+      query { storefront(id: "1") { id } }
+    |
+
+    result = @gateway.execute(query: queries, operation_name: "Sfoo")
+
+    expected_errors = [
+      { "message" => "Invalid root operation for given name and operation type." },
+    ]
+    assert_equal expected_errors, result["errors"]
+  end
+
+  def test_returns_graphql_error_for_parser_failures
+    setup_example_gateway
+
+    queries = %|
+      query BestStorefront { sfoo }}
+    |
+
+    result = @gateway.execute(query: queries)
+
+    expected_errors = [{
+      "message" => "Parse error on \"}\" (RCURLY) at [2, 36]",
+      "locations"=>[{ "line" => 2, "column" => 36 }],
+    }]
+    assert_equal expected_errors, result["errors"]
+  end
+
   def test_location_with_executable
     static_remote_data = { "data" => { "storefront" => { "id" => "10000" } } }
 
@@ -276,7 +327,6 @@ describe "GraphQL::Stitching::Gateway" do
 
     expected_errors = [{
       "message" => "An unexpected error occured.",
-      "path" => [],
     }]
 
     assert_nil result["data"]
@@ -302,7 +352,6 @@ describe "GraphQL::Stitching::Gateway" do
 
     expected_errors = [{
       "message" => "An error occured. Request id: R2d2c3P0",
-      "path" => [],
     }]
 
     assert_nil result["data"]

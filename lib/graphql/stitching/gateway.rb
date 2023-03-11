@@ -35,25 +35,25 @@ module GraphQL
           return error_result(validation_errors) if validation_errors.any?
         end
 
-        begin
-          request.prepare!
+        request.prepare!
 
-          plan = fetch_plan(request) do
-            GraphQL::Stitching::Planner.new(
-              supergraph: @supergraph,
-              request: request,
-            ).perform.to_h
-          end
-
-          GraphQL::Stitching::Executor.new(
+        plan = fetch_plan(request) do
+          GraphQL::Stitching::Planner.new(
             supergraph: @supergraph,
             request: request,
-            plan: plan,
-          ).perform
-        rescue StandardError => e
-          custom_message = @on_error.call(e, request.context) if @on_error
-          error_result([{ "message" => custom_message || "An unexpected error occured." }])
+          ).perform.to_h
         end
+
+        GraphQL::Stitching::Executor.new(
+          supergraph: @supergraph,
+          request: request,
+          plan: plan,
+        ).perform
+      rescue GraphQL::ParseError, GraphQL::ExecutionError => e
+        error_result([e])
+      rescue StandardError => e
+        custom_message = @on_error.call(e, request.context) if @on_error
+        error_result([{ "message" => custom_message || "An unexpected error occured." }])
       end
 
       def on_cache_read(&block)
@@ -89,10 +89,8 @@ module GraphQL
       end
 
       def error_result(errors)
-        public_errors = errors.map do |e|
-          public_error = e.is_a?(Hash) ? e : e.to_h
-          public_error["path"] ||= []
-          public_error
+        public_errors = errors.map! do |e|
+          e.is_a?(Hash) ? e : e.to_h
         end
 
         { "errors" => public_errors }

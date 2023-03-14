@@ -4,7 +4,7 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Planner, root operations" do
 
-  def setup
+  def setup_supergraph
     @widgets_sdl = "
       type Widget { id:ID! }
       type Query { widget: Widget }
@@ -24,6 +24,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
   end
 
   def test_plans_query_operations_by_async_location_groups
+    setup_supergraph
     document = "
       query {
         a: widget { id }
@@ -56,6 +57,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
   end
 
   def test_plans_mutation_operations_by_serial_location_groups
+    setup_supergraph
     document = "
       mutation {
         a: makeWidget { id }
@@ -93,5 +95,35 @@ describe "GraphQL::Stitching::Planner, root operations" do
     assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selection_set
     assert_equal second.key, third.after_key
     assert_nil third.type_condition
+  end
+
+  def test_plans_root_fields_to_their_prioritized_location
+    sdl = %|
+      type Query { a: String b: String c: String }
+      type Mutation { a: String b: String c: String }
+    |
+
+    supergraph = compose_definitions({ "a" => sdl, "b" => sdl, "c" => sdl }, {
+      root_field_location_selector: ->(field_name, locations) { field_name }
+    })
+
+    ["query", "mutation"].each do |operation_type|
+      plan = GraphQL::Stitching::Planner.new(
+        supergraph: supergraph,
+        request: GraphQL::Stitching::Request.new("#{operation_type} { a b c }"),
+      ).perform
+
+      first = plan.operations[0]
+      assert_equal "a", first.location
+      assert_equal "a", first.selections.first.name
+
+      second = plan.operations[1]
+      assert_equal "b", second.location
+      assert_equal "b", second.selections.first.name
+
+      third = plan.operations[2]
+      assert_equal "c", third.location
+      assert_equal "c", third.selections.first.name
+    end
   end
 end

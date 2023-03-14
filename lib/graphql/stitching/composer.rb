@@ -6,9 +6,10 @@ module GraphQL
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
 
-      attr_reader :query_name, :mutation_name, :subschema_types_by_name_and_location, :schema_directives
+      attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
 
       DEFAULT_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
+      DEFAULT_ROOT_FIELD_LOCATION_SELECTOR = ->(field_name, locations) { locations.last }
 
       VALIDATORS = [
         "ValidateInterfaces",
@@ -20,13 +21,15 @@ module GraphQL
         mutation_name: "Mutation",
         description_merger: nil,
         deprecation_merger: nil,
-        directive_kwarg_merger: nil
+        directive_kwarg_merger: nil,
+        root_field_location_selector: nil
       )
         @query_name = query_name
         @mutation_name = mutation_name
         @description_merger = description_merger || DEFAULT_VALUE_MERGER
         @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
+        @root_field_location_selector = root_field_location_selector || DEFAULT_ROOT_FIELD_LOCATION_SELECTOR
       end
 
       def perform(locations_input)
@@ -34,7 +37,7 @@ module GraphQL
         schemas, executables = prepare_locations_input(locations_input)
 
         # "directive_name" => "location" => candidate_directive
-        @subschema_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
+        @candidate_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
@@ -42,14 +45,14 @@ module GraphQL
         end
 
         # "Typename" => merged_directive
-        @schema_directives = @subschema_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
+        @schema_directives = @candidate_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
           memo[directive_name] = build_directive(directive_name, directives_by_location)
         end
 
         @schema_directives.merge!(GraphQL::Schema.default_directives)
 
         # "Typename" => "location" => candidate_type
-        @subschema_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
+        @candidate_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
@@ -74,7 +77,7 @@ module GraphQL
         enum_usage = build_enum_usage_map(schemas.values)
 
         # "Typename" => merged_type
-        schema_types = @subschema_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
+        schema_types = @candidate_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.uniq
 
           if kinds.length > 1
@@ -110,6 +113,7 @@ module GraphQL
           own_orphan_types.clear
         end
 
+        select_root_field_locations(schema)
         expand_abstract_boundaries(schema)
 
         supergraph = Supergraph.new(
@@ -498,13 +502,28 @@ module GraphQL
         end
       end
 
+      def select_root_field_locations(schema)
+        [schema.query, schema.mutation].tap(&:compact!).each do |root_type|
+          root_type.fields.each do |root_field_name, root_field|
+            root_field_locations = @field_map[root_type.graphql_name][root_field_name]
+            next unless root_field_locations.length > 1
+
+            target_location = @root_field_location_selector.call(root_field_name, root_field_locations)
+            next unless root_field_locations.include?(target_location)
+
+            root_field_locations.reject! { _1 == target_location }
+            root_field_locations.unshift(target_location)
+          end
+        end
+      end
+
       def expand_abstract_boundaries(schema)
         @boundary_map.keys.each do |type_name|
           boundary_type = schema.types[type_name]
           next unless boundary_type.kind.abstract?
 
           expanded_types = Util.expand_abstract_type(schema, boundary_type)
-          expanded_types.select { @subschema_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
+          expanded_types.select { @candidate_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
             @boundary_map[expanded_type.graphql_name] ||= []
             @boundary_map[expanded_type.graphql_name].push(*@boundary_map[type_name])
           end
@@ -555,7 +574,7 @@ module GraphQL
         @field_map = {}
         @boundary_map = {}
         @mapped_type_names = {}
-        @subschema_directives_by_name_and_location = nil
+        @candidate_directives_by_name_and_location = nil
         @schema_directives = nil
       end
     end

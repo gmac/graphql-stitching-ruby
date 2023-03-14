@@ -12,21 +12,21 @@ module GraphQL
           next if type.graphql_name.start_with?("__")
 
           # multiple subschemas implement the type
-          subschema_types_by_location = composer.subschema_types_by_name_and_location[type_name]
-          next unless subschema_types_by_location.length > 1
+          candidate_types_by_location = composer.candidate_types_by_name_and_location[type_name]
+          next unless candidate_types_by_location.length > 1
 
           boundaries = ctx.boundaries[type_name]
           if boundaries&.any?
-            validate_as_boundary(ctx, type, subschema_types_by_location, boundaries)
+            validate_as_boundary(ctx, type, candidate_types_by_location, boundaries)
           elsif type.kind.object?
-            validate_as_shared(ctx, type, subschema_types_by_location)
+            validate_as_shared(ctx, type, candidate_types_by_location)
           end
         end
       end
 
       private
 
-      def validate_as_boundary(ctx, type, subschema_types_by_location, boundaries)
+      def validate_as_boundary(ctx, type, candidate_types_by_location, boundaries)
         # abstract boundaries are expanded with their concrete implementations, which each get validated. Ignore the abstract itself.
         return if type.kind.abstract?
 
@@ -42,19 +42,19 @@ module GraphQL
         end
 
         boundary_keys = boundaries.map { _1["selection"] }.uniq
-        key_only_types_by_location = subschema_types_by_location.select do |location, subschema_type|
+        key_only_types_by_location = candidate_types_by_location.select do |location, subschema_type|
           subschema_type.fields.keys.length == 1 && boundary_keys.include?(subschema_type.fields.keys.first)
         end
 
         # all locations have a boundary, or else are key-only
-        subschema_types_by_location.each do |location, subschema_type|
+        candidate_types_by_location.each do |location, subschema_type|
           unless boundaries_by_location_and_key[location] || key_only_types_by_location[location]
             raise Composer::ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{location} because it provides unique fields."
           end
         end
 
         outbound_access_locations = key_only_types_by_location.keys
-        bidirectional_access_locations = subschema_types_by_location.keys - outbound_access_locations
+        bidirectional_access_locations = candidate_types_by_location.keys - outbound_access_locations
 
         # verify that all outbound locations can access all inbound locations
         (outbound_access_locations + bidirectional_access_locations).each do |location|
@@ -67,7 +67,7 @@ module GraphQL
         end
       end
 
-      def validate_as_shared(ctx, type, subschema_types_by_location)
+      def validate_as_shared(ctx, type, candidate_types_by_location)
         expected_fields = begin
           type.fields.keys.sort
         rescue StandardError => e
@@ -79,7 +79,7 @@ module GraphQL
           end
         end
 
-        subschema_types_by_location.each do |location, subschema_type|
+        candidate_types_by_location.each do |location, subschema_type|
           if subschema_type.fields.keys.sort != expected_fields
             raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations, "\
               "or else define boundary queries so that its unique fields may be accessed remotely."

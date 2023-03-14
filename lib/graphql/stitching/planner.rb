@@ -39,10 +39,8 @@ module GraphQL
 
           selections_by_location = @request.operation.selections.each_with_object({}) do |node, memo|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-
-            # root fields currently just delegate to the last location that defined them; this should probably be smarter
-            memo[locations.last] ||= []
-            memo[locations.last] << node
+            memo[locations.first] ||= []
+            memo[locations.first] << node
           end
 
           selections_by_location.each do |location, selections|
@@ -53,8 +51,7 @@ module GraphQL
           parent_type = @supergraph.schema.mutation
 
           location_groups = @request.operation.selections.each_with_object([]) do |node, memo|
-            # root fields currently just delegate to the last location that defined them; this should probably be smarter
-            next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].last
+            next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
             if memo.none? || memo.last[:location] != next_location
               memo << { location: next_location, selections: [] }

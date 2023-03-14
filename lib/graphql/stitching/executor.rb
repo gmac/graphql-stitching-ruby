@@ -58,9 +58,7 @@ module GraphQL
         def fetch(ops)
           origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
             origin_set = op["insertion_path"].reduce([@executor.data]) do |set, path_segment|
-              mapped = set.flat_map { |obj| obj && obj[path_segment] }
-              mapped.compact!
-              mapped
+              set.flat_map { |obj| obj && obj[path_segment] }.tap(&:compact!)
             end
 
             if op["type_condition"]

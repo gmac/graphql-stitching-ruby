@@ -13,6 +13,7 @@ composer = GraphQL::Stitching::Composer.new(
   description_merger: ->(values_by_location, info) { values_by_location.values.join("\n") },
   deprecation_merger: ->(values_by_location, info) { values_by_location.values.first },
   directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
+  root_field_location_selector: ->(field_name, locations) { locations.last },
 )
 ```
 
@@ -27,6 +28,8 @@ Constructor arguments:
 - **`deprecation_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element deprecation strings from across locations.
 
 - **`directive_kwarg_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging directive keyword arguments from across locations.
+
+- **`root_field_location_selector:`** _optional_, selects a default routing location for root fields with multiple locations. Use this to prioritize sending root fields to their primary data sources (only applies while routing the root operation scope). This handler receives a root field name and an array of possible locations, and should return the prioritized location. The last location is used by default.
 
 #### Value merger functions
 

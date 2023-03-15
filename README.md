@@ -5,7 +5,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 ![Stitched graph](./docs/images/stitching.png)
 
 **Supports:**
-- Merged object and interface types.
+- Merged object and abstract types.
 - Multiple keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
@@ -70,9 +70,9 @@ result = gateway.execute(
 )
 ```
 
-Schemas provided to the `Gateway` constructor may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
+Schemas provided as [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
 
-While the [`Gateway`](./docs/gateway.md) constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
+While the `Gateway` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
@@ -148,7 +148,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible (more on arguments later).
 
-Each location that provides a unique variant of a type must provide _exactly one_ stitching query per possible key (more on multiple keys later). The exception to this requirement are types that contain only a single key field:
+Each location that provides a unique variant of a type must provide one stitching query per key. The exception to this requirement are types that contain only a single key field:
 
 ```graphql
 type Product {
@@ -166,6 +166,9 @@ It's okay ([even preferable](https://www.youtube.com/watch?v=VmK0KBHTcWs) in man
 type Query {
   products(ids: [ID!]!): [Product]! @stitch(key: "id")
 }
+
+# input:  ["1", "2", "3"]
+# result: [{ id: "1" }, null, { id: "3" }]
 ```
 
 #### Abstract queries

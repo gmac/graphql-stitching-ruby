@@ -36,7 +36,7 @@ Constructor arguments:
 Static data values such as element descriptions and directive arguments must also merge across locations. By default, the first non-null value encountered for a given element attribute is used. A value merger function may customize this process by selecting a different value or computing a new one:
 
 ```ruby
-supergraph = GraphQL::Stitching::Composer.new(
+composer = GraphQL::Stitching::Composer.new(
   description_merger: ->(values_by_location, info) { values_by_location.values.compact.join("\n") },
 )
 ```

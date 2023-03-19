@@ -171,6 +171,8 @@ type Query {
 # result: [{ id: "1" }, null, { id: "3" }]
 ```
 
+See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
+
 #### Abstract queries
 
 It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types. For interfaces, the key selection should match a field within the interface. For unions, all possible types must implement the key selection individually.
@@ -336,6 +338,13 @@ The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable 
 ## Concurrency
 
 The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based implementation of `GraphQL::Dataloader`. Non-blocking concurrency requires setting a fiber scheduler via `Fiber.set_scheduler`, see [graphql-ruby docs](https://graphql-ruby.org/dataloader/nonblocking.html). You may also need to build your own remote clients using corresponding HTTP libraries.
+
+## Additional topics
+
+- [Field selection routing](./docs/mechanics.md#field-selection-routing)
+- [Root selection routing](./docs/mechanics.md#root-selection-routing)
+- [Stitched errors](./docs/mechanics.md#stitched-errors)
+- [Null results](./docs/mechanics.md#null-results)
 
 ## Example
 

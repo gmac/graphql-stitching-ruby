@@ -276,10 +276,8 @@ module GraphQL
         routes.values.each_with_object({}) do |route, ops_by_location|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
-            new_operation = false
 
             unless op = ops_by_location[location]
-              new_operation = true
               op = ops_by_location[location] = add_operation(
                 location: location,
                 # routing locations added as intermediaries have no initial selections,
@@ -295,7 +293,7 @@ module GraphQL
             foreign_key = "_STITCH_#{boundary["selection"]}"
             parent_selections = parent_op ? parent_op.selections : locale_selections
 
-            if new_operation || parent_selections.none? { _1.is_a?(GraphQL::Language::Nodes::Field) && _1.alias == foreign_key }
+            if parent_selections.none? { _1.is_a?(GraphQL::Language::Nodes::Field) && _1.alias == foreign_key }
               foreign_key_node = GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["selection"])
               parent_selections << foreign_key_node << TYPENAME_NODE
             end

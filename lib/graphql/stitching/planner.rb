@@ -216,7 +216,7 @@ module GraphQL
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
 
-        # distribute unique fields among required locations
+        # 1. distribute unique fields among required locations
         remote_selections.reject! do |node|
           possible_locations = possible_locations_by_field[node.name]
           if possible_locations.length == 1
@@ -226,13 +226,22 @@ module GraphQL
           end
         end
 
-        # distribute non-unique fields among available locations, preferring locations already used
+        # 2. distribute non-unique fields among locations that are already used
+        if selections_by_location.any? && remote_selections.any?
+          remote_selections.reject! do |node|
+            used_location = possible_locations_by_field[node.name].find { selections_by_location[_1] }
+            if used_location
+              selections_by_location[used_location] << node
+              true
+            end
+          end
+        end
+
+        # 3. distribute remaining fields among locations weighted by greatest availability
         if remote_selections.any?
-          # weight locations by number of required fields available, preferring greater availability
-          location_weights = if remote_selections.length > 1
+          field_count_by_location = if remote_selections.length > 1
             remote_selections.each_with_object({}) do |node, memo|
-              possible_locations = possible_locations_by_field[node.name]
-              possible_locations.each do |location|
+              possible_locations_by_field[node.name].each do |location|
                 memo[location] ||= 0
                 memo[location] += 1
               end
@@ -243,18 +252,16 @@ module GraphQL
 
           remote_selections.each do |node|
             possible_locations = possible_locations_by_field[node.name]
-            preferred_location_score = 0
+            preferred_location = possible_locations.first
 
-            # hill-climb to select highest scoring location for each field
-            preferred_location = possible_locations.reduce(possible_locations.first) do |best_location, possible_location|
-              score = selections_by_location[possible_location] ? remote_selections.length : 0
-              score += location_weights.fetch(possible_location, 0)
+            possible_locations.reduce(0) do |max_availability, possible_location|
+              available_fields = field_count_by_location.fetch(possible_location, 0)
 
-              if score > preferred_location_score
-                preferred_location_score = score
-                possible_location
+              if available_fields > max_availability
+                preferred_location = possible_location
+                available_fields
               else
-                best_location
+                max_availability
               end
             end
 

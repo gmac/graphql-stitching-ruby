@@ -70,7 +70,7 @@ result = gateway.execute(
 )
 ```
 
-Schemas provided as [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
+Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
 
 While the `Gateway` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
@@ -170,6 +170,8 @@ type Query {
 # input:  ["1", "2", "3"]
 # result: [{ id: "1" }, null, { id: "3" }]
 ```
+
+See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
 
 #### Abstract queries
 
@@ -336,6 +338,13 @@ The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable 
 ## Concurrency
 
 The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based implementation of `GraphQL::Dataloader`. Non-blocking concurrency requires setting a fiber scheduler via `Fiber.set_scheduler`, see [graphql-ruby docs](https://graphql-ruby.org/dataloader/nonblocking.html). You may also need to build your own remote clients using corresponding HTTP libraries.
+
+## Additional topics
+
+- [Field selection routing](./docs/mechanics.md#field-selection-routing)
+- [Root selection routing](./docs/mechanics.md#root-selection-routing)
+- [Stitched errors](./docs/mechanics.md#stitched-errors)
+- [Null results](./docs/mechanics.md#null-results)
 
 ## Example
 

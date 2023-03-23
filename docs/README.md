@@ -12,3 +12,7 @@ Major components include:
 - [Request](./request.md) - prepares a requested GraphQL document and variables for stitching.
 - [Planner](./planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./executor.md) - executes a query plan with given request variables.
+
+Additional topics:
+
+- [Stitching mechanics](./mechanics.md) - learn more about building for stitching.

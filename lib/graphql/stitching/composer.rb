@@ -9,7 +9,7 @@ module GraphQL
       attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
 
       DEFAULT_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
-      DEFAULT_ROOT_FIELD_LOCATION_SELECTOR = ->(field_name, locations) { locations.last }
+      DEFAULT_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
       VALIDATORS = [
         "ValidateInterfaces",
@@ -508,7 +508,10 @@ module GraphQL
             root_field_locations = @field_map[root_type.graphql_name][root_field_name]
             next unless root_field_locations.length > 1
 
-            target_location = @root_field_location_selector.call(root_field_name, root_field_locations)
+            target_location = @root_field_location_selector.call(root_field_locations, {
+              type_name: root_type.graphql_name,
+              field_name: root_field_name,
+            })
             next unless root_field_locations.include?(target_location)
 
             root_field_locations.reject! { _1 == target_location }

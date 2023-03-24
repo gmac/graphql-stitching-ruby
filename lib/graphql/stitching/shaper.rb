@@ -25,11 +25,11 @@ module GraphQL
         selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next if node.name.start_with?("__")
+            next if introspection_field?(parent_type, node)
 
             field_name = node.alias || node.name
             node_type = parent_type.fields[node.name].type
-            named_type = Util.named_type_for_field_node(@schema, parent_type, node)
+            named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
               resolve_list_scope(raw_object[field_name], Util.unwrap_non_null(node_type), node.selections)
@@ -91,6 +91,19 @@ module GraphQL
         return nil if contains_null && next_node_type.non_null?
 
         resolved_list
+      end
+
+      def introspection_field?(parent_type, node)
+        return false unless node.name.start_with?("__")
+
+        case node.name
+        when "__typename"
+          true
+        when "__schema", "__type"
+          parent_type == @schema.query
+        else
+          false
+        end
       end
 
       def typename_in_type?(typename, type)

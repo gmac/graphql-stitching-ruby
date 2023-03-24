@@ -23,8 +23,8 @@ describe 'GraphQL::Stitching, introspection' do
     assert_equal expected_types.sort, introspection_types.sort
   end
 
-  def test_performs_partial_introspection_with_other_stitching
-    query = <<~GRAPHQL
+  def test_performs_schema_introspection_with_other_stitching
+    result = plan_and_execute(@supergraph, %|
       {
         __schema {
           queryType { name }
@@ -34,9 +34,7 @@ describe 'GraphQL::Stitching, introspection' do
           manufacturer { name }
         }
       }
-    GRAPHQL
-
-    result = plan_and_execute(@supergraph, query)
+    |)
 
     expected = {
       "data" => {
@@ -44,6 +42,38 @@ describe 'GraphQL::Stitching, introspection' do
           "queryType" => {
             "name" => "Query",
           },
+        },
+        "product" => {
+          "name" => "iPhone",
+          "manufacturer" => {
+            "name" => "Apple",
+          },
+        },
+      },
+    }
+
+    assert_equal expected, result
+  end
+
+  def test_performs_type_introspection_with_other_stitching
+    result = plan_and_execute(@supergraph, %|
+      {
+        __type(name: "Product") {
+          name
+          kind
+        }
+        product(upc: "1") {
+          name
+          manufacturer { name }
+        }
+      }
+    |)
+
+    expected = {
+      "data" => {
+        "__type" => {
+          "name" => "Product",
+          "kind" => "OBJECT",
         },
         "product" => {
           "name" => "iPhone",

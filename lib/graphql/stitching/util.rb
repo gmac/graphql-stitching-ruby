@@ -38,12 +38,16 @@ module GraphQL
       end
 
       # gets a named type for a field node, including hidden root introspections
-      def self.named_type_for_field_node(schema, parent_type, node)
-        if node.name == "__schema" && parent_type == schema.query
-          schema.types["__Schema"]
-        else
-          parent_type.fields[node.name].type.unwrap
+      def self.type_for_field_node(schema, parent_type, node)
+        if parent_type == schema.query
+          case node.name
+          when "__schema"
+            return schema.types["__Schema"]
+          when "__type"
+            return schema.types["__Type"]
+          end
         end
+        parent_type.fields[node.name].type
       end
 
       # expands interfaces and unions to an array of their memberships

@@ -46,6 +46,7 @@ module GraphQL
         @boundaries = boundaries
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
+        @cached_fields_by_schema_type = {}
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
@@ -79,6 +80,26 @@ module GraphQL
           "fields" => fields,
           "boundaries" => @boundaries,
         }
+      end
+
+      # a stable cache for the compiled schema.types hash
+      def cached_schema_types
+        @cached_schema_types ||= @schema.types
+      end
+
+      # a stable cache for the compiled member.fields hash of each type
+      def cached_fields_for_schema_type(type_name)
+        @cached_fields_by_schema_type[type_name] ||= begin
+          fields = cached_schema_types[type_name].fields
+          fields["__typename"] = @schema.introspection_system.dynamic_field(name: "__typename")
+
+          if type_name == @schema.query.graphql_name
+            fields["__schema"] = @schema.introspection_system.entry_point(name: "__schema")
+            fields["__type"] = @schema.introspection_system.entry_point(name: "__type")
+          end
+
+          fields
+        end
       end
 
       def execute_at_location(location, source, variables, context)

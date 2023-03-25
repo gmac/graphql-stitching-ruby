@@ -4,14 +4,15 @@
 module GraphQL
   module Stitching
     class Shaper
-      def initialize(schema:, request:)
-        @schema = schema
+      def initialize(supergraph:, request:)
+        @supergraph = supergraph
+        @schema = supergraph.schema
         @request = request
       end
 
       def perform!(raw)
-        root_type = @schema.public_send(@request.operation.operation_type)
-        resolve_object_scope(raw, root_type, @request.operation.selections)
+        @root_type = @schema.root_type_for_operation(@request.operation.operation_type)
+        resolve_object_scope(raw, @root_type, @request.operation.selections, @root_type.graphql_name)
       end
 
       private
@@ -25,10 +26,13 @@ module GraphQL
         selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            next if introspection_field?(parent_type, node)
-
             field_name = node.alias || node.name
-            node_type = parent_type.fields[node.name].type
+
+            next if introspection_field?(parent_type, node) do |is_root_typename|
+              raw_object[field_name] = @root_type.graphql_name if is_root_typename
+            end
+
+            node_type = @supergraph.cached_fields_for_schema_type(parent_type.graphql_name)[node.name].type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
@@ -42,7 +46,7 @@ module GraphQL
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = @schema.types[node.type.name]
+            fragment_type = @supergraph.cached_schema_types[node.type.name]
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
@@ -50,7 +54,7 @@ module GraphQL
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
-            fragment_type = @schema.types[fragment.type.name]
+            fragment_type = @supergraph.cached_schema_types[fragment.type.name]
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
@@ -95,12 +99,14 @@ module GraphQL
 
       def introspection_field?(parent_type, node)
         return false unless node.name.start_with?("__")
+        is_root = parent_type == @root_type
 
         case node.name
         when "__typename"
+          yield(is_root)
           true
         when "__schema", "__type"
-          parent_type == @schema.query
+          is_root && @request.operation.operation_type == "query"
         else
           false
         end

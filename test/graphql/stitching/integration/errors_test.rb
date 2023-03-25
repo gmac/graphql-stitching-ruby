@@ -10,7 +10,7 @@ describe 'GraphQL::Stitching, errors' do
       "b" => Schemas::Errors::ElementsB,
     })
 
-    @query = <<~GRAPHQL
+    @query = %|
       query($ids: [ID!]!) {
         elementsA(ids: $ids) {
           name
@@ -18,7 +18,7 @@ describe 'GraphQL::Stitching, errors' do
           year
         }
       }
-    GRAPHQL
+    |
   end
 
   def test_queries_merged_interfaces

@@ -44,6 +44,18 @@ def compose_definitions(locations, options={})
   GraphQL::Stitching::Composer.new(**options).perform(locations)
 end
 
+def supergraph_from_schema(schema)
+  GraphQL::Stitching::Supergraph.from_export(
+    schema: schema,
+    delegation_map: {
+      "locations" => [],
+      "fields" => {},
+      "boundaries" => {},
+    },
+    executables: {},
+  )
+end
+
 def plan_and_execute(supergraph, query, variables={}, raw: false)
   request = GraphQL::Stitching::Request.new(query, variables: variables)
 

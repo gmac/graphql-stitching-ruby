@@ -70,12 +70,12 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
 
   def test_named_type_for_field_node_with_schema_field
     node = GraphQL.parse("{ first }").definitions.first.selections.first
-    assert_equal "FirstObject", Util.named_type_for_field_node(TestSchema, TestSchema.query, node).graphql_name
+    assert_equal "FirstObject", Util.type_for_field_node(TestSchema, TestSchema.query, node).unwrap.graphql_name
   end
 
   def test_named_type_for_field_node_with_introspection_field
     node = GraphQL.parse("{ __schema }").definitions.first.selections.first
-    assert_equal "__Schema", Util.named_type_for_field_node(TestSchema, TestSchema.query, node).graphql_name
+    assert_equal "__Schema", Util.type_for_field_node(TestSchema, TestSchema.query, node).unwrap.graphql_name
   end
 
   def test_flatten_type_structure

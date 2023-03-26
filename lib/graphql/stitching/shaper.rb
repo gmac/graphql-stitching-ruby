@@ -31,7 +31,7 @@ module GraphQL
               raw_object[field_name] = @root_type.graphql_name if is_root_typename
             end
 
-            node_type = @supergraph.cached_schema_fields(parent_type.graphql_name)[node.name].type
+            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
@@ -45,7 +45,7 @@ module GraphQL
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = @supergraph.cached_schema_types[node.type.name]
+            fragment_type = @supergraph.memoized_schema_types[node.type.name]
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
@@ -53,7 +53,7 @@ module GraphQL
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
-            fragment_type = @supergraph.cached_schema_types[fragment.type.name]
+            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
@@ -114,7 +114,7 @@ module GraphQL
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
 
-        type.kind.abstract? && @supergraph.cached_schema_possible_types(type.graphql_name).any? do |t|
+        type.kind.abstract? && @supergraph.memoized_schema_possible_types(type.graphql_name).any? do |t|
           t.graphql_name == typename
         end
       end

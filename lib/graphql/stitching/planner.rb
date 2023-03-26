@@ -175,7 +175,7 @@ module GraphQL
               next
             end
 
-            field_type = @supergraph.cached_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
+            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
             extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)
@@ -191,7 +191,7 @@ module GraphQL
           when GraphQL::Language::Nodes::InlineFragment
             next unless @supergraph.locations_by_type[node.type.name].include?(current_location)
 
-            fragment_type = @supergraph.cached_schema_types[node.type.name]
+            fragment_type = @supergraph.memoized_schema_types[node.type.name]
             selection_set = extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, after_key, locale_variables)
             locale_selections << node.merge(selections: selection_set)
             implements_fragments = true
@@ -200,7 +200,7 @@ module GraphQL
             fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
-            fragment_type = @supergraph.cached_schema_types[fragment.type.name]
+            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             selection_set = extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, after_key, locale_variables)
             locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             implements_fragments = true
@@ -357,7 +357,7 @@ module GraphQL
         end
 
         if expanded_selections
-          @supergraph.cached_schema_possible_types(parent_type.graphql_name).each do |possible_type|
+          @supergraph.memoized_schema_possible_types(parent_type.graphql_name).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
@@ -374,7 +374,7 @@ module GraphQL
         @operations_by_grouping.each do |_grouping, op|
           next unless op.boundary
 
-          boundary_type = @supergraph.cached_schema_types[op.boundary["type_name"]]
+          boundary_type = @supergraph.memoized_schema_types[op.boundary["type_name"]]
           next unless boundary_type.kind.abstract?
           next if boundary_type == op.parent_type
 

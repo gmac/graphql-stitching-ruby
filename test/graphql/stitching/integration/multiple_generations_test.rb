@@ -10,8 +10,10 @@ describe 'GraphQL::Stitching, multiple generations' do
       "storefronts" => Schemas::Example::Storefronts,
       "manufacturers" => Schemas::Example::Manufacturers,
     })
+  end
 
-    @query = <<~GRAPHQL
+  def test_resolves_multiple_generations
+    query = %|
       query($id: ID!) {
         storefront(id: $id) {
           id
@@ -27,11 +29,9 @@ describe 'GraphQL::Stitching, multiple generations' do
           }
         }
       }
-    GRAPHQL
-  end
+    |
 
-  def test_resolves_multiple_generations
-    result = plan_and_execute(@supergraph, @query, { "id" => "1" })
+    result = plan_and_execute(@supergraph, query, { "id" => "1" })
     expected = {
       "storefront" => {
         "id" => "1",
@@ -72,7 +72,7 @@ describe 'GraphQL::Stitching, multiple generations' do
   end
 
   def test_provides_raw_result_by_request
-     @query = <<~GRAPHQL
+    query = %|
       query($id: ID!) {
         storefront(id: $id) {
           products {
@@ -82,9 +82,9 @@ describe 'GraphQL::Stitching, multiple generations' do
           }
         }
       }
-    GRAPHQL
+    |
 
-    result = plan_and_execute(@supergraph, @query, { "id" => "1" }, raw: true)
+    result = plan_and_execute(@supergraph, query, { "id" => "1" }, raw: true)
     expected = {
       "storefront" => {
         "products" => [
@@ -103,6 +103,61 @@ describe 'GraphQL::Stitching, multiple generations' do
             "price"=>399.99,
           },
         ],
+      },
+    }
+
+    assert_equal expected, result.dig("data")
+  end
+
+  def test_queries_via_root_inline_fragment
+    query = %|
+      query($upc: ID!) {
+        ...on Query {
+          product(upc: $upc) {
+            manufacturer {
+              name
+              address
+            }
+          }
+        }
+      }
+    |
+
+    result = plan_and_execute(@supergraph, query, { "upc" => "1" })
+    expected = {
+      "product" => {
+        "manufacturer" => {
+          "name" => "Apple",
+          "address" => "123 Main",
+        },
+      },
+    }
+
+    assert_equal expected, result.dig("data")
+  end
+
+  def test_queries_via_root_fragment_spread
+    query = %|
+      fragment RootAttrs on Query {
+        product(upc: $upc) {
+          manufacturer {
+            name
+            address
+          }
+        }
+      }
+      query($upc: ID!) {
+        ...RootAttrs
+      }
+    |
+
+    result = plan_and_execute(@supergraph, query, { "upc" => "1" })
+    expected = {
+      "product" => {
+        "manufacturer" => {
+          "name" => "Apple",
+          "address" => "123 Main",
+        },
       },
     }
 

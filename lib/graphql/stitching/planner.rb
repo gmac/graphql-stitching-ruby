@@ -37,10 +37,11 @@ module GraphQL
         when "query"
           parent_type = @supergraph.schema.query
 
-          selections_by_location = @request.operation.selections.each_with_object({}) do |node, memo|
+          selections_by_location = {}
+          each_selection_in_type(parent_type, @request.operation.selections) do |node|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            memo[locations.first] ||= []
-            memo[locations.first] << node
+            selections_by_location[locations.first] ||= []
+            selections_by_location[locations.first] << node
           end
 
           selections_by_location.each do |location, selections|
@@ -50,14 +51,15 @@ module GraphQL
         when "mutation"
           parent_type = @supergraph.schema.mutation
 
-          location_groups = @request.operation.selections.each_with_object([]) do |node, memo|
+          location_groups = []
+          each_selection_in_type(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
-            if memo.none? || memo.last[:location] != next_location
-              memo << { location: next_location, selections: [] }
+            if location_groups.none? || location_groups.last[:location] != next_location
+              location_groups << { location: next_location, selections: [] }
             end
 
-            memo.last[:selections] << node
+            location_groups.last[:selections] << node
           end
 
           location_groups.reduce(0) do |after_key, group|
@@ -72,6 +74,27 @@ module GraphQL
 
         else
           raise "Invalid operation type."
+        end
+      end
+
+      def each_selection_in_type(parent_type, input_selections, &block)
+        input_selections.each do |node|
+          case node
+          when GraphQL::Language::Nodes::Field
+            yield(node)
+
+          when GraphQL::Language::Nodes::InlineFragment
+            next unless parent_type.graphql_name == node.type.name
+            each_selection_in_type(parent_type, node.selections, &block)
+
+          when GraphQL::Language::Nodes::FragmentSpread
+            fragment = @request.fragment_definitions[node.name]
+            next unless parent_type.graphql_name == fragment.type.name
+            each_selection_in_type(parent_type, fragment.selections, &block)
+
+          else
+            raise "Unexpected node of type #{node.class.name} in selection set."
+          end
         end
       end
 
@@ -98,11 +121,8 @@ module GraphQL
         # groupings coalesce similar operation parameters into a single operation
         # multiple operations per service may still occur with different insertion points,
         # but those will get query-batched together during execution.
-        grouping = String.new
-        grouping << after_key.to_s << "/" << location << "/" << parent_type.graphql_name
-        grouping = insertion_path.reduce(grouping) do |memo, segment|
-          memo << "/" << segment
-        end
+        grouping = String.new("#{after_key}/#{location}/#{parent_type.graphql_name}")
+        insertion_path.each { grouping << "/#{_1}" }
 
         if op = @operations_by_grouping[grouping]
           op.selections.concat(locale_selections)
@@ -155,7 +175,7 @@ module GraphQL
               next
             end
 
-            field_type = Util.type_for_field_node(@supergraph.schema, parent_type, node).unwrap
+            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
             extract_node_variables(node, locale_variables)
 
             if Util.is_leaf_type?(field_type)
@@ -171,7 +191,7 @@ module GraphQL
           when GraphQL::Language::Nodes::InlineFragment
             next unless @supergraph.locations_by_type[node.type.name].include?(current_location)
 
-            fragment_type = @supergraph.schema.types[node.type.name]
+            fragment_type = @supergraph.memoized_schema_types[node.type.name]
             selection_set = extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, after_key, locale_variables)
             locale_selections << node.merge(selections: selection_set)
             implements_fragments = true
@@ -180,7 +200,7 @@ module GraphQL
             fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
-            fragment_type = @supergraph.schema.types[fragment.type.name]
+            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             selection_set = extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, after_key, locale_variables)
             locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             implements_fragments = true
@@ -337,7 +357,7 @@ module GraphQL
         end
 
         if expanded_selections
-          @supergraph.schema.possible_types(parent_type).each do |possible_type|
+          @supergraph.memoized_schema_possible_types(parent_type.graphql_name).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)
@@ -354,7 +374,7 @@ module GraphQL
         @operations_by_grouping.each do |_grouping, op|
           next unless op.boundary
 
-          boundary_type = @supergraph.schema.types[op.boundary["type_name"]]
+          boundary_type = @supergraph.memoized_schema_types[op.boundary["type_name"]]
           next unless boundary_type.kind.abstract?
           next if boundary_type == op.parent_type
 

@@ -6,7 +6,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_basic_object_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -28,7 +28,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_single_object_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -45,7 +45,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_recursive_object_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test! }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -61,7 +61,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_basic_list_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -83,7 +83,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -105,7 +105,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_required_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -124,7 +124,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_required_lists
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!]! }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -140,7 +140,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_basic_nested_list_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -162,7 +162,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_nested_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -184,7 +184,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_nested_required_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -206,7 +206,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_for_inner_required_lists
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!] }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -225,7 +225,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubbles_null_through_nested_required_list_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!]! }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
     )
     raw = {
@@ -241,7 +241,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_bubble_through_inline_fragment
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
     )
     raw = {
@@ -266,7 +266,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       fragment Test2 on Test { ...Test1 }
     GRAPHQL
     shaper = GraphQL::Stitching::Shaper.new(
-      schema: GraphQL::Schema.from_definition(schema_sdl),
+      supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new(query),
     )
     raw = {

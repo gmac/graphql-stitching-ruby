@@ -251,7 +251,7 @@ module GraphQL
 
         if @data && @data.length > 0
           result["data"] = raw ? @data : GraphQL::Stitching::Shaper.new(
-            schema: @supergraph.schema,
+            supergraph: @supergraph,
             request: @request,
           ).perform!(@data)
         end

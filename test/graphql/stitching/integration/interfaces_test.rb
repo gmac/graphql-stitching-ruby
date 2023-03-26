@@ -12,7 +12,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_queries_merged_interface_via_concrete
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         bundles(ids: $ids) {
           id
@@ -25,7 +25,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
           }
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
 
@@ -55,7 +55,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_queries_merged_interface_via_full_interface
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         result: productsBuyables(ids: $ids) {
           id
@@ -63,7 +63,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
           price
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
 
@@ -81,7 +81,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_queries_merged_interface_via_partial_interface
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         result: bundlesBuyables(ids: $ids) {
           id
@@ -96,7 +96,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
           }
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
 
@@ -126,7 +126,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_queries_merged_split_interface
-    query1 = <<~GRAPHQL
+    query1 = %|
       query($ids: [ID!]!) {
         result: productsSplit(ids: $ids) {
           id
@@ -134,9 +134,9 @@ describe 'GraphQL::Stitching, merged interfaces' do
           price
         }
       }
-    GRAPHQL
+    |
 
-    query2 = <<~GRAPHQL
+    query2 = %|
       query($ids: [ID!]!) {
         result: bundlesSplit(ids: $ids) {
           id
@@ -144,7 +144,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
           price
         }
       }
-    GRAPHQL
+    |
 
     result1 = plan_and_execute(@supergraph, query1, { "ids" => ["100", "200"] })
     result2 = plan_and_execute(@supergraph, query2, { "ids" => ["100", "200"] })
@@ -171,7 +171,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
   end
 
   def test_merges_within_interface_fragments
-    query = <<~GRAPHQL
+    query = %|
       query($ids: [ID!]!) {
         result: nodes(ids: $ids) {
           id
@@ -180,7 +180,7 @@ describe 'GraphQL::Stitching, merged interfaces' do
           __typename
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, query, { "ids" => ["1", "100"] })
 

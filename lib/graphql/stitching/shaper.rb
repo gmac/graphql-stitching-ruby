@@ -6,12 +6,11 @@ module GraphQL
     class Shaper
       def initialize(supergraph:, request:)
         @supergraph = supergraph
-        @schema = supergraph.schema
         @request = request
       end
 
       def perform!(raw)
-        @root_type = @schema.root_type_for_operation(@request.operation.operation_type)
+        @root_type = @supergraph.schema.root_type_for_operation(@request.operation.operation_type)
         resolve_object_scope(raw, @root_type, @request.operation.selections, @root_type.graphql_name)
       end
 
@@ -32,7 +31,7 @@ module GraphQL
               raw_object[field_name] = @root_type.graphql_name if is_root_typename
             end
 
-            node_type = @supergraph.cached_fields_for_schema_type(parent_type.graphql_name)[node.name].type
+            node_type = @supergraph.cached_schema_fields(parent_type.graphql_name)[node.name].type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
@@ -114,7 +113,10 @@ module GraphQL
 
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
-        type.kind.abstract? && @schema.possible_types(type).any? { _1.graphql_name == typename }
+
+        type.kind.abstract? && @supergraph.cached_schema_possible_types(type.graphql_name).any? do |t|
+          t.graphql_name == typename
+        end
       end
     end
   end

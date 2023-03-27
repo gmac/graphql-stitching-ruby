@@ -40,6 +40,7 @@ module GraphQL
       end
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
+      attr_accessor :memoization
 
       def initialize(schema:, fields:, boundaries:, executables:)
         @schema = schema
@@ -48,6 +49,7 @@ module GraphQL
         @possible_keys_by_type_and_location = {}
         @memoized_schema_possible_types = {}
         @memoized_schema_fields = {}
+        @memoization = true
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
@@ -84,14 +86,17 @@ module GraphQL
       end
 
       def memoized_schema_types
+        return @schema.types unless @memoization
         @memoized_schema_types ||= @schema.types
       end
 
-      def memoized_schema_possible_types(type_name)
+      def memoized_schema_possible_types(type_name, type)
+        return @schema.possible_types(type) unless @memoization
         @memoized_schema_possible_types[type_name] ||= @schema.possible_types(memoized_schema_types[type_name])
       end
 
-      def memoized_schema_fields(type_name)
+      def memoized_schema_fields(type_name, type)
+        return type.fields unless @memoization
         @memoized_schema_fields[type_name] ||= begin
           fields = memoized_schema_types[type_name].fields
           fields["__typename"] = @schema.introspection_system.dynamic_field(name: "__typename")

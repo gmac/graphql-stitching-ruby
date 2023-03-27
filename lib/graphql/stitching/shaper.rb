@@ -31,7 +31,7 @@ module GraphQL
               raw_object[field_name] = @root_type.graphql_name if is_root_typename
             end
 
-            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
+            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name, parent_type)[node.name].type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
@@ -114,7 +114,7 @@ module GraphQL
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
 
-        type.kind.abstract? && @supergraph.memoized_schema_possible_types(type.graphql_name).any? do |t|
+        type.kind.abstract? && @supergraph.memoized_schema_possible_types(type.graphql_name, type).any? do |t|
           t.graphql_name == typename
         end
       end

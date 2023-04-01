@@ -9,7 +9,7 @@ module GraphQL
       def initialize(supergraph:, request:)
         @supergraph = supergraph
         @request = request
-        @sequence_key = 0
+        @planning_order = 0
         @operations_by_grouping = {}
       end
 
@@ -20,7 +20,7 @@ module GraphQL
       end
 
       def operations
-        @operations_by_grouping.values.sort_by!(&:key)
+        @operations_by_grouping.values.sort_by!(&:order)
       end
 
       def to_h
@@ -62,14 +62,14 @@ module GraphQL
             location_groups.last[:selections] << node
           end
 
-          location_groups.reduce(0) do |after_key, group|
+          location_groups.reduce(0) do |after, group|
             add_operation(
               location: group[:location],
               selections: group[:selections],
               operation_type: "mutation",
               parent_type: parent_type,
-              after_key: after_key
-            ).key
+              after: after
+            ).order
           end
 
         else
@@ -107,36 +107,36 @@ module GraphQL
         selections:,
         insertion_path: [],
         operation_type: "query",
-        after_key: 0,
+        after: 0,
         boundary: nil
       )
-        parent_key = @sequence_key += 1
-        locale_variables = {}
-        locale_selections = if selections.any?
-          extract_locale_selections(location, parent_type, selections, insertion_path, parent_key, locale_variables)
-        else
-          selections
-        end
-
         # groupings coalesce similar operation parameters into a single operation
         # multiple operations per service may still occur with different insertion points,
         # but those will get query-batched together during execution.
-        grouping = String.new("#{after_key}/#{location}/#{parent_type.graphql_name}")
+        boundary_key = boundary ? boundary["key"] : "_"
+        grouping = String.new("#{after}/#{location}/#{boundary_key}/#{parent_type.graphql_name}")
         insertion_path.each { grouping << "/#{_1}" }
 
         if op = @operations_by_grouping[grouping]
-          op.selections.concat(locale_selections)
-          op.variables.merge!(locale_variables)
+          op.selections.concat(selections)
           op
         else
+          order = @planning_order += 1
+          locale_variables = {}
+          locale_selections = if selections.any?
+            extract_locale_selections(location, parent_type, selections, insertion_path, order, locale_variables)
+          else
+            selections
+          end
+
           # concrete types that are not root Query/Mutation report themselves as a type condition
           # executor must check the __typename of loaded objects to see if they match subsequent operations
           # this prevents the executor from taking action on unused fragment selections
-          type_conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.query && parent_type != @supergraph.schema.mutation
+          type_conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.root_type_for_operation(operation_type)
 
           @operations_by_grouping[grouping] = PlannerOperation.new(
-            key: parent_key,
-            after_key: after_key,
+            order: order,
+            after: after,
             location: location,
             parent_type: parent_type,
             operation_type: operation_type,
@@ -151,9 +151,8 @@ module GraphQL
 
       # extracts a selection tree that can all be fulfilled through the current planning location.
       # adjoining remote selections will fork new insertion points and extract selections at those locations.
-      def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after_key, locale_variables)
+      def extract_locale_selections(current_location, parent_type, input_selections, insertion_path, after, locale_variables, locale_selections = [])
         remote_selections = nil
-        locale_selections = []
         implements_fragments = false
 
         if parent_type.kind.interface?
@@ -182,7 +181,7 @@ module GraphQL
               locale_selections << node
             else
               insertion_path.push(node.alias || node.name)
-              selection_set = extract_locale_selections(current_location, field_type, node.selections, insertion_path, after_key, locale_variables)
+              selection_set = extract_locale_selections(current_location, field_type, node.selections, insertion_path, after, locale_variables)
               insertion_path.pop
 
               locale_selections << node.merge(selections: selection_set)
@@ -192,18 +191,26 @@ module GraphQL
             next unless @supergraph.locations_by_type[node.type.name].include?(current_location)
 
             fragment_type = @supergraph.memoized_schema_types[node.type.name]
-            selection_set = extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, after_key, locale_variables)
-            locale_selections << node.merge(selections: selection_set)
-            implements_fragments = true
+            if fragment_type == parent_type
+              extract_locale_selections(current_location, parent_type, node.selections, insertion_path, after, locale_variables, locale_selections)
+            else
+              selection_set = extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, after, locale_variables)
+              locale_selections << node.merge(selections: selection_set)
+              implements_fragments = true
+            end
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            selection_set = extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, after_key, locale_variables)
-            locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
-            implements_fragments = true
+            if fragment_type == parent_type
+              extract_locale_selections(current_location, parent_type, fragment.selections, insertion_path, after, locale_variables, locale_selections)
+            else
+              selection_set = extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, after, locale_variables)
+              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
+              implements_fragments = true
+            end
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
@@ -217,7 +224,7 @@ module GraphQL
             locale_selections,
             remote_selections,
             insertion_path,
-            after_key
+            after
           )
         end
 
@@ -232,7 +239,7 @@ module GraphQL
 
       # distributes remote selections across locations,
       # while spawning new operations for each new fulfillment.
-      def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after_key)
+      def delegate_remote_selections(current_location, parent_type, locale_selections, remote_selections, insertion_path, after)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
 
@@ -293,28 +300,24 @@ module GraphQL
         # route from current location to target locations via boundary queries,
         # then translate those routes into planner operations
         routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, selections_by_location.keys)
-        routes.values.each_with_object({}) do |route, ops_by_location|
+        routes.each_value do |route|
           route.reduce(nil) do |parent_op, boundary|
             location = boundary["location"]
 
-            unless op = ops_by_location[location]
-              op = ops_by_location[location] = add_operation(
-                location: location,
-                # routing locations added as intermediaries have no initial selections,
-                # but will be given foreign keys by subsequent operations
-                selections: selections_by_location[location] || [],
-                parent_type: parent_type,
-                insertion_path: insertion_path.dup,
-                boundary: boundary,
-                after_key: after_key,
-              )
-            end
+            op = add_operation(
+              location: location,
+              selections: selections_by_location[location] || [],
+              parent_type: parent_type,
+              insertion_path: insertion_path.dup,
+              boundary: boundary,
+              after: after,
+            )
 
-            foreign_key = "_STITCH_#{boundary["selection"]}"
+            foreign_key = "_STITCH_#{boundary["key"]}"
             parent_selections = parent_op ? parent_op.selections : locale_selections
 
             if parent_selections.none? { _1.is_a?(GraphQL::Language::Nodes::Field) && _1.alias == foreign_key }
-              foreign_key_node = GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["selection"])
+              foreign_key_node = GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["key"])
               parent_selections << foreign_key_node << TYPENAME_NODE
             end
 

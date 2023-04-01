@@ -5,8 +5,8 @@ require "test_helper"
 describe "GraphQL::Stitching::Executor, RootSource" do
   def setup
     @op = {
-      "key"=>1,
-      "after_key"=>0,
+      "order"=>1,
+      "after"=>0,
       "location"=>"products",
       "operation_type"=>"query",
       "insertion_path"=>[],

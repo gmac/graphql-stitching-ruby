@@ -86,25 +86,25 @@ describe "GraphQL::Stitching::Supergraph" do
     "Manufacturer" => [
       {
         "location" => "manufacturers",
-        "selection" => "id",
         "field" => "manufacturer",
         "arg" => "id",
+        "key" => "id",
       },
     ],
     "Product" => [
       {
         "location" => "products",
-        "selection" => "upc",
         "field" => "product",
         "arg" => "upc",
+        "key" => "upc",
       },
     ],
     "Storefront" => [
       {
         "location" => "storefronts",
-        "selection" => "id",
         "field" => "storefront",
         "arg" => "id",
+        "key" => "id",
       },
     ],
   }

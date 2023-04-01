@@ -148,9 +148,7 @@ module GraphQL
       # ("Type") => ["id", ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
-          keys = @boundaries[type_name].map { _1["selection"] }
-          keys.uniq!
-          keys
+          @boundaries[type_name].map { _1["key"] }.tap(&:uniq!)
         end
       end
 
@@ -201,7 +199,7 @@ module GraphQL
 
           @boundaries[type_name].each do |boundary|
             forward_location = boundary["location"]
-            next if current_selection != boundary["selection"]
+            next if current_selection != boundary["key"]
             next if path.any? { _1[:location] == forward_location }
 
             best_cost = costs[forward_location] || Float::INFINITY
@@ -234,8 +232,7 @@ module GraphQL
 
           paths.sort! do |a, b|
             cost_diff = a.last[:cost] - b.last[:cost]
-            next cost_diff unless cost_diff.zero?
-            a.length - b.length
+            cost_diff.zero? ? a.length - b.length : cost_diff
           end.reverse!
         end
 

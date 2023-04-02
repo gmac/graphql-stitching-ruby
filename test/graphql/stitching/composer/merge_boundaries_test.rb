@@ -10,8 +10,8 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
     expected_boundaries_map = {
       "Test" => [
-        { "location"=>"a", "selection"=>"id", "field"=>"a", "arg"=>"id", "list"=>false, "type_name"=>"Test" },
-        { "location"=>"b", "selection"=>"id", "field"=>"b", "arg"=>"ids", "list"=>true, "type_name"=>"Test" },
+        { "location"=>"a", "key"=>"id", "field"=>"a", "arg"=>"id", "list"=>false, "type_name"=>"Test" },
+        { "location"=>"b", "key"=>"id", "field"=>"b", "arg"=>"ids", "list"=>true, "type_name"=>"Test" },
       ],
     }
 
@@ -37,10 +37,10 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    assert_boundary(supergraph, "T", location: "a", selection: "upc", field: "a", arg: "upc")
-    assert_boundary(supergraph, "T", location: "b", selection: "upc", field: "b", arg: "upc")
-    assert_boundary(supergraph, "T", location: "b", selection: "id", field: "b", arg: "id")
-    assert_boundary(supergraph, "T", location: "c", selection: "id", field: "c", arg: "id")
+    assert_boundary(supergraph, "T", location: "a", key: "upc", field: "a", arg: "upc")
+    assert_boundary(supergraph, "T", location: "b", key: "upc", field: "b", arg: "upc")
+    assert_boundary(supergraph, "T", location: "b", key: "id", field: "b", arg: "id")
+    assert_boundary(supergraph, "T", location: "c", key: "id", field: "c", arg: "id")
   end
 
   def test_expands_interface_boundary_accessors_to_relevant_types
@@ -67,11 +67,11 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     assert_equal 2, supergraph.boundaries["Banana"].length
     assert_nil supergraph.boundaries["Coconut"]
 
-    assert_boundary(supergraph, "Fruit", location: "a", selection: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "a", selection: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Banana", location: "a", selection: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "b", selection: "id", field: "a", arg: "id")
-    assert_boundary(supergraph, "Banana", location: "b", selection: "id", field: "b", arg: "id")
+    assert_boundary(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_boundary(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_boundary(supergraph, "Banana", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_boundary(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
+    assert_boundary(supergraph, "Banana", location: "b", key: "id", field: "b", arg: "id")
   end
 
   def test_expands_union_boundary_accessors_to_relevant_types
@@ -99,22 +99,22 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     assert_nil supergraph.boundaries["Banana"]
     assert_nil supergraph.boundaries["Coconut"]
 
-    assert_boundary(supergraph, "Fruit", location: "a", selection: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "a", selection: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "b", selection: "id", field: "a", arg: "id")
+    assert_boundary(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_boundary(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_boundary(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
   end
 
   private
 
-  def assert_boundary(supergraph, type_name, location:, selection: nil, field: nil, arg: nil)
+  def assert_boundary(supergraph, type_name, location:, key: nil, field: nil, arg: nil)
     boundary = supergraph.boundaries[type_name].find do |b|
       conditions = []
       conditions << (b["location"] == location)
-      conditions << (b["selection"] == selection) if selection
       conditions << (b["field"] == field) if field
       conditions << (b["arg"] == arg) if arg
+      conditions << (b["key"] == key) if key
       conditions.all?
     end
-    assert boundary, "No boundary found for #{[location, type_name, selection, field, arg].join(".")}"
+    assert boundary, "No boundary found for #{[location, type_name, key, field, arg].join(".")}"
   end
 end

@@ -60,14 +60,14 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal "{ color }", second.selection_set
     assert_equal "AppleExtension", second.type_condition
     assert_equal ["fruits", "extensions"], second.insertion_path
-    assert_equal first.key, second.after_key
+    assert_equal first.order, second.after
 
     third = plan.operations[2]
     assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
     assert_equal "BananaExtension", third.type_condition
     assert_equal ["fruits", "extensions"], third.insertion_path
-    assert_equal first.key, third.after_key
+    assert_equal first.order, third.after
   end
 
   def test_plans_through_fragment_spreads
@@ -98,17 +98,17 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal "{ color }", second.selection_set
     assert_equal "AppleExtension", second.type_condition
     assert_equal ["fruits", "extensions"], second.insertion_path
-    assert_equal first.key, second.after_key
+    assert_equal first.order, second.after
 
     third = plan.operations[2]
     assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
     assert_equal "BananaExtension", third.type_condition
     assert_equal ["fruits", "extensions"], third.insertion_path
-    assert_equal first.key, third.after_key
+    assert_equal first.order, third.after
   end
 
-  def test_plans_repeat_selections_and_fragments_into_grouped_operations
+  def test_plans_repeat_selections_and_fragments_into_coalesced_groupings
     alpha = %|
       type Test { id:ID! a: String x: Int y: Int }
       type Query { testA(id: ID!): Test! @stitch(key: "id") }

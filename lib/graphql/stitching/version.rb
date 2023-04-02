@@ -2,6 +2,6 @@
 
 module GraphQL
   module Stitching
-    VERSION = "0.3.4"
+    VERSION = "0.3.5"
   end
 end

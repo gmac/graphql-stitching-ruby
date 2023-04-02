@@ -82,11 +82,11 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
     second = plan.operations[1]
     assert_equal "charlie", second.location
     assert_equal "{ c d }", second.selection_set
-    assert_equal first.key, second.after_key
+    assert_equal first.order, second.after
 
     third = plan.operations[2]
     assert_equal "echo", third.location
     assert_equal "{ e f }", third.selection_set
-    assert_equal first.key, third.after_key
+    assert_equal first.order, third.after
   end
 end

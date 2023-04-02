@@ -64,7 +64,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal "b", first.location
     assert_equal [], first.insertion_path
     assert_equal squish_string(expected_root_selection), first.selection_set
-    assert_equal 0, first.after_key
+    assert_equal 0, first.after
     assert_nil first.type_condition
     assert_nil first.boundary
 
@@ -73,9 +73,9 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal ["buyable"], second.insertion_path
     assert_equal "{ name price }", second.selection_set
     assert_equal "products", second.boundary["field"]
-    assert_equal "id", second.boundary["selection"]
+    assert_equal "id", second.boundary["key"]
     assert_equal "Product", second.type_condition
-    assert_equal first.key, second.after_key
+    assert_equal first.order, second.after
   end
 
   def test_retains_interface_selections_appropraite_to_the_location
@@ -90,7 +90,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_equal "a", first.location
     assert_equal [], first.insertion_path
     assert_equal "{ products(ids: [\"1\"]) { id name price } }", first.selection_set
-    assert_equal 0, first.after_key
+    assert_equal 0, first.after
     assert_nil first.boundary
   end
 

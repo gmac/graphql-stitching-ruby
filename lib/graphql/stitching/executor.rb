@@ -26,7 +26,7 @@ module GraphQL
             @executor.errors.concat(result["errors"])
           end
 
-          ops.map { op["key"] }
+          ops.map { op["order"] }
         end
 
         # Builds root source documents
@@ -36,12 +36,12 @@ module GraphQL
           doc << op["operation_type"]
 
           if operation_name
-            doc << " " << operation_name << "_" << op["key"].to_s
+            doc << " #{operation_name}_#{op["order"]}"
           end
 
           if op["variables"].any?
             variable_defs = op["variables"].map { |k, v| "$#{k}:#{v}" }.join(",")
-            doc << "(" << variable_defs << ")"
+            doc << "(#{variable_defs})"
           end
 
           doc << op["selections"]
@@ -81,7 +81,7 @@ module GraphQL
             @executor.errors.concat(extract_errors!(origin_sets_by_operation, errors)) if errors&.any?
           end
 
-          ops.map { origin_sets_by_operation[_1] ? _1["key"] : nil }
+          ops.map { origin_sets_by_operation[_1] ? _1["order"] : nil }
         end
 
         # Builds batched boundary queries
@@ -96,7 +96,7 @@ module GraphQL
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
             variable_defs.merge!(op["variables"])
             boundary = op["boundary"]
-            key_selection = "_STITCH_#{boundary["selection"]}"
+            key_selection = "_STITCH_#{boundary["key"]}"
 
             if boundary["list"]
               input = JSON.generate(origin_set.map { _1[key_selection] })
@@ -113,18 +113,18 @@ module GraphQL
           doc << "query" # << boundary fulfillment always uses query
 
           if operation_name
-            doc << " " << operation_name
+            doc << " #{operation_name}"
             origin_sets_by_operation.each_key do |op|
-              doc << "_" << op["key"].to_s
+              doc << "_#{op["order"]}"
             end
           end
 
           if variable_defs.any?
             variable_str = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
-            doc << "(" << variable_str << ")"
+            doc << "(#{variable_str})"
           end
 
-          doc << "{ " << query_fields.join(" ") << " }"
+          doc << "{ #{query_fields.join(" ")} }"
 
           return doc, variable_defs.keys
         end
@@ -265,7 +265,7 @@ module GraphQL
 
       private
 
-      def exec!(after_keys = [0])
+      def exec!(next_ordinals = [0])
         if @exec_cycles > @queue.length
           # sanity check... if we've exceeded queue size, then something went wrong.
           raise StitchingError, "Too many execution requests attempted."
@@ -273,7 +273,7 @@ module GraphQL
 
         @dataloader.append_job do
           tasks = @queue
-            .select { after_keys.include?(_1["after_key"]) }
+            .select { next_ordinals.include?(_1["after"]) }
             .group_by { [_1["location"], _1["boundary"].nil?] }
             .map do |(location, root_source), ops|
               if root_source
@@ -291,9 +291,8 @@ module GraphQL
       end
 
       def exec_task(task)
-        next_keys = task.load
-        next_keys.compact!
-        exec!(next_keys) if next_keys.any?
+        next_ordinals = task.load.tap(&:compact!)
+        exec!(next_ordinals) if next_ordinals.any?
       end
     end
   end

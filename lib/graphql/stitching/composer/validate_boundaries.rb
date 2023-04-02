@@ -32,16 +32,16 @@ module GraphQL
 
         # only one boundary allowed per type/location/key
         boundaries_by_location_and_key = boundaries.each_with_object({}) do |boundary, memo|
-          if memo.dig(boundary["location"], boundary["selection"])
-            raise Composer::ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["selection"]}` "\
+          if memo.dig(boundary["location"], boundary["key"])
+            raise Composer::ValidationError, "Multiple boundary queries for `#{type.graphql_name}.#{boundary["key"]}` "\
               "found in #{boundary["location"]}. Limit one boundary query per type and key in each location. "\
               "Abstract boundaries provide all possible types."
           end
           memo[boundary["location"]] ||= {}
-          memo[boundary["location"]][boundary["selection"]] = boundary
+          memo[boundary["location"]][boundary["key"]] = boundary
         end
 
-        boundary_keys = boundaries.map { _1["selection"] }.uniq
+        boundary_keys = boundaries.map { _1["key"] }.uniq
         key_only_types_by_location = candidate_types_by_location.select do |location, subschema_type|
           subschema_type.fields.keys.length == 1 && boundary_keys.include?(subschema_type.fields.keys.first)
         end

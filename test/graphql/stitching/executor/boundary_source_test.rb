@@ -5,8 +5,8 @@ require "test_helper"
 describe "GraphQL::Stitching::Executor, BoundarySource" do
   def setup
     @op1 = {
-      "key"=>2,
-      "after_key"=>1,
+      "order"=>2,
+      "after"=>1,
       "location"=>"products",
       "operation_type"=>"query",
       "insertion_path"=>["storefronts"],
@@ -15,16 +15,16 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       "variables"=>{ "lang" => "String!" },
       "boundary"=>{
         "location"=>"products",
-        "selection"=>"id",
         "field"=>"storefronts",
         "arg"=>"ids",
+        "key"=>"id",
         "list"=>true,
         "type_name"=>"Storefront"
       }
     }
     @op2 = {
-      "key"=>3,
-      "after_key"=>1,
+      "order"=>3,
+      "after"=>1,
       "location"=>"products",
       "operation_type"=>"query",
       "insertion_path"=>["storefronts", "product"],
@@ -33,9 +33,9 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       "variables"=>{ "currency" => "Currency!" },
       "boundary"=>{
         "location"=>"products",
-        "selection"=>"upc",
         "field"=>"product",
         "arg"=>"upc",
+        "key"=>"upc",
         "list"=>false,
         "type_name"=>"Product"
       }

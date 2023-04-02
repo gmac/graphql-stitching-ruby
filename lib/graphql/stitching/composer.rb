@@ -491,7 +491,7 @@ module GraphQL
               @boundary_map[boundary_type_name] ||= []
               @boundary_map[boundary_type_name] << {
                 "location" => location,
-                "selection" => key_selections[0].name,
+                "key" => key_selections[0].name,
                 "field" => field_candidate.name,
                 "arg" => argument_name,
                 "list" => boundary_structure.first[:list],

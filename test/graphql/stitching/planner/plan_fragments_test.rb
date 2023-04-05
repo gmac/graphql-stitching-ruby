@@ -110,14 +110,23 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
   def test_plans_repeat_selections_and_fragments_into_coalesced_groupings
     alpha = %|
-      type Test { id:ID! a: String x: Int y: Int }
-      type Query { testA(id: ID!): Test! @stitch(key: "id") }
+      type Test { id:ID! a: String x: Int y: Int nest: Nest! }
+      type Nest { id:ID! a: String }
+      type Query {
+        testA(id: ID!): Test! @stitch(key: "id")
+        nestA(id: ID!): Nest! @stitch(key: "id")
+      }
     |
 
     bravo = %|
       type Test { id:ID! b: String }
+      type Nest { id:ID! b: String }
       type Namespace { test: Test }
-      type Query { namespace: Namespace! testB(id: ID!): Test! @stitch(key: "id") }
+      type Query {
+        namespace: Namespace!
+        testB(id: ID!): Test! @stitch(key: "id")
+        nestB(id: ID!): Nest! @stitch(key: "id")
+      }
     |
 
     query = %|
@@ -125,7 +134,11 @@ describe "GraphQL::Stitching::Planner, fragments" do
         namespace {
           test { a }
           test { b }
-          test { ...on Test { x } ...TestAttrs }
+          test {
+            ...on Test { x }
+            ...TestAttrs
+            nest { a b }
+          }
         }
       }
       fragment TestAttrs on Test { y }
@@ -138,7 +151,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 3, plan.operations.length
 
     first = plan.operations[0]
     assert_equal "bravo", first.location
@@ -146,6 +159,11 @@ describe "GraphQL::Stitching::Planner, fragments" do
     second = plan.operations[1]
     assert_equal "alpha", second.location
     assert_equal ["namespace", "test"], second.insertion_path
-    assert_equal "{ a x y }", second.selection_set
+    assert_equal "{ a x y nest { a _STITCH_id: id _STITCH_typename: __typename } }", second.selection_set
+
+    third = plan.operations[2]
+    assert_equal "bravo", third.location
+    assert_equal ["namespace", "test", "nest"], third.insertion_path
+    assert_equal "{ b }", third.selection_set
   end
 end

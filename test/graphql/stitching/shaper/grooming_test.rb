@@ -55,9 +55,18 @@ describe "GraphQL::Stitching::Shaper, grooming" do
 
   def test_grooms_through_inline_fragments
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    query = %|
+      query {
+        test {
+          ... on Test {
+            ... { req opt }
+          }
+        }
+      }
+    |
     shaper = GraphQL::Stitching::Shaper.new(
       supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
+      request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
       "test" => {

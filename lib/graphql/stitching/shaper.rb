@@ -45,7 +45,7 @@ module GraphQL
             return nil if raw_object[field_name].nil? && node_type.non_null?
 
           when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = @supergraph.memoized_schema_types[node.type.name]
+            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)

@@ -104,8 +104,10 @@ describe "GraphQL::Stitching::Planner, root operations" do
       query {
         a: widget { id }
         b: sprocket { id }
-        ...on Query {
+        ... {
           c: widget { id }
+        }
+        ...on Query {
           d: sprocket { id }
         }
         ...RootAttrs

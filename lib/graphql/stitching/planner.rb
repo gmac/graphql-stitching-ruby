@@ -240,7 +240,7 @@ module GraphQL
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
             next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
 
-            is_same_scope = fragment_type == parent_type
+            is_same_scope = fragment_type == parent_type && !defer?(node)
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set)
 
@@ -254,7 +254,7 @@ module GraphQL
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            is_same_scope = fragment_type == parent_type
+            is_same_scope = fragment_type == parent_type && !defer?(node)
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, parent_order, locale_variables, selection_set)
 
@@ -451,6 +451,10 @@ module GraphQL
             op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
+      end
+
+      def defer?(fragment_node)
+        fragment_node.directives.any? { _1.name == "defer" }
       end
     end
   end

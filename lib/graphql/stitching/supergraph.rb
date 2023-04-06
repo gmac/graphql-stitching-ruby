@@ -4,16 +4,6 @@ module GraphQL
   module Stitching
     class Supergraph
       LOCATION = "__super"
-      INTROSPECTION_TYPES = [
-        "__Schema",
-        "__Type",
-        "__Field",
-        "__Directive",
-        "__EnumValue",
-        "__InputValue",
-        "__TypeKind",
-        "__DirectiveLocation",
-      ].freeze
 
       def self.validate_executable!(location, executable)
         return true if executable.is_a?(Class) && executable <= GraphQL::Schema
@@ -50,11 +40,10 @@ module GraphQL
         @memoized_schema_fields = {}
 
         # add introspection types into the fields mapping
-        @locations_by_type_and_field = INTROSPECTION_TYPES.each_with_object(fields) do |type_name, memo|
-          introspection_type = schema.get_type(type_name)
-          next unless introspection_type.kind.fields?
+        @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
+          next unless type.kind.fields?
 
-          memo[type_name] = introspection_type.fields.keys.each_with_object({}) do |field_name, m|
+          memo[type_name] = type.fields.keys.each_with_object({}) do |field_name, m|
             m[field_name] = [LOCATION]
           end
         end.freeze
@@ -68,7 +57,7 @@ module GraphQL
       end
 
       def fields
-        @locations_by_type_and_field.reject { |k, _v| INTROSPECTION_TYPES.include?(k) }
+        @locations_by_type_and_field.reject { |k, _v| memoized_introspection_types[k] }
       end
 
       def locations
@@ -83,6 +72,10 @@ module GraphQL
         }
       end
 
+      def memoized_introspection_types
+        @memoized_introspection_types ||= schema.introspection_system.types
+      end
+
       def memoized_schema_types
         @memoized_schema_types ||= @schema.types
       end
@@ -94,11 +87,14 @@ module GraphQL
       def memoized_schema_fields(type_name)
         @memoized_schema_fields[type_name] ||= begin
           fields = memoized_schema_types[type_name].fields
-          fields["__typename"] = @schema.introspection_system.dynamic_field(name: "__typename")
+          @schema.introspection_system.dynamic_fields.each do |field|
+            fields[field.name] ||= field # adds __typename
+          end
 
           if type_name == @schema.query.graphql_name
-            fields["__schema"] = @schema.introspection_system.entry_point(name: "__schema")
-            fields["__type"] = @schema.introspection_system.entry_point(name: "__type")
+            @schema.introspection_system.entry_points.each do |field|
+              fields[field.name] ||= field # adds __schema, __type
+            end
           end
 
           fields
@@ -188,18 +184,18 @@ module GraphQL
         costs = {}
 
         paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
-          [{ location: start_location, selection: possible_key, cost: 0 }]
+          [{ location: start_location, key: possible_key, cost: 0 }]
         end
 
         while paths.any?
           path = paths.pop
           current_location = path.last[:location]
-          current_selection = path.last[:selection]
+          current_key = path.last[:key]
           current_cost = path.last[:cost]
 
           @boundaries[type_name].each do |boundary|
             forward_location = boundary["location"]
-            next if current_selection != boundary["key"]
+            next if current_key != boundary["key"]
             next if path.any? { _1[:location] == forward_location }
 
             best_cost = costs[forward_location] || Float::INFINITY
@@ -208,7 +204,7 @@ module GraphQL
             path.pop
             path << {
               location: current_location,
-              selection: current_selection,
+              key: current_key,
               cost: current_cost,
               boundary: boundary,
             }
@@ -226,7 +222,7 @@ module GraphQL
             costs[forward_location] = forward_cost if forward_cost < best_cost
 
             possible_keys_for_type_and_location(type_name, forward_location).each do |possible_key|
-              paths << [*path, { location: forward_location, selection: possible_key, cost: forward_cost }]
+              paths << [*path, { location: forward_location, key: possible_key, cost: forward_cost }]
             end
           end
 

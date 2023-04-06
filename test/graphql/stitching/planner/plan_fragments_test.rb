@@ -38,7 +38,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
     query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
-          ...on Apple { id extensions { color } }
+          ...on Apple { id ... { extensions { color } } }
           ...on Banana { id extensions { shape } }
         }
       }

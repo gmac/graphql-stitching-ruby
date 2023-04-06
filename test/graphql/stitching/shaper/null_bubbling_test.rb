@@ -240,9 +240,18 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
 
   def test_bubble_through_inline_fragment
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    query = %|
+      query {
+        test {
+          ... on Test {
+            ... { req opt }
+          }
+        }
+      }
+    |
     shaper = GraphQL::Stitching::Shaper.new(
       supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { ... on Test { ... on Test { req opt } } } }"),
+      request: GraphQL::Stitching::Request.new(query),
     )
     raw = {
       "test" => {
@@ -260,11 +269,11 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
 
   def test_bubble_through_fragment_spreads
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
-    query = <<~GRAPHQL
+    query = %|
       query { test { ...Test2 } }
       fragment Test1 on Test { req opt }
       fragment Test2 on Test { ...Test1 }
-    GRAPHQL
+    |
     shaper = GraphQL::Stitching::Shaper.new(
       supergraph: supergraph_from_schema(schema_sdl),
       request: GraphQL::Stitching::Request.new(query),

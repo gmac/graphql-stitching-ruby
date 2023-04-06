@@ -175,7 +175,7 @@ module GraphQL
             yield(node)
 
           when GraphQL::Language::Nodes::InlineFragment
-            next unless parent_type.graphql_name == node.type.name
+            next unless node.type.nil? || parent_type.graphql_name == node.type.name
             each_selection_in_type(parent_type, node.selections, &block)
 
           when GraphQL::Language::Nodes::FragmentSpread
@@ -237,9 +237,9 @@ module GraphQL
             end
 
           when GraphQL::Language::Nodes::InlineFragment
-            next unless @supergraph.locations_by_type[node.type.name].include?(current_location)
+            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
+            next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
 
-            fragment_type = @supergraph.memoized_schema_types[node.type.name]
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set)

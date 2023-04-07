@@ -118,7 +118,7 @@ describe "GraphQL::Stitching::Supergraph" do
     )
 
     mapping = supergraph.fields_by_type_and_location
-    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - GraphQL::Stitching::Supergraph::INTROSPECTION_TYPES
+    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - supergraph.memoized_introspection_types.keys
     assert_equal ["address", "id", "name"], mapping["Manufacturer"]["manufacturers"].sort
     assert_equal ["id", "products"], mapping["Manufacturer"]["products"].sort
   end
@@ -132,7 +132,7 @@ describe "GraphQL::Stitching::Supergraph" do
     )
 
     mapping = supergraph.locations_by_type
-    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - GraphQL::Stitching::Supergraph::INTROSPECTION_TYPES
+    assert_equal FIELDS_MAP.keys.sort, mapping.keys.sort - supergraph.memoized_introspection_types.keys
     assert_equal ["manufacturers", "products"], mapping["Manufacturer"].sort
     assert_equal ["products", "storefronts"], mapping["Product"].sort
   end

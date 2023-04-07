@@ -56,8 +56,9 @@ module GraphQL
           raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
           raise ComposerError, "The subscription operation is not supported." if schema.subscription
 
+          introspection_types = schema.introspection_system.types.keys
           schema.types.each do |type_name, type_candidate|
-            next if Supergraph::INTROSPECTION_TYPES.include?(type_name)
+            next if introspection_types.include?(type_name)
 
             if type_name == @query_name && type_candidate != schema.query
               raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
@@ -538,8 +539,9 @@ module GraphQL
         writes = []
 
         schemas.each do |schema|
+          introspection_types = schema.introspection_system.types.keys
           schema.types.values.each do |type|
-            next if Supergraph::INTROSPECTION_TYPES.include?(type.graphql_name)
+            next if introspection_types.include?(type.graphql_name)
 
             if type.kind.object? || type.kind.interface?
               type.fields.values.each do |field|

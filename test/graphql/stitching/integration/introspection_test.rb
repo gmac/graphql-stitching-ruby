@@ -19,7 +19,7 @@ describe 'GraphQL::Stitching, introspection' do
     introspection_types = result.dig("data", "__schema", "types").map { _1["name"] }
     expected_types = ["Manufacturer", "Product", "Query", "Storefront"]
     expected_types += ["Boolean", "Float", "ID", "Int", "String"]
-    expected_types += GraphQL::Stitching::Supergraph::INTROSPECTION_TYPES
+    expected_types += @supergraph.memoized_introspection_types.keys
     assert_equal expected_types.sort, introspection_types.sort
   end
 

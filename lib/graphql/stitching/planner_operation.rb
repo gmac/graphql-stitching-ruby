@@ -18,7 +18,9 @@ module GraphQL
         after: nil,
         selections: [],
         variables: [],
-        boundary: nil
+        boundary: nil,
+        defer: nil,
+        defers: []
       )
         @order = order
         @after = after
@@ -30,6 +32,8 @@ module GraphQL
         @selections = selections
         @variables = variables
         @boundary = boundary
+        @defer = defer
+        @defers = defers
       end
 
       def selection_set
@@ -54,6 +58,8 @@ module GraphQL
           "selections" => selection_set,
           "variables" => variable_set,
           "boundary" => @boundary,
+          "defer" => @defer,
+          "defers" => @defers,
         }
       end
     end

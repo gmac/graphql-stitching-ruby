@@ -8,6 +8,13 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
       type Person {
         id: ID!
         name: String!
+        bio: String!
+        thing: Thing!
+      }
+      type Thing {
+        name: String!
+        moreStuff: String!
+        person: Person!
       }
       type Query {
         person(id: ID!): Person @stitch(key: "id")
@@ -24,7 +31,7 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
         name: String!
       }
       type Query {
-        person(id: ID!): Person @stitch(key: "id")
+        _person(id: ID!): Person @stitch(key: "id")
         world(id: ID!): World
       }
     |
@@ -37,9 +44,10 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
       type Film {
         id: ID!
         title: String!
+        person: Person!
       }
       type Query {
-        person(id: ID!): Person @stitch(key: "id")
+        _person(id: ID!): Person @stitch(key: "id")
         film(id: ID!): Film
       }
     |
@@ -55,14 +63,31 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
     document = %|
       query {
         person(id: "cGVvcGxlOjE=") {
-          ...HomeWorldFragment @defer(label: "homeWorldDefer")
+          ...HomeWorldFragment @defer(label: "homeWorld")
           name
-          films @stream(initialCount: 2, label: "filmsStream") {
+          thing {
+            ... @defer(label: "thing1") {
+              moreStuff
+              person {
+                name
+              }
+            }
+            ...Woof @defer(label: "thing2")
+          }
+          films @stream(initialCount: 2, label: "films") {
             title
+            person {
+              name
+            }
           }
         }
       }
+      fragment Woof on Thing {
+        moreStuff
+      }
       fragment HomeWorldFragment on Person {
+        __typename
+        bio
         homeworld {
           name
         }

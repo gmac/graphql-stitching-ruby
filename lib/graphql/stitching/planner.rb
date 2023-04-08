@@ -77,7 +77,8 @@ module GraphQL
         variables: {},
         insertion_path: [],
         operation_type: "query",
-        boundary: nil
+        boundary: nil,
+        defer: nil
       )
         # coalesce repeat parameters into a single entrypoint
         boundary_key = boundary ? boundary["key"] : "_"
@@ -87,8 +88,9 @@ module GraphQL
         op = @operations_by_entrypoint[entrypoint]
         next_order = op ? parent_order : @planning_order += 1
 
+        defers = []
         if selections.any?
-          selections = extract_locale_selections(location, parent_type, selections, insertion_path, next_order, variables)
+          selections, defers = extract_locale_selections(location, parent_type, selections, insertion_path, next_order, variables)
         end
 
         if op.nil?
@@ -108,6 +110,8 @@ module GraphQL
             selections: selections,
             variables: variables,
             boundary: boundary,
+            defer: defer,
+            defers: defers,
           )
         else
           op.selections.concat(selections)
@@ -197,15 +201,17 @@ module GraphQL
         insertion_path,
         parent_order,
         locale_variables,
-        locale_selections = []
+        locale_selections = [],
+        defer: nil
       )
         # B.1) Expand selections on interface types that do not belong to this location.
         input_selections = expand_interface_selections(current_location, parent_type, input_selections)
 
         # B.2) Filter the selection tree down to just fields of the entrypoint location.
         # Adjoining selections not available here get split off into new entrypoints (C).
-        remote_selections = nil
         requires_typename = parent_type.kind.abstract?
+        remote_selections = nil
+        defers = []
 
         input_selections.each do |node|
           case node
@@ -216,7 +222,7 @@ module GraphQL
             end
 
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            unless possible_locations.include?(current_location)
+            if defer || !possible_locations.include?(current_location)
               remote_selections ||= []
               remote_selections << node
               next
@@ -224,25 +230,40 @@ module GraphQL
 
             # B.3) Collect all variable definitions used within the filtered selection.
             extract_node_variables(node, locale_variables)
-            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
+            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
+            named_type = field_type.unwrap
 
-            if Util.is_leaf_type?(field_type)
+            if field_type.list?
+              stream_as = get_stream_label(node)
+              defers << stream_as if stream_as
+            end
+
+            if Util.is_leaf_type?(named_type)
               locale_selections << node
             else
               insertion_path.push(node.alias || node.name)
-              selection_set = extract_locale_selections(current_location, field_type, node.selections, insertion_path, parent_order, locale_variables)
+              selection_set, defer_set = extract_locale_selections(current_location, named_type, node.selections, insertion_path, parent_order, locale_variables)
               insertion_path.pop
 
               locale_selections << node.merge(selections: selection_set)
+              defers.concat(defer_set)
             end
 
           when GraphQL::Language::Nodes::InlineFragment
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
             next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
 
-            is_same_scope = fragment_type == parent_type && !defer?(node)
+            is_same_scope = fragment_type == parent_type
+
+            defer_as = get_defer_label(node)
+            if defer_as && !@supergraph.boundaries[fragment_type.graphql_name]
+                is_same_scope = false
+                defers << defer_as
+                defer_as = nil
+            end
+
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set, defer: defer_as)
 
             unless is_same_scope
               locale_selections << node.merge(selections: selection_set)
@@ -254,12 +275,20 @@ module GraphQL
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            is_same_scope = fragment_type == parent_type && !defer?(node)
+            is_same_scope = fragment_type == parent_type
+
+            defer_as = get_defer_label(node)
+            if defer_as && !@supergraph.boundaries[fragment_type.graphql_name]
+                is_same_scope = false
+                defers << defer_as
+                defer_as = nil
+            end
+
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, parent_order, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, parent_order, locale_variables, selection_set, defer: defer_as)
 
             unless is_same_scope
-              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
+              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set, directives: node.directives)
               requires_typename = true
             end
 
@@ -276,7 +305,7 @@ module GraphQL
 
         if remote_selections
           # C) Delegate adjoining selections to new entrypoint locations.
-          remote_selections_by_location = delegate_remote_selections(current_location, parent_type, remote_selections)
+          remote_selections_by_location = delegate_remote_selections(parent_type, remote_selections)
 
           # D) Create paths routing to new entrypoint locations via boundary queries.
           routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.keys)
@@ -311,12 +340,13 @@ module GraphQL
                 selections: remote_selections_by_location[location] || [],
                 insertion_path: insertion_path.dup,
                 boundary: boundary,
+                defer: defer,
               ).selections
             end
           end
         end
 
-        locale_selections
+        return locale_selections, defers
       end
 
       # B.1) Selections on interface types that do not belong to the interface at the
@@ -367,7 +397,7 @@ module GraphQL
       end
 
       # C) Delegate adjoining selections to new entrypoint locations.
-      def delegate_remote_selections(current_location, parent_type, remote_selections)
+      def delegate_remote_selections(parent_type, remote_selections)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
 
@@ -453,8 +483,20 @@ module GraphQL
         end
       end
 
-      def defer?(fragment_node)
-        fragment_node.directives.any? { _1.name == "defer" }
+      def get_defer_label(fragment_node)
+        defer_dir = fragment_node.directives.find { _1.name == "defer" }
+        if defer_dir
+          label_arg = defer_dir.arguments.find { _1.name == "label" }
+          label_arg ? label_arg.value : "_STITCH_defer"
+        end
+      end
+
+      def get_stream_label(list_node)
+        stream_dir = list_node.directives.find { _1.name == "stream" }
+        if stream_dir
+          label_arg = stream_dir.arguments.find { _1.name == "label" }
+          label_arg ? label_arg.value : "_STITCH_stream"
+        end
       end
     end
   end

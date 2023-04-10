@@ -276,7 +276,7 @@ module GraphQL
 
         if remote_selections
           # C) Delegate adjoining selections to new entrypoint locations.
-          remote_selections_by_location = delegate_remote_selections(current_location, parent_type, remote_selections)
+          remote_selections_by_location = delegate_remote_selections(parent_type, remote_selections)
 
           # D) Create paths routing to new entrypoint locations via boundary queries.
           routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.keys)
@@ -327,12 +327,28 @@ module GraphQL
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
 
         expanded_selections = nil
-        input_selections = input_selections.reject do |node| # << `reject` must copy
-          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != "__typename" && !local_interface_fields.include?(node.name)
-            expanded_selections ||= []
-            expanded_selections << node
-            true
+        input_selections = input_selections.filter_map do |node| # << `reject` must copy
+          case node
+          when GraphQL::Language::Nodes::Field
+            if node.name != "__typename" && !local_interface_fields.include?(node.name)
+              expanded_selections ||= []
+              expanded_selections << node
+              next nil
+            end
+
+          when GraphQL::Language::Nodes::InlineFragment
+            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
+            selection_set = expand_interface_selections(current_location, fragment_type, node.selections)
+            node = node.merge(selections: selection_set)
+
+          when GraphQL::Language::Nodes::FragmentSpread
+            fragment = @request.fragment_definitions[node.name]
+            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
+            selection_set = expand_interface_selections(current_location, fragment_type, fragment.selections)
+            node = GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
+
           end
+          node
         end
 
         if expanded_selections
@@ -367,7 +383,7 @@ module GraphQL
       end
 
       # C) Delegate adjoining selections to new entrypoint locations.
-      def delegate_remote_selections(current_location, parent_type, remote_selections)
+      def delegate_remote_selections(parent_type, remote_selections)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
 

@@ -93,6 +93,11 @@ module GraphQL
           selections, defers = extract_locale_selections(location, parent_type, selections, insertion_path, next_order, variables)
         end
 
+        if defer
+          selections = [build_defer_fragment(defer, selections)]
+          defers << defer
+        end
+
         if op.nil?
           # concrete types that are not root Query/Mutation report themselves as a type condition
           # executor must check the __typename of loaded objects to see if they match subsequent operations
@@ -110,7 +115,6 @@ module GraphQL
             selections: selections,
             variables: variables,
             boundary: boundary,
-            defer: defer,
             defers: defers,
           )
         else
@@ -202,7 +206,7 @@ module GraphQL
         parent_order,
         locale_variables,
         locale_selections = [],
-        defer: nil
+        current_defer: nil
       )
         # B.1) Expand selections on interface types that do not belong to this location.
         input_selections = expand_interface_selections(current_location, parent_type, input_selections)
@@ -214,6 +218,9 @@ module GraphQL
         defers = []
 
         input_selections.each do |node|
+          fragment_type = nil
+          fragment_selections = nil
+
           case node
           when GraphQL::Language::Nodes::Field
             if node.name == "__typename"
@@ -222,7 +229,7 @@ module GraphQL
             end
 
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            if defer || !possible_locations.include?(current_location)
+            unless possible_locations.include?(current_location)
               remote_selections ||= []
               remote_selections << node
               next
@@ -233,16 +240,25 @@ module GraphQL
             field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
             named_type = field_type.unwrap
 
+            current_stream = nil
             if field_type.list?
-              stream_as = get_stream_label(node)
-              defers << stream_as if stream_as
+              current_stream = get_stream_label(node)
+              defers << current_stream if current_stream
             end
 
             if Util.is_leaf_type?(named_type)
               locale_selections << node
             else
               insertion_path.push(node.alias || node.name)
-              selection_set, defer_set = extract_locale_selections(current_location, named_type, node.selections, insertion_path, parent_order, locale_variables)
+              path = current_stream || current_defer ? [] : insertion_path
+              order = if current_stream
+                "#{parent_order}/#{current_stream}"
+              elsif current_defer
+                "#{parent_order}/#{current_defer}"
+              else
+                parent_order
+              end
+              selection_set, defer_set = extract_locale_selections(current_location, named_type, node.selections, path, order, locale_variables)
               insertion_path.pop
 
               locale_selections << node.merge(selections: selection_set)
@@ -251,49 +267,50 @@ module GraphQL
 
           when GraphQL::Language::Nodes::InlineFragment
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
-            next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
-
-            is_same_scope = fragment_type == parent_type
-
-            defer_as = get_defer_label(node)
-            if defer_as && !@supergraph.boundaries[fragment_type.graphql_name]
-                is_same_scope = false
-                defers << defer_as
-                defer_as = nil
-            end
-
-            selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set, defer: defer_as)
-
-            unless is_same_scope
-              locale_selections << node.merge(selections: selection_set)
-              requires_typename = true
+            if @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
+              fragment_selections = node.selections
+            else
+              fragment_type = nil
             end
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
-            next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
-
-            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            is_same_scope = fragment_type == parent_type
-
-            defer_as = get_defer_label(node)
-            if defer_as && !@supergraph.boundaries[fragment_type.graphql_name]
-                is_same_scope = false
-                defers << defer_as
-                defer_as = nil
-            end
-
-            selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, parent_order, locale_variables, selection_set, defer: defer_as)
-
-            unless is_same_scope
-              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set, directives: node.directives)
-              requires_typename = true
+            if @supergraph.locations_by_type[fragment.type.name].include?(current_location)
+              fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
+              fragment_selections = fragment.selections
             end
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
+          end
+
+          if fragment_type
+            is_same_scope = fragment_type == parent_type
+            path = current_defer ? [] : insertion_path
+            order = current_defer ? "defer/#{current_defer}" : parent_order
+
+            if is_same_scope && defer_label = get_defer_label(node)
+              defer_selections, defers = extract_locale_selections(current_location, fragment_type, fragment_selections, path, order, locale_variables, current_defer: defer_label)
+              locale_selections << build_defer_fragment(defer_label, defer_selections)
+
+              # hoist deferred boundary keys to the non-deferred scope
+              defer_selections.each do |node|
+                if node.is_a?(GraphQL::Language::Nodes::Field) && node.alias && node.alias.start_with?("_STITCH_") && node.alias != TYPENAME_NODE.alias
+                  locale_selections << node
+                  true
+                end
+              end
+              requires_typename = true
+            else
+              selection_set = is_same_scope ? locale_selections : []
+              extract_locale_selections(current_location, fragment_type, fragment_selections, path, order, locale_variables, selection_set)
+
+              unless is_same_scope
+                type_name = GraphQL::Language::Nodes::TypeName.new(name: fragment_type.graphql_name)
+                locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: selection_set)
+                requires_typename = true
+              end
+            end
           end
         end
 
@@ -340,7 +357,7 @@ module GraphQL
                 selections: remote_selections_by_location[location] || [],
                 insertion_path: insertion_path.dup,
                 boundary: boundary,
-                defer: defer,
+                defer: current_defer,
               ).selections
             end
           end
@@ -481,6 +498,19 @@ module GraphQL
             op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
+      end
+
+      def build_defer_fragment(label, selections)
+        GraphQL::Language::Nodes::InlineFragment.new(
+          selections: selections,
+          directives: [GraphQL::Language::Nodes::Directive.new(
+            name: "defer",
+            arguments: [GraphQL::Language::Nodes::Argument.new(
+              name: "label",
+              value: label,
+            )]
+          )]
+        )
       end
 
       def get_defer_label(fragment_node)

@@ -111,7 +111,7 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
     })
   end
 
-  def test_plan_defer_stream_directives
+  def test_plan_defer_named_fragment_in_non_boundary_scope
     document = %|
       query {
         widgetA(id: "1") {
@@ -132,30 +132,34 @@ describe "GraphQL::Stitching::Planner, defer/stream directives" do
       supergraph: @supergraph,
       request: GraphQL::Stitching::Request.new(document),
     ).perform.to_h
+
+    puts "***"
   end
 
-  # def test_plan_defer_stream_directives
-  #   document = %|
-  #     query {
-  #       widgetA(id: "1") {
-  #         a
-  #         b
-  #         c
-  #         ...WidgetAttrs @defer(label: "lazy")
-  #       }
-  #     }
-  #     fragment WidgetAttrs on Widget {
-  #       attributes { weight parent { b } }
-  #       bolts { size }
-  #       color { hex }
-  #     }
-  #   |
+  def test_plan_defer_named_fragment_in_boundary_scope
+    document = %|
+      query {
+        widgetA(id: "1") {
+          a
+          b
+          c
+          ...WidgetAttrs @defer(label: "lazy")
+        }
+      }
+      fragment WidgetAttrs on Widget {
+        attributes { weight parent { b } }
+        bolts { size }
+        color { hex }
+      }
+    |
 
-  #   pp GraphQL::Stitching::Planner.new(
-  #     supergraph: @supergraph,
-  #     request: GraphQL::Stitching::Request.new(document),
-  #   ).perform.to_h
-  # end
+    pp GraphQL::Stitching::Planner.new(
+      supergraph: @supergraph,
+      request: GraphQL::Stitching::Request.new(document),
+    ).perform.to_h
+
+    puts "***"
+  end
 
   # def test_plan_defer_stream_directives
   #   document = %|

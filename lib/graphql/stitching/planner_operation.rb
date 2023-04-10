@@ -19,6 +19,7 @@ module GraphQL
         selections: [],
         variables: [],
         boundary: nil,
+        defer: nil,
         defers: []
       )
         @order = order
@@ -31,6 +32,7 @@ module GraphQL
         @selections = selections
         @variables = variables
         @boundary = boundary
+        @defer = defer
         @defers = defers
       end
 
@@ -49,15 +51,16 @@ module GraphQL
         {
           "order" => @order,
           "after" => @after,
+          "defer" => @defer,
           "location" => @location,
           "operation_type" => @operation_type,
           "insertion_path" => @insertion_path,
           "type_condition" => @type_condition,
           "selections" => selection_set,
           "variables" => variable_set,
-          "boundary" => @boundary,
           "defers" => @defers,
-        }
+          "boundary" => @boundary,
+        }.tap(&:compact!)
       end
     end
   end

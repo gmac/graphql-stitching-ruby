@@ -75,27 +75,27 @@ module GraphQL
         parent_type:,
         selections:,
         variables: {},
-        insertion_path: [],
+        path: [],
         operation_type: "query",
         boundary: nil
       )
         # coalesce repeat parameters into a single entrypoint
         boundary_key = boundary ? boundary["key"] : "_"
         entrypoint = String.new("#{parent_order}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
-        insertion_path.each { entrypoint << "/#{_1}" }
+        path.each { entrypoint << "/#{_1}" }
 
         op = @operations_by_entrypoint[entrypoint]
         next_order = op ? parent_order : @planning_order += 1
 
         if selections.any?
-          selections = extract_locale_selections(location, parent_type, selections, insertion_path, next_order, variables)
+          selections = extract_locale_selections(location, parent_type, next_order, selections, path, variables)
         end
 
         if op.nil?
           # concrete types that are not root Query/Mutation report themselves as a type condition
           # executor must check the __typename of loaded objects to see if they match subsequent operations
           # this prevents the executor from taking action on unused fragment selections
-          type_conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.root_type_for_operation(operation_type)
+          conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.root_type_for_operation(operation_type)
 
           @operations_by_entrypoint[entrypoint] = PlannerOperation.new(
             order: next_order,
@@ -103,10 +103,10 @@ module GraphQL
             location: location,
             parent_type: parent_type,
             operation_type: operation_type,
-            insertion_path: insertion_path,
-            type_condition: type_conditional ? parent_type.graphql_name : nil,
             selections: selections,
             variables: variables,
+            path: path,
+            if_type: conditional ? parent_type.graphql_name : nil,
             boundary: boundary,
           )
         else
@@ -193,9 +193,9 @@ module GraphQL
       def extract_locale_selections(
         current_location,
         parent_type,
-        input_selections,
-        insertion_path,
         parent_order,
+        input_selections,
+        path,
         locale_variables,
         locale_selections = []
       )
@@ -229,9 +229,9 @@ module GraphQL
             if Util.is_leaf_type?(field_type)
               locale_selections << node
             else
-              insertion_path.push(node.alias || node.name)
-              selection_set = extract_locale_selections(current_location, field_type, node.selections, insertion_path, parent_order, locale_variables)
-              insertion_path.pop
+              path.push(node.alias || node.name)
+              selection_set = extract_locale_selections(current_location, field_type, parent_order, node.selections, path, locale_variables)
+              path.pop
 
               locale_selections << node.merge(selections: selection_set)
             end
@@ -242,7 +242,7 @@ module GraphQL
 
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, node.selections, insertion_path, parent_order, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, parent_order, node.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
               locale_selections << node.merge(selections: selection_set)
@@ -256,7 +256,7 @@ module GraphQL
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, fragment.selections, insertion_path, parent_order, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, parent_order, fragment.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
               locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
@@ -276,7 +276,7 @@ module GraphQL
 
         if remote_selections
           # C) Delegate adjoining selections to new entrypoint locations.
-          remote_selections_by_location = delegate_remote_selections(current_location, parent_type, remote_selections)
+          remote_selections_by_location = delegate_remote_selections(parent_type, remote_selections)
 
           # D) Create paths routing to new entrypoint locations via boundary queries.
           routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.keys)
@@ -309,7 +309,7 @@ module GraphQL
                 parent_order: parent_order,
                 parent_type: parent_type,
                 selections: remote_selections_by_location[location] || [],
-                insertion_path: insertion_path.dup,
+                path: path.dup,
                 boundary: boundary,
               ).selections
             end
@@ -327,12 +327,28 @@ module GraphQL
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
 
         expanded_selections = nil
-        input_selections = input_selections.reject do |node| # << `reject` must copy
-          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != "__typename" && !local_interface_fields.include?(node.name)
-            expanded_selections ||= []
-            expanded_selections << node
-            true
+        input_selections = input_selections.filter_map do |node|
+          case node
+          when GraphQL::Language::Nodes::Field
+            if node.name != "__typename" && !local_interface_fields.include?(node.name)
+              expanded_selections ||= []
+              expanded_selections << node
+              next nil
+            end
+
+          when GraphQL::Language::Nodes::InlineFragment
+            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
+            selection_set = expand_interface_selections(current_location, fragment_type, node.selections)
+            node = node.merge(selections: selection_set)
+
+          when GraphQL::Language::Nodes::FragmentSpread
+            fragment = @request.fragment_definitions[node.name]
+            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
+            selection_set = expand_interface_selections(current_location, fragment_type, fragment.selections)
+            node = GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
+
           end
+          node
         end
 
         if expanded_selections
@@ -367,7 +383,7 @@ module GraphQL
       end
 
       # C) Delegate adjoining selections to new entrypoint locations.
-      def delegate_remote_selections(current_location, parent_type, remote_selections)
+      def delegate_remote_selections(parent_type, remote_selections)
         possible_locations_by_field = @supergraph.locations_by_type_and_field[parent_type.graphql_name]
         selections_by_location = {}
 

@@ -57,13 +57,13 @@ module GraphQL
 
         def fetch(ops)
           origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
-            origin_set = op["insertion_path"].reduce([@executor.data]) do |set, path_segment|
+            origin_set = op["path"].reduce([@executor.data]) do |set, path_segment|
               set.flat_map { |obj| obj && obj[path_segment] }.tap(&:compact!)
             end
 
-            if op["type_condition"]
+            if op["if_type"]
               # operations planned around unused fragment conditions should not trigger requests
-              origin_set.select! { _1["_STITCH_typename"] == op["type_condition"] }
+              origin_set.select! { _1["_STITCH_typename"] == op["if_type"] }
             end
 
             memo[op] = origin_set if origin_set.any?
@@ -183,7 +183,7 @@ module GraphQL
 
           if pathed_errors_by_op_index_and_object_id.any?
             pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
-              repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "insertion_path"))
+              repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "path"))
               errors_result.concat(pathed_errors_by_object_id.values)
             end
           end

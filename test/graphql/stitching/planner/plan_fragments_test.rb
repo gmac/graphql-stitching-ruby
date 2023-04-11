@@ -58,15 +58,15 @@ describe "GraphQL::Stitching::Planner, fragments" do
     second = plan.operations[1]
     assert_equal "exa", second.location
     assert_equal "{ color }", second.selection_set
-    assert_equal "AppleExtension", second.type_condition
-    assert_equal ["fruits", "extensions"], second.insertion_path
+    assert_equal "AppleExtension", second.if_type
+    assert_equal ["fruits", "extensions"], second.path
     assert_equal first.order, second.after
 
     third = plan.operations[2]
     assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
-    assert_equal "BananaExtension", third.type_condition
-    assert_equal ["fruits", "extensions"], third.insertion_path
+    assert_equal "BananaExtension", third.if_type
+    assert_equal ["fruits", "extensions"], third.path
     assert_equal first.order, third.after
   end
 
@@ -96,15 +96,15 @@ describe "GraphQL::Stitching::Planner, fragments" do
     second = plan.operations[1]
     assert_equal "exa", second.location
     assert_equal "{ color }", second.selection_set
-    assert_equal "AppleExtension", second.type_condition
-    assert_equal ["fruits", "extensions"], second.insertion_path
+    assert_equal "AppleExtension", second.if_type
+    assert_equal ["fruits", "extensions"], second.path
     assert_equal first.order, second.after
 
     third = plan.operations[2]
     assert_equal "exb", third.location
     assert_equal "{ shape }", third.selection_set
-    assert_equal "BananaExtension", third.type_condition
-    assert_equal ["fruits", "extensions"], third.insertion_path
+    assert_equal "BananaExtension", third.if_type
+    assert_equal ["fruits", "extensions"], third.path
     assert_equal first.order, third.after
   end
 
@@ -158,12 +158,12 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     second = plan.operations[1]
     assert_equal "alpha", second.location
-    assert_equal ["namespace", "test"], second.insertion_path
+    assert_equal ["namespace", "test"], second.path
     assert_equal "{ a x y nest { a _STITCH_id: id _STITCH_typename: __typename } }", second.selection_set
 
     third = plan.operations[2]
     assert_equal "bravo", third.location
-    assert_equal ["namespace", "test", "nest"], third.insertion_path
+    assert_equal ["namespace", "test", "nest"], third.path
     assert_equal "{ b }", third.selection_set
   end
 end

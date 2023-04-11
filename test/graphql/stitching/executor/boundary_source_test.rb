@@ -9,8 +9,8 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       "after"=>1,
       "location"=>"products",
       "operation_type"=>"query",
-      "insertion_path"=>["storefronts"],
-      "type_condition"=>"Storefront",
+      "path"=>["storefronts"],
+      "if_type"=>"Storefront",
       "selections"=>"{ name(lang:$lang) }",
       "variables"=>{ "lang" => "String!" },
       "boundary"=>{
@@ -27,8 +27,8 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       "after"=>1,
       "location"=>"products",
       "operation_type"=>"query",
-      "insertion_path"=>["storefronts", "product"],
-      "type_condition"=>"Product",
+      "path"=>["storefronts", "product"],
+      "if_type"=>"Product",
       "selections"=>"{ price(currency:$currency) }",
       "variables"=>{ "currency" => "Currency!" },
       "boundary"=>{

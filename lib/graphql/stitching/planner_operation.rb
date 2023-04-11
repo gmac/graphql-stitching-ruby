@@ -5,30 +5,30 @@ module GraphQL
     class PlannerOperation
       LANGUAGE_PRINTER = GraphQL::Language::Printer.new
 
-      attr_reader :order, :location, :parent_type, :type_condition, :operation_type, :insertion_path
+      attr_reader :order, :location, :parent_type, :if_type, :operation_type, :path
       attr_accessor :after, :selections, :variables, :boundary
 
       def initialize(
-        order:,
         location:,
         parent_type:,
-        operation_type: "query",
-        insertion_path: [],
-        type_condition: nil,
+        order:,
         after: nil,
+        operation_type: "query",
         selections: [],
         variables: [],
+        path: [],
+        if_type: nil,
         boundary: nil
       )
-        @order = order
-        @after = after
         @location = location
         @parent_type = parent_type
+        @order = order
+        @after = after
         @operation_type = operation_type
-        @insertion_path = insertion_path
-        @type_condition = type_condition
         @selections = selections
         @variables = variables
+        @path = path
+        @if_type = if_type
         @boundary = boundary
       end
 
@@ -44,17 +44,19 @@ module GraphQL
       end
 
       def to_h
-        {
+        data = {
           "order" => @order,
           "after" => @after,
           "location" => @location,
           "operation_type" => @operation_type,
-          "insertion_path" => @insertion_path,
-          "type_condition" => @type_condition,
           "selections" => selection_set,
           "variables" => variable_set,
-          "boundary" => @boundary,
+          "path" => @path,
         }
+
+        data["if_type"] = @if_type if @if_type
+        data["boundary"] = @boundary if @boundary
+        data
       end
     end
   end

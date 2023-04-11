@@ -9,8 +9,8 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       "after"=>0,
       "location"=>"products",
       "operation_type"=>"query",
-      "insertion_path"=>[],
-      "type_condition"=>"Storefront",
+      "path"=>[],
+      "if_type"=>"Storefront",
       "selections"=>"{ storefront(id:$id) { products { _STITCH_id: id } } }",
       "variables"=>{ "id" => "ID!" },
       "boundary"=>nil

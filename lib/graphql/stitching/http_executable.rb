@@ -6,7 +6,7 @@ require "json"
 
 module GraphQL
   module Stitching
-    class RemoteClient
+    class HttpExecutable
       def initialize(url:, headers:{})
         @url = url
         @headers = { "Content-Type" => "application/json" }.merge!(headers)

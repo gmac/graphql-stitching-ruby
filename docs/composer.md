@@ -68,12 +68,12 @@ products_sdl = "type Query { ..."
 supergraph = GraphQL::Stitching::Composer.new.perform({
   storefronts: {
     schema: GraphQL::Schema.from_definition(storefronts_sdl),
-    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
     stitch: [{ field_name: "storefront", key: "id" }],
   },
   products: {
     schema: GraphQL::Schema.from_definition(products_sdl),
-    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
   },
   my_local: {
     schema: MyLocalSchema,

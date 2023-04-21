@@ -166,7 +166,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_assign_valid_executables_with_string_locations
     executable1 = Schemas::Example::Products
-    executable2 = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
+    executable2 = GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3000")
     executable3 = Proc.new { true }
 
     supergraph = GraphQL::Stitching::Supergraph.new(
@@ -188,7 +188,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_assign_valid_executables_with_symbol_locations
     executable1 = Schemas::Example::Products
-    executable2 = GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000")
+    executable2 = GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3000")
     executable3 = Proc.new { true }
 
     supergraph = GraphQL::Stitching::Supergraph.new(

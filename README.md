@@ -32,7 +32,7 @@ require "graphql/stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided [`Gateway`](./docs/gateway.md) component that wraps a stitched graph in an executable workflow with [caching hooks](./docs/gateway.md#cache-hooks):
+The quickest way to start is to use the provided [`Client`](./docs/client.md) component that wraps a stitched graph in an executable workflow with [caching hooks](./docs/client.md#cache-hooks):
 
 ```ruby
 movies_schema = <<~GRAPHQL
@@ -45,21 +45,21 @@ showtimes_schema = <<~GRAPHQL
   type Query { showtime(id: ID!): Showtime }
 GRAPHQL
 
-gateway = GraphQL::Stitching::Gateway.new(locations: {
+client = GraphQL::Stitching::Client.new(locations: {
   movies: {
     schema: GraphQL::Schema.from_definition(movies_schema),
-    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3000"),
   },
   showtimes: {
     schema: GraphQL::Schema.from_definition(showtimes_schema),
-    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
   },
   my_local: {
     schema: MyLocal::GraphQL::Schema,
   },
 })
 
-result = gateway.execute(
+result = client.execute(
   query: "query FetchFromAll($movieId:ID!, $showtimeId:ID!){
     movie(id:$movieId) { name }
     showtime(id:$showtimeId): { time }
@@ -72,7 +72,7 @@ result = gateway.execute(
 
 Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
 
-While the `Gateway` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
+While the `Client` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
@@ -124,11 +124,11 @@ GRAPHQL
 supergraph = GraphQL::Stitching::Composer.new.perform({
   products: {
     schema: GraphQL::Schema.from_definition(products_schema),
-    executable:  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001"),
+    executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
   },
   shipping: {
     schema: GraphQL::Schema.from_definition(shipping_schema),
-    executable:  GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002"),
+    executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
   },
 })
 ```
@@ -320,7 +320,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
   },
   second: {
     schema: SecondSchema,
-    executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001", headers: { ... }),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001", headers: { ... }),
   },
   third: {
     schema: ThirdSchema,
@@ -333,7 +333,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
 })
 ```
 
-The `GraphQL::Stitching::RemoteClient` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
+The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
 ## Concurrency
 

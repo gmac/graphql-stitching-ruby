@@ -28,7 +28,7 @@ supergraph = GraphQL::Stitching::Supergraph.from_export(
   schema: supergraph_sdl,
   delegation_map: delegation_map,
   executables: {
-    my_remote: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3000"),
+    my_remote: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3000"),
     my_local: MyLocalSchema,
   }
 )

@@ -6,7 +6,7 @@ This module provides a collection of components that may be composed into a stit
 
 Major components include:
 
-- [Gateway](./gateway.md) - an out-of-the-box stitching configuration.
+- [Client](./client.md) - an out-of-the-box setup for performing stitched requests.
 - [Composer](./composer.md) - merges and validates many schemas into one graph.
 - [Supergraph](./supergraph.md) - manages the combined schema and location routing maps. Can be exported, cached, and rehydrated.
 - [Request](./request.md) - prepares a requested GraphQL document and variables for stitching.

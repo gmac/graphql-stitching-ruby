@@ -4,16 +4,16 @@ require "json"
 
 module GraphQL
   module Stitching
-    class Gateway
-      class GatewayError < StitchingError; end
+    class Client
+      class ClientError < StitchingError; end
 
       attr_reader :supergraph
 
       def initialize(locations: nil, supergraph: nil, composer: nil)
         @supergraph = if locations && supergraph
-          raise GatewayError, "Cannot provide both locations and a supergraph."
+          raise ClientError, "Cannot provide both locations and a supergraph."
         elsif supergraph && !supergraph.is_a?(GraphQL::Stitching::Supergraph)
-          raise GatewayError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
+          raise ClientError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
         elsif supergraph
           supergraph
         else
@@ -57,17 +57,17 @@ module GraphQL
       end
 
       def on_cache_read(&block)
-        raise GatewayError, "A cache read block is required." unless block_given?
+        raise ClientError, "A cache read block is required." unless block_given?
         @on_cache_read = block
       end
 
       def on_cache_write(&block)
-        raise GatewayError, "A cache write block is required." unless block_given?
+        raise ClientError, "A cache write block is required." unless block_given?
         @on_cache_write = block
       end
 
       def on_error(&block)
-        raise GatewayError, "An error handler block is required." unless block_given?
+        raise ClientError, "An error handler block is required." unless block_given?
         @on_error = block
       end
 

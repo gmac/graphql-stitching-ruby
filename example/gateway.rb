@@ -13,17 +13,17 @@ class StitchedApp
     @graphiql = file.read
     file.close
 
-    @gateway = GraphQL::Stitching::Gateway.new(locations: {
+    @client = GraphQL::Stitching::Client.new(locations: {
       products: {
         schema: Schemas::Example::Products,
       },
       storefronts: {
         schema: Schemas::Example::Storefronts,
-        executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3001/graphql"),
+        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001/graphql"),
       },
       manufacturers: {
         schema: Schemas::Example::Manufacturers,
-        executable: GraphQL::Stitching::RemoteClient.new(url: "http://localhost:3002/graphql"),
+        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002/graphql"),
       }
     })
   end
@@ -34,7 +34,7 @@ class StitchedApp
     when /graphql/
       params = JSON.parse(req.body.read)
 
-      result = @gateway.execute(
+      result = @client.execute(
         query: params["query"],
         variables: params["variables"],
         operation_name: params["operationName"],

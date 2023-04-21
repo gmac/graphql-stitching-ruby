@@ -1,6 +1,6 @@
 ## GraphQL::Stitching::Client
 
-The `Client` is an out-of-the-box convenience with all stitching components assembled into a default workflow. A client is designed to work for most common needs, though you're welcome to assemble the component parts into your own configuration (see the [client source](../lib/graphql/client.rb) for an example). A client is constructed with the same [location settings](./composer.md#performing-composition) used to perform supergraph composition:
+The `Client` is an out-of-the-box convenience with all stitching components assembled into a default workflow. A client is designed to work for most common needs, though you're welcome to assemble the component parts into your own configuration (see the [client source](../lib/graphql/stitching/client.rb) for an example). A client is constructed with the same [location settings](./composer.md#performing-composition) used to perform supergraph composition:
 
 ```ruby
 movies_schema = "type Query { ..."

@@ -96,21 +96,24 @@ module GraphQL
           query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
             variable_defs.merge!(op["variables"])
             boundary = op["boundary"]
-            key_selection = "_STITCH_#{boundary["key"]}"
 
             if boundary["list"]
-              input = JSON.generate(origin_set.map { _1[key_selection] })
-              "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op["selections"]}"
+              input = origin_set.each_with_index.reduce(String.new) do |memo, (origin_obj, index)|
+                memo << "," if index > 0
+                memo << build_key(boundary["key"], origin_obj, federation: boundary["federation"])
+                memo
+              end
+
+              "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:[#{input}]) #{op["selections"]}"
             else
               origin_set.map.with_index do |origin_obj, index|
-                input = JSON.generate(origin_obj[key_selection])
+                input = build_key(boundary["key"], origin_obj, federation: boundary["federation"])
                 "_#{batch_index}_#{index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op["selections"]}"
               end
             end
           end
 
-          doc = String.new
-          doc << "query" # << boundary fulfillment always uses query
+          doc = String.new("query") # << boundary fulfillment always uses query
 
           if operation_name
             doc << " #{operation_name}"
@@ -127,6 +130,15 @@ module GraphQL
           doc << "{ #{query_fields.join(" ")} }"
 
           return doc, variable_defs.keys
+        end
+
+        def build_key(key, origin_obj, federation: false)
+          key_value = JSON.generate(origin_obj["_STITCH_#{key}"])
+          if federation
+            "{ __typename: \"#{origin_obj["_STITCH_typename"]}\", #{key}: #{key_value} }"
+          else
+            key_value
+          end
         end
 
         def merge_results!(origin_sets_by_operation, raw_result)

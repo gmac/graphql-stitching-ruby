@@ -30,6 +30,7 @@ module GraphQL
         @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
         @root_field_location_selector = root_field_location_selector || DEFAULT_ROOT_FIELD_LOCATION_SELECTOR
+        @stitch_directives = {}
       end
 
       def perform(locations_input)
@@ -91,7 +92,7 @@ module GraphQL
           when "ENUM"
             build_enum_type(type_name, types_by_location, enum_usage)
           when "OBJECT"
-            extract_boundaries(type_name, types_by_location)
+            extract_boundaries(type_name, types_by_location) if type_name == @query_name
             build_object_type(type_name, types_by_location)
           when "INTERFACE"
             build_interface_type(type_name, types_by_location)
@@ -145,23 +146,16 @@ module GraphQL
             raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
-          if input[:stitch]
-            stitch_directive = Class.new(GraphQL::Schema::Directive) do
-              graphql_name(GraphQL::Stitching.stitch_directive)
-              locations :FIELD_DEFINITION
-              argument :key, String
-              repeatable true
-            end
+          input.fetch(:stitch, GraphQL::Stitching::EMPTY_ARRAY).each do |dir|
+            type = dir[:parent_type_name] ? schema.types[dir[:parent_type_name]] : schema.query
+            raise ComposerError, "Invalid stitch directive type `#{dir[:parent_type_name]}`" unless type
 
-            input[:stitch].each do |dir|
-              type = dir[:type_name] ? schema.types[dir[:type_name]] : schema.query
-              raise ComposerError, "Invalid stitch directive type `#{dir[:type_name]}`" unless type
+            field = type.fields[dir[:field_name]]
+            raise ComposerError, "Invalid stitch directive field `#{dir[:field_name]}`" unless field
 
-              field = type.fields[dir[:field_name]]
-              raise ComposerError, "Invalid stitch directive field `#{dir[:field_name]}`" unless field
-
-              field.directive(stitch_directive, **dir.slice(:key))
-            end
+            field_path = "#{location}.#{field.name}"
+            @stitch_directives[field_path] ||= []
+            @stitch_directives[field_path] << dir.slice(:key, :type_name)
           end
 
           schemas[location.to_s] = schema
@@ -462,11 +456,15 @@ module GraphQL
           type_candidate.fields.each do |field_name, field_candidate|
             boundary_type_name = field_candidate.type.unwrap.graphql_name
             boundary_structure = Util.flatten_type_structure(field_candidate.type)
+            boundary_kwargs = @stitch_directives["#{location}.#{field_name}"] || []
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
+              boundary_kwargs << directive.arguments.keyword_arguments
+            end
 
-              key = directive.arguments.keyword_arguments.fetch(:key)
+            boundary_kwargs.each do |kwargs|
+              key = kwargs.fetch(:key)
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1

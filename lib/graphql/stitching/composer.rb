@@ -158,6 +158,26 @@ module GraphQL
             @stitch_directives[field_path] << dir.slice(:key, :type_name)
           end
 
+          federation_entity_type = schema.types["_Entity"]
+          if federation_entity_type && federation_entity_type.kind.union? && schema.query.fields["_entities"]&.type&.unwrap == federation_entity_type
+            schema.possible_types(federation_entity_type).each do |entity_type|
+              entity_type.directives.each do |directive|
+                next unless directive.graphql_name == "key"
+
+                key = directive.arguments.keyword_arguments.fetch(:fields).strip
+                raise ComposerError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
+
+                field_path = "#{location}._entities"
+                @stitch_directives[field_path] ||= []
+                @stitch_directives[field_path] << {
+                  key: key,
+                  type_name: entity_type.graphql_name,
+                  federation: true,
+                }
+              end
+            end
+          end
+
           schemas[location.to_s] = schema
           executables[location.to_s] = input[:executable] || schema
         end
@@ -465,6 +485,7 @@ module GraphQL
 
             boundary_kwargs.each do |kwargs|
               key = kwargs.fetch(:key)
+              impl_type_name = kwargs.fetch(:type_name, boundary_type_name)
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1
@@ -487,15 +508,16 @@ module GraphQL
                 raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
               end
 
-              @boundary_map[boundary_type_name] ||= []
-              @boundary_map[boundary_type_name] << {
+              @boundary_map[impl_type_name] ||= []
+              @boundary_map[impl_type_name] << {
                 "location" => location,
+                "type_name" => impl_type_name,
                 "key" => key_selections[0].name,
                 "field" => field_candidate.name,
                 "arg" => argument_name,
                 "list" => boundary_structure.first[:list],
-                "type_name" => boundary_type_name,
-              }
+                "federation" => kwargs[:federation],
+              }.compact
             end
           end
         end

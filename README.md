@@ -9,6 +9,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Multiple keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
+- Type merging via federation `_entities` protocol.
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
@@ -293,6 +294,66 @@ The library is configured to use a `@stitch` directive by default. You may custo
 ```ruby
 GraphQL::Stitching.stitch_directive = "merge"
 ```
+
+#### Federation entities
+
+The [Apollo Federation specification](https://www.apollographql.com/docs/federation/subgraph-spec/) defines a standard interface for accessing merged object types across locations. Stitching can utilize a subset of this interface to facilitate basic type merging. The following spec is supported:
+
+- `@key(fields: "id")` (repeatable) specifies a key field for an object type. Keys may only select one field each.
+- `_Entity` is a union type that must contain all types that implement a `@key`.
+- `_Any` is a scalar that recieves raw JSON objects.
+- `_entities(representations: [_Any!]!): [_Entity]!` is a root query for local entity types.
+
+The composer will automatcially detect and stitch schemas with an `_entities` query, for example:
+
+```ruby
+accounts_schema = <<~GRAPHQL
+  directive @key(fields: String!) repeatable on OBJECT
+
+  type User @key(fields: "id") {
+    id: ID!
+    name: String!
+    address: String!
+  }
+
+  union _Entity = User
+  scalar _Any
+
+  type Query {
+    user(id: ID!): User
+    _entities(representations: [_Any!]!): [_Entity]!
+  }
+GRAPHQL
+
+comments_schema = <<~GRAPHQL
+  directive @key(fields: String!) repeatable on OBJECT
+
+  type User @key(fields: "id") {
+    id: ID!
+    comments: [String!]!
+  }
+
+  union _Entity = User
+  scalar _Any
+
+  type Query {
+    _entities(representations: [_Any!]!): [_Entity]!
+  }
+GRAPHQL
+
+client = GraphQL::Stitching::Client.new(locations: {
+  accounts: {
+    schema: GraphQL::Schema.from_definition(accounts_schema),
+    executable: ...,
+  },
+  comments: {
+    schema: GraphQL::Schema.from_definition(comments_schema),
+    executable: ...,
+  },
+})
+```
+
+It's perfectly fine to mix and match schemas that implement an `_entities` query with schemas that implement `@stitch` directives; the protocols achieve the same result. Note that stitching is much simpler than Apollo Federation by design, and so advanced routing features such as computed fields (ie: the `@requires` directive) will be ignored.
 
 ## Executables
 

@@ -87,7 +87,11 @@ While the `Client` constructor is an easy quick start, the library also has seve
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location. This is done using the `@stitch` directive:
+To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location. This can be done using [arbitrary queries](#merged-types-via-arbitrary-queries) or [federation entities](#merged-types-via-federation-entities).
+
+### Merged types via arbitrary queries
+
+Types can merge through arbitrary queries using the `@stitch` directive:
 
 ```graphql
 directive @stitch(key: String!) repeatable on FIELD_DEFINITION
@@ -122,7 +126,7 @@ shipping_schema = <<~GRAPHQL
   }
 GRAPHQL
 
-supergraph = GraphQL::Stitching::Composer.new.perform({
+client = GraphQL::Stitching::Client.new(locations: {
   products: {
     schema: GraphQL::Schema.from_definition(products_schema),
     executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
@@ -295,13 +299,13 @@ The library is configured to use a `@stitch` directive by default. You may custo
 GraphQL::Stitching.stitch_directive = "merge"
 ```
 
-#### Federation entities
+### Merged types via Federation entities
 
-The [Apollo Federation specification](https://www.apollographql.com/docs/federation/subgraph-spec/) defines a standard interface for accessing merged object types across locations. Stitching can utilize a subset of this interface to facilitate basic type merging. The following spec is supported:
+The [Apollo Federation specification](https://www.apollographql.com/docs/federation/subgraph-spec/) defines a standard interface for accessing merged type variants across locations. Stitching can utilize a _subset_ of this interface to facilitate basic type merging. The following spec is supported:
 
-- `@key(fields: "id")` (repeatable) specifies a key field for an object type. Keys may only select one field each.
+- `@key(fields: "id")` (repeatable) specifies a key field for an object type. The key `fields` argument may only contain one field selection.
 - `_Entity` is a union type that must contain all types that implement a `@key`.
-- `_Any` is a scalar that recieves raw JSON objects.
+- `_Any` is a scalar that recieves raw JSON objects; each object representation contains a `__typename` and the type's key field.
 - `_entities(representations: [_Any!]!): [_Entity]!` is a root query for local entity types.
 
 The composer will automatcially detect and stitch schemas with an `_entities` query, for example:
@@ -353,7 +357,7 @@ client = GraphQL::Stitching::Client.new(locations: {
 })
 ```
 
-It's perfectly fine to mix and match schemas that implement an `_entities` query with schemas that implement `@stitch` directives; the protocols achieve the same result. Note that stitching is much simpler than Apollo Federation by design, and so advanced routing features such as computed fields (ie: the `@requires` directive) will be ignored.
+It's perfectly fine to mix and match schemas that implement an `_entities` query with schemas that implement `@stitch` directives; the protocols achieve the same result. Note that stitching is much simpler than Apollo Federation by design, and that Federation's advanced routing features (such as the `@requires` and `@external` directives) will not work with stitching.
 
 ## Executables
 

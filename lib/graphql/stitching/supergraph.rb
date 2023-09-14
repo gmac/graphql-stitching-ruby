@@ -227,9 +227,9 @@ module GraphQL
           end
 
           paths.sort! do |a, b|
-            cost_diff = a.last[:cost] - b.last[:cost]
-            cost_diff.zero? ? a.length - b.length : cost_diff
-          end.reverse!
+            cost_diff = b.last[:cost] - a.last[:cost]
+            cost_diff.zero? ? b.length - a.length : cost_diff
+          end
         end
 
         results

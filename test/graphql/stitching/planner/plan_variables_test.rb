@@ -39,13 +39,13 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
     expected_vars = { "wid" => "ID!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
 
     expected_vars = { "sid" => "ID!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[1].variable_set
+    assert_equal expected_vars, plan.ops[1].variables
   end
 
   def test_extracts_variables_from_field_directives
@@ -61,13 +61,13 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
     expected_vars = { "a" => "String!", "c" => "Int" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
 
     expected_vars = { "b" => "String", "c" => "Int" }
-    assert_equal expected_vars, plan.operations[1].variable_set
+    assert_equal expected_vars, plan.ops[1].variables
   end
 
   def test_extracts_variables_from_inline_input_objects
@@ -83,13 +83,13 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(mutation),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
     expected_vars = { "wname1" => "String!", "wname2" => "String!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
 
     expected_vars = { "sname1" => "String!", "sname2" => "String!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[1].variable_set
+    assert_equal expected_vars, plan.ops[1].variables
   end
 
   def test_extracts_variables_for_input_object_fragments
@@ -105,13 +105,13 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(mutation),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
     expected_vars = { "newWidget" => "MakeWidgetInput!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
 
     expected_vars = { "newSprocket" => "MakeSprocketInput!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[1].variable_set
+    assert_equal expected_vars, plan.ops[1].variables
   end
 
   def test_extracts_variables_from_inline_fragments
@@ -126,10 +126,10 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 1, plan.operations.length
+    assert_equal 1, plan.ops.length
 
     expected_vars = { "wid" => "ID!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
   end
 
   def test_extracts_variables_from_fragment_spreads
@@ -145,9 +145,9 @@ describe "GraphQL::Stitching::Planner, variables" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 1, plan.operations.length
+    assert_equal 1, plan.ops.length
 
     expected_vars = { "wid" => "ID!", "lang" => "String" }
-    assert_equal expected_vars, plan.operations[0].variable_set
+    assert_equal expected_vars, plan.ops[0].variables
   end
 end

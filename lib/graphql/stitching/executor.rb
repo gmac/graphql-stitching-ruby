@@ -11,7 +11,7 @@ module GraphQL
       def initialize(supergraph:, request:, plan:, nonblocking: false)
         @supergraph = supergraph
         @request = request
-        @queue = plan["ops"]
+        @queue = plan.ops
         @data = {}
         @errors = []
         @query_count = 0
@@ -47,8 +47,8 @@ module GraphQL
 
         @dataloader.append_job do
           tasks = @queue
-            .select { next_ordinals.include?(_1["after"]) }
-            .group_by { [_1["location"], _1["boundary"].nil?] }
+            .select { next_ordinals.include?(_1.after) }
+            .group_by { [_1.location, _1.boundary.nil?] }
             .map do |(location, root_source), ops|
               if root_source
                 @dataloader.with(RootSource, self, location).request_all(ops)

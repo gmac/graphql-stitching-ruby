@@ -4,17 +4,17 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Executor, RootSource" do
   def setup
-    @op = {
-      "order"=>1,
-      "after"=>0,
-      "location"=>"products",
-      "operation_type"=>"query",
-      "path"=>[],
-      "if_type"=>"Storefront",
-      "selections"=>"{ storefront(id:$id) { products { _STITCH_id: id } } }",
-      "variables"=>{ "id" => "ID!" },
-      "boundary"=>nil
-    }
+    @op = GraphQL::Stitching::Plan::Op.new(
+      step: 1,
+      after: 0,
+      location: "products",
+      operation_type: "query",
+      path: [],
+      if_type: "Storefront",
+      selections: "{ storefront(id:$id) { products { _STITCH_id: id } } }",
+      variables: { "id" => "ID!" },
+      boundary: nil
+    )
 
     @source = GraphQL::Stitching::Executor::RootSource.new({}, "a")
   end

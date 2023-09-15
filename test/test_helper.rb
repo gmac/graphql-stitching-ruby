@@ -67,7 +67,7 @@ def plan_and_execute(supergraph, query, variables={}, raw: false)
   executor = GraphQL::Stitching::Executor.new(
     supergraph: supergraph,
     request: request,
-    plan: plan.to_h,
+    plan: plan,
   )
 
   result = executor.perform(raw: raw)

@@ -44,22 +44,22 @@ describe 'GraphQL::Stitching::Composer, configuration' do
 
     expected_boundaries = {
       "Product" => [
-        {
-          "location" => "alpha",
-          "type_name" => "Product",
-          "field" => "productA",
-          "key" => "id",
-          "arg" => "id",
-          "list" => false,
-        },
-        {
-          "location" => "bravo",
-          "type_name" => "Product",
-          "field" => "productB",
-          "key" => "id",
-          "arg" => "key",
-          "list" => false,
-        },
+        GraphQL::Stitching::Boundary.new(
+          location: "alpha",
+          type_name: "Product",
+          field: "productA",
+          key: "id",
+          arg: "id",
+          list: false,
+        ),
+        GraphQL::Stitching::Boundary.new(
+          location: "bravo",
+          type_name: "Product",
+          field: "productB",
+          key: "id",
+          arg: "key",
+          list: false,
+        ),
       ]
     }
 

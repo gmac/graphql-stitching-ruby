@@ -10,8 +10,22 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
     expected_boundaries_map = {
       "Test" => [
-        { "location"=>"a", "key"=>"id", "field"=>"a", "arg"=>"id", "list"=>false, "type_name"=>"Test" },
-        { "location"=>"b", "key"=>"id", "field"=>"b", "arg"=>"ids", "list"=>true, "type_name"=>"Test" },
+        GraphQL::Stitching::Boundary.new(
+          location: "a",
+          key: "id",
+          field: "a",
+          arg: "id",
+          list: false,
+          type_name: "Test"
+        ),
+        GraphQL::Stitching::Boundary.new(
+          location: "b",
+          key: "id",
+          field: "b",
+          arg: "ids",
+          list: true,
+          type_name: "Test"
+        ),
       ],
     }
 
@@ -109,10 +123,10 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   def assert_boundary(supergraph, type_name, location:, key: nil, field: nil, arg: nil)
     boundary = supergraph.boundaries[type_name].find do |b|
       conditions = []
-      conditions << (b["location"] == location)
-      conditions << (b["field"] == field) if field
-      conditions << (b["arg"] == arg) if arg
-      conditions << (b["key"] == key) if key
+      conditions << (b.location == location)
+      conditions << (b.field == field) if field
+      conditions << (b.arg == arg) if arg
+      conditions << (b.key == key) if key
       conditions.all?
     end
     assert boundary, "No boundary found for #{[location, type_name, key, field, arg].join(".")}"

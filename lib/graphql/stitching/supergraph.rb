@@ -21,10 +21,14 @@ module GraphQL
           end
         end
 
+        boundaries = delegation_map["boundaries"].map do |k, b|
+          [k, b.map { Boundary.new(**_1) }]
+        end
+
         new(
           schema: schema,
           fields: delegation_map["fields"],
-          boundaries: delegation_map["boundaries"],
+          boundaries: boundaries.to_h,
           executables: executables,
         )
       end
@@ -68,7 +72,7 @@ module GraphQL
         return GraphQL::Schema::Printer.print_schema(@schema), {
           "locations" => locations,
           "fields" => fields,
-          "boundaries" => @boundaries,
+          "boundaries" => @boundaries.map { |k, b| [k, b.map(&:as_json)] }.to_h,
         }
       end
 
@@ -144,7 +148,7 @@ module GraphQL
       # ("Type") => ["id", ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
-          @boundaries[type_name].map { _1["key"] }.tap(&:uniq!)
+          @boundaries[type_name].map(&:key).tap(&:uniq!)
         end
       end
 
@@ -169,8 +173,8 @@ module GraphQL
         # types with a single key attribute must all be within a single hop of each other,
         # so can use a simple match to collect boundaries for the goal locations.
         @boundaries[type_name].each_with_object({}) do |boundary, memo|
-          if goal_locations.include?(boundary["location"])
-            memo[boundary["location"]] = [boundary]
+          if goal_locations.include?(boundary.location)
+            memo[boundary.location] = [boundary]
           end
         end
       end
@@ -194,8 +198,8 @@ module GraphQL
           current_cost = path.last[:cost]
 
           @boundaries[type_name].each do |boundary|
-            forward_location = boundary["location"]
-            next if current_key != boundary["key"]
+            forward_location = boundary.location
+            next if current_key != boundary.key
             next if path.any? { _1[:location] == forward_location }
 
             best_cost = costs[forward_location] || Float::INFINITY

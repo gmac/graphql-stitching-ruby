@@ -38,19 +38,19 @@ describe "GraphQL::Stitching::Planner, root operations" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "widgets", first.location
     assert_equal "query", first.operation_type
-    assert_equal "{ a: widget { id } c: widget { id } }", first.selection_set
+    assert_equal "{ a: widget { id } c: widget { id } }", first.selections
     assert_equal 0, first.after
     assert_nil first.if_type
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "sprockets", second.location
     assert_equal "query", second.operation_type
-    assert_equal "{ b: sprocket { id } d: sprocket { id } }", second.selection_set
+    assert_equal "{ b: sprocket { id } d: sprocket { id } }", second.selections
     assert_equal 0, second.after
     assert_nil second.if_type
   end
@@ -71,27 +71,27 @@ describe "GraphQL::Stitching::Planner, root operations" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "widgets", first.location
     assert_equal "mutation", first.operation_type
-    assert_equal "{ a: makeWidget { id } }", first.selection_set
+    assert_equal "{ a: makeWidget { id } }", first.selections
     assert_equal 0, first.after
     assert_nil first.if_type
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "sprockets", second.location
     assert_equal "mutation", second.operation_type
-    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selection_set
-    assert_equal first.order, second.after
+    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selections
+    assert_equal first.step, second.after
     assert_nil second.if_type
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "widgets", third.location
     assert_equal "mutation", third.operation_type
-    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selection_set
-    assert_equal second.order, third.after
+    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selections
+    assert_equal second.step, third.after
     assert_nil third.if_type
   end
 
@@ -119,15 +119,15 @@ describe "GraphQL::Stitching::Planner, root operations" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "widgets", first.location
-    assert_equal "{ a: widget { id } c: widget { id } e: widget { id } }", first.selection_set
+    assert_equal "{ a: widget { id } c: widget { id } e: widget { id } }", first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "sprockets", second.location
-    assert_equal "{ b: sprocket { id } d: sprocket { id } f: sprocket { id } }", second.selection_set
+    assert_equal "{ b: sprocket { id } d: sprocket { id } f: sprocket { id } }", second.selections
   end
 
   def test_plans_mutations_through_fragments
@@ -152,23 +152,23 @@ describe "GraphQL::Stitching::Planner, root operations" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 4, plan.operations.length
+    assert_equal 4, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "widgets", first.location
-    assert_equal "{ a: makeWidget { id } }", first.selection_set
+    assert_equal "{ a: makeWidget { id } }", first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "sprockets", second.location
-    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selection_set
+    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selections
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "widgets", third.location
-    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selection_set
+    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selections
 
-    second = plan.operations[3]
+    second = plan.ops[3]
     assert_equal "sprockets", second.location
-    assert_equal "{ f: makeSprocket { id } }", second.selection_set
+    assert_equal "{ f: makeSprocket { id } }", second.selections
   end
 
   def test_plans_root_fields_to_their_prioritized_location
@@ -182,20 +182,21 @@ describe "GraphQL::Stitching::Planner, root operations" do
     })
 
     ["query", "mutation"].each do |operation_type|
-      plan = GraphQL::Stitching::Planner.new(
+      planner = GraphQL::Stitching::Planner.new(
         supergraph: supergraph,
         request: GraphQL::Stitching::Request.new("#{operation_type} { a b c }"),
-      ).perform
+      )
+      planner.perform
 
-      first = plan.operations[0]
+      first = planner.steps[0]
       assert_equal "a", first.location
       assert_equal "a", first.selections.first.name
 
-      second = plan.operations[1]
+      second = planner.steps[1]
       assert_equal "b", second.location
       assert_equal "b", second.selections.first.name
 
-      third = plan.operations[2]
+      third = planner.steps[2]
       assert_equal "c", third.location
       assert_equal "c", third.selections.first.name
     end

@@ -41,7 +41,7 @@ module GraphQL
           GraphQL::Stitching::Planner.new(
             supergraph: @supergraph,
             request: request,
-          ).perform.to_h
+          ).perform
         end
 
         GraphQL::Stitching::Executor.new(
@@ -76,16 +76,16 @@ module GraphQL
       def fetch_plan(request)
         if @on_cache_read
           cached_plan = @on_cache_read.call(request.digest, request.context)
-          return JSON.parse(cached_plan) if cached_plan
+          return GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan)) if cached_plan
         end
 
-        plan_json = yield
+        plan = yield
 
         if @on_cache_write
-          @on_cache_write.call(request.digest, JSON.generate(plan_json), request.context)
+          @on_cache_write.call(request.digest, JSON.generate(plan.as_json), request.context)
         end
 
-        plan_json
+        plan
       end
 
       def error_result(errors)

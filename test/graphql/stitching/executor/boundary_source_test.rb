@@ -4,42 +4,42 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Executor, BoundarySource" do
   def setup
-    @op1 = {
-      "order"=>2,
-      "after"=>1,
-      "location"=>"products",
-      "operation_type"=>"query",
-      "path"=>["storefronts"],
-      "if_type"=>"Storefront",
-      "selections"=>"{ name(lang:$lang) }",
-      "variables"=>{ "lang" => "String!" },
-      "boundary"=>{
-        "location"=>"products",
-        "field"=>"storefronts",
-        "arg"=>"ids",
-        "key"=>"id",
-        "list"=>true,
-        "type_name"=>"Storefront"
-      }
-    }
-    @op2 = {
-      "order"=>3,
-      "after"=>1,
-      "location"=>"products",
-      "operation_type"=>"query",
-      "path"=>["storefronts", "product"],
-      "if_type"=>"Product",
-      "selections"=>"{ price(currency:$currency) }",
-      "variables"=>{ "currency" => "Currency!" },
-      "boundary"=>{
-        "location"=>"products",
-        "field"=>"product",
-        "arg"=>"upc",
-        "key"=>"upc",
-        "list"=>false,
-        "type_name"=>"Product"
-      }
-    }
+    @op1 = GraphQL::Stitching::Plan::Op.new(
+      step: 2,
+      after: 1,
+      location: "products",
+      operation_type: "query",
+      path: ["storefronts"],
+      if_type: "Storefront",
+      selections: "{ name(lang:$lang) }",
+      variables: { "lang" => "String!" },
+      boundary: GraphQL::Stitching::Boundary.new(
+        location: "products",
+        field: "storefronts",
+        arg: "ids",
+        key: "id",
+        list: true,
+        type_name: "Storefront"
+      )
+    )
+    @op2 = GraphQL::Stitching::Plan::Op.new(
+      step: 3,
+      after: 1,
+      location: "products",
+      operation_type: "query",
+      path: ["storefronts", "product"],
+      if_type: "Product",
+      selections: "{ price(currency:$currency) }",
+      variables: { "currency" => "Currency!" },
+      boundary: GraphQL::Stitching::Boundary.new(
+        location: "products",
+        field: "product",
+        arg: "upc",
+        key: "upc",
+        list: false,
+        type_name: "Product"
+      )
+    )
 
     @source = GraphQL::Stitching::Executor::BoundarySource.new({}, "products")
     @origin_sets_by_operation = {
@@ -106,8 +106,9 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       ]
     }
 
+    plan = GraphQL::Stitching::Plan.new(ops: [])
     mock = GraphQL::Stitching::Request.new("{}")
-    mock = GraphQL::Stitching::Executor.new(supergraph: {}, request: mock, plan: { "ops" => [] })
+    mock = GraphQL::Stitching::Executor.new(supergraph: {}, request: mock, plan: plan)
     mock.instance_variable_set(:@data, data)
 
     @source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")

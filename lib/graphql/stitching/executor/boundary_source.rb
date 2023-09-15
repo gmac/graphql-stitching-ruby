@@ -10,13 +10,13 @@ module GraphQL
 
       def fetch(ops)
         origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
-          origin_set = op["path"].reduce([@executor.data]) do |set, path_segment|
+          origin_set = op.path.reduce([@executor.data]) do |set, path_segment|
             set.flat_map { |obj| obj && obj[path_segment] }.tap(&:compact!)
           end
 
-          if op["if_type"]
+          if op.if_type
             # operations planned around unused fragment conditions should not trigger requests
-            origin_set.select! { _1["_STITCH_typename"] == op["if_type"] }
+            origin_set.select! { _1["_STITCH_typename"] == op.if_type }
           end
 
           memo[op] = origin_set if origin_set.any?
@@ -34,7 +34,7 @@ module GraphQL
           @executor.errors.concat(extract_errors!(origin_sets_by_operation, errors)) if errors&.any?
         end
 
-        ops.map { origin_sets_by_operation[_1] ? _1["order"] : nil }
+        ops.map { origin_sets_by_operation[_1] ? _1.step : nil }
       end
 
       # Builds batched boundary queries
@@ -47,21 +47,21 @@ module GraphQL
       def build_document(origin_sets_by_operation, operation_name = nil)
         variable_defs = {}
         query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
-          variable_defs.merge!(op["variables"])
-          boundary = op["boundary"]
+          variable_defs.merge!(op.variables)
+          boundary = op.boundary
 
-          if boundary["list"]
+          if boundary.list
             input = origin_set.each_with_index.reduce(String.new) do |memo, (origin_obj, index)|
               memo << "," if index > 0
-              memo << build_key(boundary["key"], origin_obj, federation: boundary["federation"])
+              memo << build_key(boundary.key, origin_obj, federation: boundary.federation)
               memo
             end
 
-            "_#{batch_index}_result: #{boundary["field"]}(#{boundary["arg"]}:[#{input}]) #{op["selections"]}"
+            "_#{batch_index}_result: #{boundary.field}(#{boundary.arg}:[#{input}]) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              input = build_key(boundary["key"], origin_obj, federation: boundary["federation"])
-              "_#{batch_index}_#{index}_result: #{boundary["field"]}(#{boundary["arg"]}:#{input}) #{op["selections"]}"
+              input = build_key(boundary.key, origin_obj, federation: boundary.federation)
+              "_#{batch_index}_#{index}_result: #{boundary.field}(#{boundary.arg}:#{input}) #{op.selections}"
             end
           end
         end
@@ -71,7 +71,7 @@ module GraphQL
         if operation_name
           doc << " #{operation_name}"
           origin_sets_by_operation.each_key do |op|
-            doc << "_#{op["order"]}"
+            doc << "_#{op.step}"
           end
         end
 

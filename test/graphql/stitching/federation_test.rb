@@ -38,7 +38,7 @@ describe "GraphQL::Stitching::Federation" do
     }
 
     result = plan_and_execute(@supergraph, query) do |plan|
-      assert_equal ["stitching", "federation", "stitching"], plan.operations.map(&:location)
+      assert_equal ["stitching", "federation", "stitching"], plan.ops.map(&:location)
     end
 
     assert_equal expected, result
@@ -77,7 +77,7 @@ describe "GraphQL::Stitching::Federation" do
     }
 
     result = plan_and_execute(@supergraph, query) do |plan|
-      assert_equal ["federation2", "federation1", "federation2"], plan.operations.map(&:location)
+      assert_equal ["federation2", "federation1", "federation2"], plan.ops.map(&:location)
     end
 
     assert_equal expected, result

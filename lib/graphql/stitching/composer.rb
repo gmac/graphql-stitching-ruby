@@ -509,15 +509,15 @@ module GraphQL
               end
 
               @boundary_map[impl_type_name] ||= []
-              @boundary_map[impl_type_name] << {
-                "location" => location,
-                "type_name" => impl_type_name,
-                "key" => key_selections[0].name,
-                "field" => field_candidate.name,
-                "arg" => argument_name,
-                "list" => boundary_structure.first[:list],
-                "federation" => kwargs[:federation],
-              }.compact
+              @boundary_map[impl_type_name] << Boundary.new(
+                location: location,
+                type_name: impl_type_name,
+                key: key_selections[0].name,
+                field: field_candidate.name,
+                arg: argument_name,
+                list: boundary_structure.first[:list],
+                federation: kwargs[:federation],
+              )
             end
           end
         end

@@ -77,34 +77,34 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "storefronts", first.location
     assert_equal "query", first.operation_type
     assert_equal [], first.path
-    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH_typename: __typename } } }|, first.selection_set
-    assert_equal 1, first.order
+    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH_typename: __typename } } }|, first.selections
+    assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "products", second.location
     assert_equal "query", second.operation_type
     assert_equal ["storefront", "products"], second.path
-    assert_equal "{ name manufacturer { products { name } _STITCH_id: id _STITCH_typename: __typename } }", second.selection_set
-    assert_equal "product", second.boundary["field"]
-    assert_equal "upc", second.boundary["key"]
-    assert_equal first.order, second.after
+    assert_equal "{ name manufacturer { products { name } _STITCH_id: id _STITCH_typename: __typename } }", second.selections
+    assert_equal "product", second.boundary.field
+    assert_equal "upc", second.boundary.key
+    assert_equal first.step, second.after
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "manufacturers", third.location
     assert_equal "query", third.operation_type
     assert_equal ["storefront", "products", "manufacturer"], third.path
-    assert_equal "{ address }", third.selection_set
-    assert_equal "manufacturer", third.boundary["field"]
-    assert_equal "id", third.boundary["key"]
-    assert_equal second.order, third.after
+    assert_equal "{ address }", third.selections
+    assert_equal "manufacturer", third.boundary.field
+    assert_equal "id", third.boundary.key
+    assert_equal second.step, third.after
   end
 
   def test_collects_common_fields_from_first_available_location
@@ -122,33 +122,33 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(document2),
     ).perform
 
-    assert_equal 2, plan1.operations.length
-    assert_equal 1, plan2.operations.length
+    assert_equal 2, plan1.ops.length
+    assert_equal 1, plan2.ops.length
 
-    p1_first = plan1.operations[0]
+    p1_first = plan1.ops[0]
     assert_equal "manufacturers", p1_first.location
     assert_equal "query", p1_first.operation_type
     assert_equal [], p1_first.path
-    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH_typename: __typename } }|, p1_first.selection_set
-    assert_equal 1, p1_first.order
+    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH_typename: __typename } }|, p1_first.selections
+    assert_equal 1, p1_first.step
     assert_equal 0, p1_first.after
     assert_nil p1_first.boundary
 
-    p1_second = plan1.operations[1]
+    p1_second = plan1.ops[1]
     assert_equal "products", p1_second.location
     assert_equal "query", p1_second.operation_type
     assert_equal ["manufacturer"], p1_second.path
-    assert_equal "{ products { name } }", p1_second.selection_set
-    assert_equal p1_first.order, p1_second.after
-    assert_equal "productsManufacturer", p1_second.boundary["field"]
-    assert_equal "id", p1_second.boundary["key"]
+    assert_equal "{ products { name } }", p1_second.selections
+    assert_equal p1_first.step, p1_second.after
+    assert_equal "productsManufacturer", p1_second.boundary.field
+    assert_equal "id", p1_second.boundary.key
 
-    p2_first = plan2.operations[0]
+    p2_first = plan2.ops[0]
     assert_equal "products", p2_first.location
     assert_equal "query", p2_first.operation_type
     assert_equal [], p2_first.path
-    assert_equal %|{ productsManufacturer(id: "1") { name products { name } } }|, p2_first.selection_set
-    assert_equal 1, p2_first.order
+    assert_equal %|{ productsManufacturer(id: "1") { name products { name } } }|, p2_first.selections
+    assert_equal 1, p2_first.step
     assert_equal 0, p2_first.after
     assert_nil p2_first.boundary
   end
@@ -173,21 +173,21 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(%|{ apple(id:"1") { id name weight } }|),
     ).perform
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selection_set
-    assert_equal 1, first.order
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
+    assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "b", second.location
     assert_equal ["apple"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selection_set
-    assert_equal "node", second.boundary["field"]
-    assert_equal "id", second.boundary["key"]
-    assert_equal first.order, second.after
+    assert_equal "{ ... on Apple { weight } }", second.selections
+    assert_equal "node", second.boundary.field
+    assert_equal "id", second.boundary.key
+    assert_equal first.step, second.after
   end
 
   def test_expands_selections_targeting_union_locations
@@ -210,21 +210,21 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selection_set
-    assert_equal 1, first.order
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
+    assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "b", second.location
     assert_equal ["apple"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selection_set
-    assert_equal "node", second.boundary["field"]
-    assert_equal "id", second.boundary["key"]
-    assert_equal first.order, second.after
+    assert_equal "{ ... on Apple { weight } }", second.selections
+    assert_equal "node", second.boundary.field
+    assert_equal "id", second.boundary.key
+    assert_equal first.step, second.after
   end
 
   def test_expands_selections_for_abstracts_targeting_abstract_locations
@@ -248,20 +248,20 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(%|{ node(id:"1") { id ...on Apple { name weight } } }|),
     ).perform
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH_typename: __typename } _STITCH_typename: __typename } }|, first.selection_set
-    assert_equal 1, first.order
+    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH_typename: __typename } _STITCH_typename: __typename } }|, first.selections
+    assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "b", second.location
     assert_equal ["node"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selection_set
-    assert_equal "fruit", second.boundary["field"]
-    assert_equal "id", second.boundary["key"]
-    assert_equal first.order, second.after
+    assert_equal "{ ... on Apple { weight } }", second.selections
+    assert_equal "fruit", second.boundary.field
+    assert_equal "id", second.boundary.key
+    assert_equal first.step, second.after
   end
 end

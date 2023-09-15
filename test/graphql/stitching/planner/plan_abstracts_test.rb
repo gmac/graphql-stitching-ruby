@@ -60,24 +60,24 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       }
     |
 
-    assert_equal 2, plan.operations.length
+    assert_equal 2, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "b", first.location
     assert_equal [], first.path
-    assert_equal squish_string(expected_root_selection), first.selection_set
+    assert_equal squish_string(expected_root_selection), first.selections
     assert_equal 0, first.after
     assert_nil first.if_type
     assert_nil first.boundary
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "a", second.location
     assert_equal ["buyable"], second.path
-    assert_equal "{ name price }", second.selection_set
+    assert_equal "{ name price }", second.selections
     assert_equal "products", second.boundary["field"]
     assert_equal "id", second.boundary["key"]
     assert_equal "Product", second.if_type
-    assert_equal first.order, second.after
+    assert_equal first.step, second.after
   end
 
   def test_expands_interface_selection_fragments
@@ -130,8 +130,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         request: GraphQL::Stitching::Request.new(document),
       ).perform
 
-      assert_equal 2, plan.operations.length
-      assert_equal squish_string(expected_root_selection), plan.operations.first.selection_set
+      assert_equal 2, plan.ops.length
+      assert_equal squish_string(expected_root_selection), plan.ops.first.selections
     end
   end
 
@@ -165,8 +165,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 2, plan.operations.length
-    assert_equal squish_string(expected_root_selection), plan.operations.first.selection_set
+    assert_equal 2, plan.ops.length
+    assert_equal squish_string(expected_root_selection), plan.ops.first.selections
   end
 
   def test_retains_interface_selections_appropraite_to_the_location
@@ -175,10 +175,10 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       request: GraphQL::Stitching::Request.new("{ products(ids:[\"1\"]) { id name price } }"),
     ).perform
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal "{ products(ids: [\"1\"]) { id name price } }", first.selection_set
+    assert_equal "{ products(ids: [\"1\"]) { id name price } }", first.selections
     assert_equal 0, first.after
     assert_nil first.boundary
   end
@@ -231,7 +231,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 4, plan.operations.length
+    assert_equal 4, plan.ops.length
 
     expected_root_selection = %|
       {
@@ -251,27 +251,27 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       }
     |
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal squish_string(expected_root_selection), first.selection_set
+    assert_equal squish_string(expected_root_selection), first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "b", second.location
     assert_equal "Apple", second.if_type
     assert_equal ["fruit"], second.path
-    assert_equal "{ b }", second.selection_set
+    assert_equal "{ b }", second.selections
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "c", third.location
     assert_equal "Apple", third.if_type
     assert_equal ["fruit"], third.path
-    assert_equal "{ c }", third.selection_set
+    assert_equal "{ c }", third.selections
 
-    fourth = plan.operations[3]
+    fourth = plan.ops[3]
     assert_equal "b", fourth.location
     assert_equal "Banana", fourth.if_type
     assert_equal ["fruit"], fourth.path
-    assert_equal "{ b }", fourth.selection_set
+    assert_equal "{ b }", fourth.selections
   end
 end

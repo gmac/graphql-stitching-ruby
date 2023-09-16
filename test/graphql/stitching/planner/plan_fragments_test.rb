@@ -49,25 +49,25 @@ describe "GraphQL::Stitching::Planner, fragments" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "base", first.location
-    assert_equal squish_string(@expected_root_query), first.selection_set
+    assert_equal squish_string(@expected_root_query), first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "exa", second.location
-    assert_equal "{ color }", second.selection_set
+    assert_equal "{ color }", second.selections
     assert_equal "AppleExtension", second.if_type
     assert_equal ["fruits", "extensions"], second.path
-    assert_equal first.order, second.after
+    assert_equal first.step, second.after
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "exb", third.location
-    assert_equal "{ shape }", third.selection_set
+    assert_equal "{ shape }", third.selections
     assert_equal "BananaExtension", third.if_type
     assert_equal ["fruits", "extensions"], third.path
-    assert_equal first.order, third.after
+    assert_equal first.step, third.after
   end
 
   def test_plans_through_fragment_spreads
@@ -87,25 +87,25 @@ describe "GraphQL::Stitching::Planner, fragments" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "base", first.location
-    assert_equal squish_string(@expected_root_query), first.selection_set
+    assert_equal squish_string(@expected_root_query), first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "exa", second.location
-    assert_equal "{ color }", second.selection_set
+    assert_equal "{ color }", second.selections
     assert_equal "AppleExtension", second.if_type
     assert_equal ["fruits", "extensions"], second.path
-    assert_equal first.order, second.after
+    assert_equal first.step, second.after
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "exb", third.location
-    assert_equal "{ shape }", third.selection_set
+    assert_equal "{ shape }", third.selections
     assert_equal "BananaExtension", third.if_type
     assert_equal ["fruits", "extensions"], third.path
-    assert_equal first.order, third.after
+    assert_equal first.step, third.after
   end
 
   def test_plans_repeat_selections_and_fragments_into_coalesced_groupings
@@ -151,19 +151,19 @@ describe "GraphQL::Stitching::Planner, fragments" do
       request: GraphQL::Stitching::Request.new(query),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "bravo", first.location
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "alpha", second.location
     assert_equal ["namespace", "test"], second.path
-    assert_equal "{ a x y nest { a _STITCH_id: id _STITCH_typename: __typename } }", second.selection_set
+    assert_equal "{ a x y nest { a _STITCH_id: id _STITCH_typename: __typename } }", second.selections
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "bravo", third.location
     assert_equal ["namespace", "test", "nest"], third.path
-    assert_equal "{ b }", third.selection_set
+    assert_equal "{ b }", third.selections
   end
 end

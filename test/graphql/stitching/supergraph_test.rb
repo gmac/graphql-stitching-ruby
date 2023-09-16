@@ -84,28 +84,28 @@ describe "GraphQL::Stitching::Supergraph" do
 
   BOUNDARIES_MAP = {
     "Manufacturer" => [
-      {
-        "location" => "manufacturers",
-        "field" => "manufacturer",
-        "arg" => "id",
-        "key" => "id",
-      },
+      GraphQL::Stitching::Boundary.new(
+        location: "manufacturers",
+        field: "manufacturer",
+        arg: "id",
+        key: "id",
+      ),
     ],
     "Product" => [
-      {
-        "location" => "products",
-        "field" => "product",
-        "arg" => "upc",
-        "key" => "upc",
-      },
+      GraphQL::Stitching::Boundary.new(
+        location: "products",
+        field: "products",
+        arg: "upc",
+        key: "upc",
+      ),
     ],
     "Storefront" => [
-      {
-        "location" => "storefronts",
-        "field" => "storefront",
-        "arg" => "id",
-        "key" => "id",
-      },
+      GraphQL::Stitching::Boundary.new(
+        location: "storefronts",
+        field: "storefronts",
+        arg: "id",
+        key: "id",
+      ),
     ],
   }
 
@@ -332,7 +332,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
     def test_exports_and_restores_supergraph
       assert_equal @delegation_map["fields"], @supergraph.fields
-      assert_equal @delegation_map["boundaries"], @supergraph.boundaries
+      assert_equal @delegation_map["boundaries"], @supergraph.boundaries.map {|k, b| [k, b.map(&:as_json)] }.to_h
       assert_equal @delegation_map["locations"], @supergraph.locations
 
       supergraph_import = GraphQL::Stitching::Supergraph.from_export(

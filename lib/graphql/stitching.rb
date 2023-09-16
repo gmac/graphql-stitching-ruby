@@ -25,11 +25,13 @@ module GraphQL
 end
 
 require_relative "stitching/supergraph"
+require_relative "stitching/boundary"
 require_relative "stitching/client"
 require_relative "stitching/composer"
 require_relative "stitching/executor"
 require_relative "stitching/http_executable"
-require_relative "stitching/planner_operation"
+require_relative "stitching/plan"
+require_relative "stitching/planner_step"
 require_relative "stitching/planner"
 require_relative "stitching/request"
 require_relative "stitching/shaper"

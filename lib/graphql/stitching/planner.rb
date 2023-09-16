@@ -5,27 +5,23 @@ module GraphQL
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
       TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
-      ROOT_ORDER = 0
+      ROOT_INDEX = 0
 
       def initialize(supergraph:, request:)
         @supergraph = supergraph
         @request = request
-        @planning_order = ROOT_ORDER
-        @operations_by_entrypoint = {}
+        @planning_index = ROOT_INDEX
+        @steps_by_entrypoint = {}
       end
 
       def perform
         build_root_entrypoints
         expand_abstract_boundaries
-        self
+        GraphQL::Stitching::Plan.new(ops: steps.map(&:to_plan_op))
       end
 
-      def operations
-        @operations_by_entrypoint.values.sort_by!(&:order)
-      end
-
-      def to_h
-        { "ops" => operations.map!(&:to_h) }
+      def steps
+        @steps_by_entrypoint.values.sort_by!(&:index)
       end
 
       private
@@ -71,7 +67,7 @@ module GraphQL
       # adds an entrypoint for fetching and inserting data into the aggregate result.
       def add_entrypoint(
         location:,
-        parent_order:,
+        parent_index:,
         parent_type:,
         selections:,
         variables: {},
@@ -80,15 +76,15 @@ module GraphQL
         boundary: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        boundary_key = boundary ? boundary["key"] : "_"
-        entrypoint = String.new("#{parent_order}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
+        boundary_key = boundary ? boundary.key : "_"
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
         path.each { entrypoint << "/#{_1}" }
 
-        op = @operations_by_entrypoint[entrypoint]
-        next_order = op ? parent_order : @planning_order += 1
+        op = @steps_by_entrypoint[entrypoint]
+        next_index = op ? parent_index : @planning_index += 1
 
         if selections.any?
-          selections = extract_locale_selections(location, parent_type, next_order, selections, path, variables)
+          selections = extract_locale_selections(location, parent_type, next_index, selections, path, variables)
         end
 
         if op.nil?
@@ -97,9 +93,9 @@ module GraphQL
           # this prevents the executor from taking action on unused fragment selections
           conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.root_type_for_operation(operation_type)
 
-          @operations_by_entrypoint[entrypoint] = PlannerOperation.new(
-            order: next_order,
-            after: parent_order,
+          @steps_by_entrypoint[entrypoint] = PlannerStep.new(
+            index: next_index,
+            after: parent_index,
             location: location,
             parent_type: parent_type,
             operation_type: operation_type,
@@ -132,7 +128,7 @@ module GraphQL
           selections_by_location.each do |location, selections|
             add_entrypoint(
               location: location,
-              parent_order: ROOT_ORDER,
+              parent_index: ROOT_INDEX,
               parent_type: parent_type,
               selections: selections,
             )
@@ -153,14 +149,14 @@ module GraphQL
             partitions.last[:selections] << node
           end
 
-          partitions.reduce(ROOT_ORDER) do |parent_order, partition|
+          partitions.reduce(ROOT_INDEX) do |parent_index, partition|
             add_entrypoint(
               location: partition[:location],
-              parent_order: parent_order,
+              parent_index: parent_index,
               parent_type: parent_type,
               selections: partition[:selections],
               operation_type: "mutation",
-            ).order
+            ).index
           end
 
         else
@@ -193,7 +189,7 @@ module GraphQL
       def extract_locale_selections(
         current_location,
         parent_type,
-        parent_order,
+        parent_index,
         input_selections,
         path,
         locale_variables,
@@ -230,7 +226,7 @@ module GraphQL
               locale_selections << node
             else
               path.push(node.alias || node.name)
-              selection_set = extract_locale_selections(current_location, field_type, parent_order, node.selections, path, locale_variables)
+              selection_set = extract_locale_selections(current_location, field_type, parent_index, node.selections, path, locale_variables)
               path.pop
 
               locale_selections << node.merge(selections: selection_set)
@@ -242,7 +238,7 @@ module GraphQL
 
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, parent_order, node.selections, path, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, parent_index, node.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
               locale_selections << node.merge(selections: selection_set)
@@ -256,7 +252,7 @@ module GraphQL
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
-            extract_locale_selections(current_location, fragment_type, parent_order, fragment.selections, path, locale_variables, selection_set)
+            extract_locale_selections(current_location, fragment_type, parent_index, fragment.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
               locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
@@ -285,7 +281,7 @@ module GraphQL
           routes.each_value do |route|
             route.reduce(locale_selections) do |parent_selections, boundary|
               # E.1) Add the key of each boundary query into the prior location's selection set.
-              foreign_key = "_STITCH_#{boundary["key"]}"
+              foreign_key = "_STITCH_#{boundary.key}"
               has_key = false
               has_typename = false
 
@@ -299,14 +295,14 @@ module GraphQL
                 end
               end
 
-              parent_selections << GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary["key"]) unless has_key
+              parent_selections << GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary.key) unless has_key
               parent_selections << TYPENAME_NODE unless has_typename
 
               # E.2) Add a planner operation for each new entrypoint location.
-              location = boundary["location"]
+              location = boundary.location
               add_entrypoint(
                 location: location,
-                parent_order: parent_order,
+                parent_index: parent_index,
                 parent_type: parent_type,
                 selections: remote_selections_by_location[location] || [],
                 path: path.dup,
@@ -446,10 +442,10 @@ module GraphQL
 
       # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
       def expand_abstract_boundaries
-        @operations_by_entrypoint.each_value do |op|
+        @steps_by_entrypoint.each_value do |op|
           next unless op.boundary
 
-          boundary_type = @supergraph.memoized_schema_types[op.boundary["type_name"]]
+          boundary_type = @supergraph.memoized_schema_types[op.boundary.type_name]
           next unless boundary_type.kind.abstract?
           next if boundary_type == op.parent_type
 

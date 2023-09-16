@@ -53,18 +53,18 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
       request: GraphQL::Stitching::Request.new('query { alpha(id: "1") { a b } }'),
     ).perform
 
-    op1 = plan1.operations[0]
+    op1 = plan1.ops[0]
     assert_equal "alpha", op1.location
-    assert_equal %|{ alpha(id: \"1\") { a b } }|, op1.selection_set
+    assert_equal %|{ alpha(id: \"1\") { a b } }|, op1.selections
 
     plan2 = GraphQL::Stitching::Planner.new(
       supergraph: SUPERGRAPH,
       request: GraphQL::Stitching::Request.new('query { bravo(id: "1") { a b } }'),
     ).perform
 
-    op2 = plan2.operations[0]
+    op2 = plan2.ops[0]
     assert_equal "bravo", op2.location
-    assert_equal %|{ bravo(id: \"1\") { a b } }|, op2.selection_set
+    assert_equal %|{ bravo(id: \"1\") { a b } }|, op2.selections
   end
 
   def test_delegates_remote_selections_by_unique_location_then_used_location_then_highest_availability
@@ -73,20 +73,20 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
       request: GraphQL::Stitching::Request.new('query { alpha(id: "1") { a b c d e f } }'),
     ).perform
 
-    assert_equal 3, plan.operations.length
+    assert_equal 3, plan.ops.length
 
-    first = plan.operations[0]
+    first = plan.ops[0]
     assert_equal "alpha", first.location
-    assert_equal %|{ alpha(id: \"1\") { a b _STITCH_id: id _STITCH_typename: __typename } }|, first.selection_set
+    assert_equal %|{ alpha(id: \"1\") { a b _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
 
-    second = plan.operations[1]
+    second = plan.ops[1]
     assert_equal "charlie", second.location
-    assert_equal "{ c d }", second.selection_set
-    assert_equal first.order, second.after
+    assert_equal "{ c d }", second.selections
+    assert_equal first.step, second.after
 
-    third = plan.operations[2]
+    third = plan.ops[2]
     assert_equal "echo", third.location
-    assert_equal "{ e f }", third.selection_set
-    assert_equal first.order, third.after
+    assert_equal "{ e f }", third.selections
+    assert_equal first.step, third.after
   end
 end

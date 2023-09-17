@@ -8,6 +8,7 @@ module GraphQL
       ROOT_INDEX = 0
 
       class DependentField < GraphQL::Language::Nodes::Field
+        attr_accessor :dependencies
       end
 
       def initialize(supergraph:, request:)
@@ -206,7 +207,7 @@ module GraphQL
         remote_selections = nil
         requires_typename = parent_type.kind.abstract?
 
-        type_deps = @supergraph.field_dependencies_by_type[parent_type.graphql_name]
+        field_dependencies_by_field = @supergraph.field_dependencies_by_type[parent_type.graphql_name] || GraphQL::Stitching::EMPTY_OBJECT
         i = 0
 
         while i < input_selections.length
@@ -220,24 +221,30 @@ module GraphQL
               next
             end
 
-            if type_deps
-              field_deps = type_deps[node.name]
-              if field_deps
-                if node.is_a?(DependentField)
-                  unless field_deps.all? { |field_name| input_selections.none? { _1.alias == "_STITCH_#{field_name}" } }
-                    remote_selections ||= []
-                    remote_selections << node
-                    next
-                  end
-                else
-                  field_deps.each do |field_name|
-                    input_selections << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_#{field_name}", name: field_name)
-                  end
-                  remote_selections ||= []
-                  remote_selections << DependentField.new(alias: node.alias, name: node.name)
-                  next
-                end
+            if node.is_a?(DependentField)
+              if node.dependencies.any? { |n| input_selections.include?(n) }
+                # unresolved dependencies, keep deferring
+                remote_selections ||= []
+                remote_selections << node
+                next
+              else
+                # ready to resolve this field now
+                # lookup step indicies where dependencies were fetched...
               end
+            elsif field_dependencies = field_dependencies_by_field[node.name]
+              node = DependentField.new(alias: node.alias, name: node.name)
+              node.dependencies = field_dependencies.map do |field_name|
+                dep_alias = "_STITCH_#{field_name}"
+                dep_node = input_selections.find { _1.alias == dep_alias }
+                unless dep_node
+                  dep_node = GraphQL::Language::Nodes::Field.new(alias: dep_alias, name: field_name)
+                  input_selections << dep_node
+                end
+                dep_node
+              end
+              remote_selections ||= []
+              remote_selections << node
+              next
             end
 
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS

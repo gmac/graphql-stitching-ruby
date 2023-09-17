@@ -34,6 +34,7 @@ module GraphQL
       end
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
+      attr_accessor :field_dependencies_by_type
 
       def initialize(schema:, fields:, boundaries:, executables:)
         @schema = schema
@@ -42,6 +43,7 @@ module GraphQL
         @possible_keys_by_type_and_location = {}
         @memoized_schema_possible_types = {}
         @memoized_schema_fields = {}
+        @field_dependencies_by_type = {}
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|

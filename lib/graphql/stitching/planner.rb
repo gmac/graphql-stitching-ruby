@@ -7,6 +7,9 @@ module GraphQL
       TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
       ROOT_INDEX = 0
 
+      class DependentField < GraphQL::Language::Nodes::Field
+      end
+
       def initialize(supergraph:, request:)
         @supergraph = supergraph
         @request = request
@@ -203,12 +206,38 @@ module GraphQL
         remote_selections = nil
         requires_typename = parent_type.kind.abstract?
 
-        input_selections.each do |node|
+        type_deps = @supergraph.field_dependencies_by_type[parent_type.graphql_name]
+        i = 0
+
+        while i < input_selections.length
+          node = input_selections[i]
+          i += 1
+
           case node
           when GraphQL::Language::Nodes::Field
             if node.name == "__typename"
               locale_selections << node
               next
+            end
+
+            if type_deps
+              field_deps = type_deps[node.name]
+              if field_deps
+                if node.is_a?(DependentField)
+                  unless field_deps.all? { |field_name| input_selections.none? { _1.alias == "_STITCH_#{field_name}" } }
+                    remote_selections ||= []
+                    remote_selections << node
+                    next
+                  end
+                else
+                  field_deps.each do |field_name|
+                    input_selections << GraphQL::Language::Nodes::Field.new(alias: "_STITCH_#{field_name}", name: field_name)
+                  end
+                  remote_selections ||= []
+                  remote_selections << DependentField.new(alias: node.alias, name: node.name)
+                  next
+                end
+              end
             end
 
             possible_locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS

@@ -430,21 +430,21 @@ module GraphQL
             raise ComposerError, "Cannot compose mixed list structures at `#{path}`."
           end
 
-          if alt_structure.last[:name] != basis_structure.last[:name]
+          if alt_structure.last.name != basis_structure.last.name
             raise ComposerError, "Cannot compose mixed types at `#{path}`."
           end
         end
 
         type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
-          basis_structure.last[:name],
-          build_type_binding(basis_structure.last[:name])
+          basis_structure.last.name,
+          build_type_binding(basis_structure.last.name)
         )
 
         basis_structure.reverse!.each_with_index do |basis, index|
           rev_index = basis_structure.length - index - 1
-          non_null = alt_structures.each_with_object([!basis[:null]]) { |s, m| m << !s[rev_index][:null] }
+          non_null = alt_structures.each_with_object([basis.non_null?]) { |s, m| m << s[rev_index].non_null? }
 
-          type = type.to_list_type if basis[:list]
+          type = type.to_list_type if basis.list?
           type = type.to_non_null_type if argument_name ? non_null.any? : non_null.all?
         end
 
@@ -515,7 +515,7 @@ module GraphQL
                 key: key_selections[0].name,
                 field: field_candidate.name,
                 arg: argument_name,
-                list: boundary_structure.first[:list],
+                list: boundary_structure.first.list?,
                 federation: kwargs[:federation],
               )
             end

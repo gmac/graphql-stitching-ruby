@@ -86,10 +86,20 @@ module GraphQL
 
         op = @steps_by_entrypoint[entrypoint]
         next_index = op ? parent_index : @planning_index += 1
+        additional_parents = nil
 
         if selections.any?
           selections = extract_locale_selections(location, parent_type, next_index, selections, path, variables)
+          additional_parents = selections.flat_map do |node|
+            if node.is_a?(DependentField)
+              node.dependencies.map do |f|
+                @steps_by_entrypoint.values.find { _1.selections.include?(f) }&.index
+              end
+            end
+          end.tap(&:compact!)
+          puts additional_parents
         end
+
 
         if op.nil?
           # concrete types that are not root Query/Mutation report themselves as a type condition
@@ -99,7 +109,7 @@ module GraphQL
 
           @steps_by_entrypoint[entrypoint] = PlannerStep.new(
             index: next_index,
-            after: parent_index,
+            after: additional_parents.any? ? [parent_index, *additional_parents].tap(&:uniq!) : parent_index,
             location: location,
             parent_type: parent_type,
             operation_type: operation_type,
@@ -201,19 +211,16 @@ module GraphQL
       )
         # B.1) Expand selections on interface types that do not belong to this location.
         input_selections = expand_interface_selections(current_location, parent_type, input_selections)
+        input_selections = expand_dependent_fields(current_location, parent_type, input_selections)
+        puts "Round..."
+        puts input_selections.map { "#{_1.class.name}, #{_1.name}, #{_1.is_a?(DependentField) ? _1.dependencies.map(&:alias).join(",") : nil}" }
 
         # B.2) Filter the selection tree down to just fields of the entrypoint location.
         # Adjoining selections not available here get split off into new entrypoints (C).
         remote_selections = nil
         requires_typename = parent_type.kind.abstract?
 
-        field_dependencies_by_field = @supergraph.field_dependencies_by_type[parent_type.graphql_name] || GraphQL::Stitching::EMPTY_OBJECT
-        i = 0
-
-        while i < input_selections.length
-          node = input_selections[i]
-          i += 1
-
+        input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
             if node.name == "__typename"
@@ -221,27 +228,9 @@ module GraphQL
               next
             end
 
-            if node.is_a?(DependentField)
-              if node.dependencies.any? { |n| input_selections.include?(n) }
-                # unresolved dependencies, keep deferring
-                remote_selections ||= []
-                remote_selections << node
-                next
-              else
-                # ready to resolve this field now
-                # lookup step indicies where dependencies were fetched...
-              end
-            elsif field_dependencies = field_dependencies_by_field[node.name]
-              node = DependentField.new(alias: node.alias, name: node.name)
-              node.dependencies = field_dependencies.map do |field_name|
-                dep_alias = "_STITCH_#{field_name}"
-                dep_node = input_selections.find { _1.alias == dep_alias }
-                unless dep_node
-                  dep_node = GraphQL::Language::Nodes::Field.new(alias: dep_alias, name: field_name)
-                  input_selections << dep_node
-                end
-                dep_node
-              end
+            # defer dependent fields until all of their dependencies are resolved
+            if node.is_a?(DependentField) && node.dependencies.any? { |n| input_selections.include?(n) }
+              puts "PUNT #{node.name}"
               remote_selections ||= []
               remote_selections << node
               next
@@ -349,6 +338,45 @@ module GraphQL
         end
 
         locale_selections
+      end
+
+      def expand_dependent_field_rec(field_dependencies_by_field, node, dependent_fields)
+        field_dependencies = field_dependencies_by_field[node.name]
+        if field_dependencies
+          node = DependentField.new(alias: node.alias, name: node.name)
+          node.dependencies = field_dependencies.map do |field_name|
+            dep_node = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_#{field_name}", name: field_name)
+            if expanded_node = expand_dependent_field_rec(field_dependencies_by_field, dep_node, dependent_fields)
+              dep_node = expanded_node
+            else
+              dependent_fields << dep_node
+            end
+            dep_node
+          end
+
+          dependent_fields << node
+          node
+        end
+      end
+
+      def expand_dependent_fields(current_location, parent_type, input_selections)
+        field_dependencies_by_field = @supergraph.field_dependencies_by_type[parent_type.graphql_name]
+        return input_selections unless field_dependencies_by_field
+
+        dependent_fields = []
+
+        input_selections.reject! do |node|
+          case node
+          when DependentField
+            false
+          when GraphQL::Language::Nodes::Field
+            !!expand_dependent_field_rec(field_dependencies_by_field, node, dependent_fields)
+          else
+            false
+          end
+        end
+
+        input_selections.concat(dependent_fields)
       end
 
       # B.1) Selections on interface types that do not belong to the interface at the

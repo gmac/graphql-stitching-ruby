@@ -19,6 +19,7 @@ describe "GraphQL::Stitching::Planner, computed fields" do
       type Product {
         id: ID!
         shippingCost: Int! # @requires(fields: "weight")
+        size: Int!
       }
       type Query {
         productById(ids: ID!): Product! @stitch(key: "id")
@@ -29,11 +30,12 @@ describe "GraphQL::Stitching::Planner, computed fields" do
     @supergraph.field_dependencies_by_type = {
       "Product" => {
         "shippingCost" => ["weight"],
+        "weight" => ["size"],
       }
     }
   end
 
-  def test_expands_interface_selections_for_target_location
+  def test_plans_computed_fields1
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
       request: GraphQL::Stitching::Request.new('{ products(ids: ["1"]) { title shippingCost } }'),
@@ -42,12 +44,12 @@ describe "GraphQL::Stitching::Planner, computed fields" do
     pp plan.as_json
   end
 
-  def test_expands_interface_selections_for_target_location
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new('{ productById(id: "1") { title shippingCost } }'),
-    ).perform
+  # def test_plans_computed_fields2
+  #   plan = GraphQL::Stitching::Planner.new(
+  #     supergraph: @supergraph,
+  #     request: GraphQL::Stitching::Request.new('{ productById(id: "1") { title shippingCost } }'),
+  #   ).perform
 
-    pp plan.as_json
-  end
+  #   pp plan.as_json
+  # end
 end

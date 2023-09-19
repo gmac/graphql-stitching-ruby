@@ -32,12 +32,12 @@ module GraphQL
               interface_type_structure.each_with_index do |interface_struct, index|
                 possible_struct = possible_type_structure[index]
 
-                if possible_struct[:name] != interface_struct[:name]
+                if possible_struct.name != interface_struct.name
                   raise Composer::ValidationError, "Incompatible named types between field #{possible_type.graphql_name}.#{field_name} of type "\
                     "#{intersecting_field.type.to_type_signature} and interface #{interface_type.graphql_name}.#{field_name} of type #{interface_field.type.to_type_signature}."
                 end
 
-                if possible_struct[:null] && !interface_struct[:null]
+                if possible_struct.null? && interface_struct.non_null?
                   raise Composer::ValidationError, "Incompatible nullability between field #{possible_type.graphql_name}.#{field_name} of type "\
                     "#{intersecting_field.type.to_type_signature} and interface #{interface_type.graphql_name}.#{field_name} of type #{interface_field.type.to_type_signature}."
                 end

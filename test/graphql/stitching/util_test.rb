@@ -70,28 +70,28 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
 
   def test_flatten_type_structure
     expected_list1 = [
-      { list: true, null: false, name: nil },
-      { list: false, null: true, name: "String" },
+      Util::TypeStructure.new(list: true, null: false, name: nil),
+      Util::TypeStructure.new(list: false, null: true, name: "String"),
     ]
     assert_equal expected_list1, Util.flatten_type_structure(field_type("list1"))
 
     expected_list2 = [
-      { list: true, null: true, name: nil },
-      { list: false, null: false, name: "String" },
+      Util::TypeStructure.new(list: true, null: true, name: nil),
+      Util::TypeStructure.new(list: false, null: false, name: "String"),
     ]
     assert_equal expected_list2, Util.flatten_type_structure(field_type("list2"))
 
     expected_list3 = [
-      { list: true, null: true, name: nil },
-      { list: true, null: false, name: nil },
-      { list: false, null: true, name: "Int" },
+      Util::TypeStructure.new(list: true, null: true, name: nil),
+      Util::TypeStructure.new(list: true, null: false, name: nil),
+      Util::TypeStructure.new(list: false, null: true, name: "Int"),
     ]
     assert_equal expected_list3, Util.flatten_type_structure(field_type("list3"))
 
     expected_list4 = [
-      { list: true, null: false, name: nil },
-      { list: true, null: true, name: nil },
-      { list: false, null: false, name: "Int" },
+      Util::TypeStructure.new(list: true, null: false, name: nil),
+      Util::TypeStructure.new(list: true, null: true, name: nil),
+      Util::TypeStructure.new(list: false, null: false, name: "Int"),
     ]
     assert_equal expected_list4, Util.flatten_type_structure(field_type("list4"))
   end

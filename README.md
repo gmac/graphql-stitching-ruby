@@ -9,7 +9,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Multiple keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
-- Type merging via federation `_entities` protocol.
+- Type merging via arbitrary queries or federation `_entities` protocol.
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).

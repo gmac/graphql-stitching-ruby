@@ -44,7 +44,7 @@ module GraphQL
       # B.3) Collect all variable definitions used within the filtered selection.
       # These specify which request variables to pass along with the selection.
       #
-      # B.4) Add a `__typename` selection to concrete types and abstracts that implement
+      # B.4) Add a `__typename` selection to abstracts and concrete types that implement
       # fragments. This provides resolved type information used during execution.
       #
       # C) Delegate adjoining selections to new entrypoint locations.
@@ -64,8 +64,8 @@ module GraphQL
       # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
       # **
 
-      # adds an entrypoint for fetching and inserting data into the aggregate result.
-      def add_entrypoint(
+      # adds a planning step for fetching and inserting data into the aggregate result.
+      def add_step(
         location:,
         parent_index:,
         parent_type:,
@@ -80,14 +80,14 @@ module GraphQL
         entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
         path.each { entrypoint << "/#{_1}" }
 
-        op = @steps_by_entrypoint[entrypoint]
-        next_index = op ? parent_index : @planning_index += 1
+        step = @steps_by_entrypoint[entrypoint]
+        next_index = step ? parent_index : @planning_index += 1
 
         if selections.any?
           selections = extract_locale_selections(location, parent_type, next_index, selections, path, variables)
         end
 
-        if op.nil?
+        if step.nil?
           # concrete types that are not root Query/Mutation report themselves as a type condition
           # executor must check the __typename of loaded objects to see if they match subsequent operations
           # this prevents the executor from taking action on unused fragment selections
@@ -106,8 +106,8 @@ module GraphQL
             boundary: boundary,
           )
         else
-          op.selections.concat(selections)
-          op
+          step.selections.concat(selections)
+          step
         end
       end
 
@@ -126,7 +126,7 @@ module GraphQL
           end
 
           selections_by_location.each do |location, selections|
-            add_entrypoint(
+            add_step(
               location: location,
               parent_index: ROOT_INDEX,
               parent_type: parent_type,
@@ -150,7 +150,7 @@ module GraphQL
           end
 
           partitions.reduce(ROOT_INDEX) do |parent_index, partition|
-            add_entrypoint(
+            add_step(
               location: partition[:location],
               parent_index: parent_index,
               parent_type: parent_type,
@@ -264,7 +264,7 @@ module GraphQL
           end
         end
 
-        # B.4) Add a `__typename` selection to concrete types and abstracts that implement
+        # B.4) Add a `__typename` selection to abstracts and concrete types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
           locale_selections << TYPENAME_NODE
@@ -300,7 +300,7 @@ module GraphQL
 
               # E.2) Add a planner operation for each new entrypoint location.
               location = boundary.location
-              add_entrypoint(
+              add_step(
                 location: location,
                 parent_index: parent_index,
                 parent_type: parent_type,
@@ -324,27 +324,13 @@ module GraphQL
 
         expanded_selections = nil
         input_selections = input_selections.filter_map do |node|
-          case node
-          when GraphQL::Language::Nodes::Field
-            if node.name != "__typename" && !local_interface_fields.include?(node.name)
-              expanded_selections ||= []
-              expanded_selections << node
-              next nil
-            end
-
-          when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
-            selection_set = expand_interface_selections(current_location, fragment_type, node.selections)
-            node = node.merge(selections: selection_set)
-
-          when GraphQL::Language::Nodes::FragmentSpread
-            fragment = @request.fragment_definitions[node.name]
-            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            selection_set = expand_interface_selections(current_location, fragment_type, fragment.selections)
-            node = GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
-
+          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != "__typename" && !local_interface_fields.include?(node.name)
+            expanded_selections ||= []
+            expanded_selections << node
+            nil
+          else
+            node
           end
-          node
         end
 
         if expanded_selections

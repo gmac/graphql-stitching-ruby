@@ -111,6 +111,8 @@ module GraphQL
         end
       end
 
+      ScopePartition = Struct.new(:location, :selections, keyword_init: true)
+
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
         case @request.operation.operation_type
@@ -142,19 +144,19 @@ module GraphQL
           each_selection_in_type(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
-            if partitions.none? || partitions.last[:location] != next_location
-              partitions << { location: next_location, selections: [] }
+            if partitions.none? || partitions.last.location != next_location
+              partitions << ScopePartition.new(location: next_location, selections: [])
             end
 
-            partitions.last[:selections] << node
+            partitions.last.selections << node
           end
 
           partitions.reduce(ROOT_INDEX) do |parent_index, partition|
             add_step(
-              location: partition[:location],
+              location: partition.location,
               parent_index: parent_index,
               parent_type: parent_type,
-              selections: partition[:selections],
+              selections: partition.selections,
               operation_type: "mutation",
             ).index
           end

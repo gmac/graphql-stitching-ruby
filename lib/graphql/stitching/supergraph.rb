@@ -181,6 +181,8 @@ module GraphQL
 
       private
 
+      PathNode = Struct.new(:location, :key, :cost, :boundary, keyword_init: true)
+
       # tunes a-star search to favor paths with fewest joining locations, ie:
       # favor longer paths through target locations over shorter paths with additional locations.
       def route_type_to_locations_via_search(type_name, start_location, goal_locations)
@@ -188,50 +190,50 @@ module GraphQL
         costs = {}
 
         paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
-          [{ location: start_location, key: possible_key, cost: 0 }]
+          [PathNode.new(location: start_location, key: possible_key, cost: 0)]
         end
 
         while paths.any?
           path = paths.pop
-          current_location = path.last[:location]
-          current_key = path.last[:key]
-          current_cost = path.last[:cost]
+          current_location = path.last.location
+          current_key = path.last.key
+          current_cost = path.last.cost
 
           @boundaries[type_name].each do |boundary|
             forward_location = boundary.location
             next if current_key != boundary.key
-            next if path.any? { _1[:location] == forward_location }
+            next if path.any? { _1.location == forward_location }
 
             best_cost = costs[forward_location] || Float::INFINITY
             next if best_cost < current_cost
 
             path.pop
-            path << {
+            path << PathNode.new(
               location: current_location,
               key: current_key,
               cost: current_cost,
               boundary: boundary,
-            }
+            )
 
             if goal_locations.include?(forward_location)
               current_result = results[forward_location]
               if current_result.nil? || current_cost < best_cost || (current_cost == best_cost && path.length < current_result.length)
-                results[forward_location] = path.map { _1[:boundary] }
+                results[forward_location] = path.map(&:boundary)
               end
             else
-              path.last[:cost] += 1
+              path.last.cost += 1
             end
 
-            forward_cost = path.last[:cost]
+            forward_cost = path.last.cost
             costs[forward_location] = forward_cost if forward_cost < best_cost
 
             possible_keys_for_type_and_location(type_name, forward_location).each do |possible_key|
-              paths << [*path, { location: forward_location, key: possible_key, cost: forward_cost }]
+              paths << [*path, PathNode.new(location: forward_location, key: possible_key, cost: forward_cost)]
             end
           end
 
           paths.sort! do |a, b|
-            cost_diff = b.last[:cost] - a.last[:cost]
+            cost_diff = b.last.cost - a.last.cost
             cost_diff.zero? ? b.length - a.length : cost_diff
           end
         end

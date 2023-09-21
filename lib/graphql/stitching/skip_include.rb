@@ -4,6 +4,9 @@ module GraphQL
   module Stitching
     class SkipInclude
       class << self
+        # Faster implementation of an AST visitor for prerendering
+        # @skip and @include conditional directives into a document.
+        # This avoids unnecessary planning steps, and prepares result shaping.
         def render(document, variables)
           changed = false
           definitions = document.definitions.map do |original_definition|

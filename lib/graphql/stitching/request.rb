@@ -5,54 +5,6 @@ module GraphQL
     class Request
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
 
-      class ApplyRuntimeDirectives < GraphQL::Language::Visitor
-        def initialize(document, variables)
-          @changed = false
-          @variables = variables
-          super(document)
-        end
-
-        def changed?
-          @changed
-        end
-
-        def on_field(node, parent)
-          delete_node = false
-          filtered_directives = if node.directives.any?
-            node.directives.select do |directive|
-              if directive.name == "skip"
-                delete_node = assess_argument_value(directive.arguments.first)
-                false
-              elsif directive.name == "include"
-                delete_node = !assess_argument_value(directive.arguments.first)
-                false
-              else
-                true
-              end
-            end
-          end
-
-          if delete_node
-            @changed = true
-            super(DELETE_NODE, parent)
-          elsif filtered_directives && filtered_directives.length != node.directives.length
-            @changed = true
-            super(node.merge(directives: filtered_directives), parent)
-          else
-            super
-          end
-        end
-
-        private
-
-        def assess_argument_value(arg)
-          if arg.value.is_a?(GraphQL::Language::Nodes::VariableIdentifier)
-            return @variables[arg.value.name]
-          end
-          arg.value
-        end
-      end
-
       attr_reader :document, :variables, :operation_name, :context
 
       def initialize(document, operation_name: nil, variables: nil, context: nil)
@@ -114,10 +66,9 @@ module GraphQL
         end
 
         if @may_contain_runtime_directives
-          visitor = ApplyRuntimeDirectives.new(@document, @variables)
-          @document = visitor.visit
+          @document, modified = SkipInclude.render(@document, @variables)
 
-          if visitor.changed?
+          if modified
             @string = nil
             @digest = nil
             @operation = nil

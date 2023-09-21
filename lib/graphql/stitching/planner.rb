@@ -4,7 +4,6 @@ module GraphQL
   module Stitching
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
-      TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
       ROOT_INDEX = 0
 
       def initialize(supergraph:, request:)
@@ -269,7 +268,7 @@ module GraphQL
         # B.4) Add a `__typename` selection to abstracts and concrete types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
-          locale_selections << TYPENAME_NODE
+          locale_selections << GraphQL::Stitching::TYPENAME_NODE
         end
 
         if remote_selections
@@ -292,13 +291,13 @@ module GraphQL
                 case selection.alias
                 when foreign_key
                   has_key = true
-                when TYPENAME_NODE.alias
+                when GraphQL::Stitching::TYPENAME_NODE.alias
                   has_typename = true
                 end
               end
 
               parent_selections << GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary.key) unless has_key
-              parent_selections << TYPENAME_NODE unless has_typename
+              parent_selections << GraphQL::Stitching::TYPENAME_NODE unless has_typename
 
               # E.2) Add a planner operation for each new entrypoint location.
               location = boundary.location

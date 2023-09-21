@@ -67,7 +67,7 @@ module GraphQL
 
         def assess_condition(arg, variables)
           if arg.value.is_a?(GraphQL::Language::Nodes::VariableIdentifier)
-            variables[arg.value.name]
+            variables[arg.value.name] || variables[arg.value.name.to_sym]
           else
             arg.value
           end

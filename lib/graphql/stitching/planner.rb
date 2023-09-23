@@ -6,6 +6,8 @@ module GraphQL
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
       QUERY_OP = "query"
       MUTATION_OP = "mutation"
+      DEFER_DIRECTIVE = "defer"
+      DEFER_LABEL_ARG = "label"
       ROOT_INDEX = 0
 
       def initialize(supergraph:, request:)
@@ -45,8 +47,11 @@ module GraphQL
       # B.3) Collect all variable definitions used within the filtered selection.
       # These specify which request variables to pass along with the selection.
       #
-      # B.4) Add a `__typename` selection to abstracts and concrete types that implement
-      # fragments. This provides resolved type information used during execution.
+      # B.4) Add a `__typename` selection to abstracts, deferred, and concrete types that
+      # implement fragments. This provides resolved type information used during execution.
+      #
+      # B.5) Add a hint key for returning to the current location in scopes with
+      # deferred selections.
       #
       # C) Delegate adjoining selections to new entrypoint locations.
       # C.1) Distribute unique fields among their required locations.
@@ -58,11 +63,13 @@ module GraphQL
       # D.2) Types joining through a single key route via quick location match.
       # (D.2 is an optional optimization of D.1)
       #
-      # E) Translate boundary pathways into new entrypoints.
+      # E) Translate boundary pathways into new planning steps.
       # E.1) Add the key of each boundary query into the prior location's selection set.
-      # E.2) Add a planner operation for each new entrypoint location, then extract it (B).
+      # E.2) Add a planning step for each new entrypoint location, then extract it (B).
       #
-      # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
+      # F) Resolver deferred selections
+      #
+      # G) Wrap concrete selections targeting abstract boundaries in typed fragments.
       # **
 
       # adds a planning step for fetching and inserting data into the aggregate result.
@@ -73,12 +80,13 @@ module GraphQL
         selections:,
         variables: {},
         path: [],
+        defer_label: nil,
         operation_type: QUERY_OP,
         boundary: nil
       )
         # coalesce repeat parameters into a single entrypoint
         boundary_key = boundary ? boundary.key : "_"
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary_key}/#{defer_label}")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -105,6 +113,7 @@ module GraphQL
             path: path,
             if_type: conditional ? parent_type.graphql_name : nil,
             boundary: boundary,
+            defer_label: defer_label,
           )
         else
           step.selections.concat(selections)
@@ -112,7 +121,7 @@ module GraphQL
         end
       end
 
-      ScopePartition = Struct.new(:location, :selections, keyword_init: true)
+      ScopePartition = Struct.new(:location, :defer_label, :selections, keyword_init: true)
 
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
@@ -121,61 +130,77 @@ module GraphQL
           # A.1) Group query fields by location for parallel execution.
           parent_type = @supergraph.schema.query
 
-          selections_by_location = {}
-          each_field_in_scope(parent_type, @request.operation.selections) do |node|
+          selections_by_label_location = {}
+          each_field_in_scope(parent_type, @request.operation.selections) do |node, defer_label|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            selections_by_location[locations.first] ||= []
-            selections_by_location[locations.first] << node
+
+            selections_by_label_location[defer_label] ||= {}
+            selections_by_label_location[defer_label][locations.first] ||= []
+            selections_by_label_location[defer_label][locations.first] << node
           end
 
-          selections_by_location.each do |location, selections|
-            add_step(
-              location: location,
-              parent_index: ROOT_INDEX,
-              parent_type: parent_type,
-              selections: selections,
-            )
+          selections_by_label_location.each do |defer_label, selections_by_location|
+            selections_by_location.each do |location, selections|
+              add_step(
+                location: location,
+                parent_index: ROOT_INDEX,
+                parent_type: parent_type,
+                selections: selections,
+                defer_label: defer_label,
+              )
+            end
           end
 
         when MUTATION_OP
           # A.2) Partition mutation fields by consecutive location for serial execution.
           parent_type = @supergraph.schema.mutation
+          base_partitions = []
+          defer_partitions = []
 
-          partitions = []
-          each_field_in_scope(parent_type, @request.operation.selections) do |node|
+          each_field_in_scope(parent_type, @request.operation.selections) do |node, defer_label|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
-            if partitions.none? || partitions.last.location != next_location
-              partitions << ScopePartition.new(location: next_location, selections: [])
+            if defer_label && (defer_partitions.none? || defer_partitions.last.location != next_location || defer_partitions.last.defer_label != defer_label)
+              defer_partitions << ScopePartition.new(location: next_location, defer_label: defer_label, selections: [])
+            elsif base_partitions.none? || base_partitions.last.location != next_location
+              base_partitions << ScopePartition.new(location: next_location, selections: [])
             end
 
-            partitions.last.selections << node
+            if defer_label
+              defer_partitions.last.selections << node
+            else
+              base_partitions.last.selections << node
+            end
           end
 
-          partitions.reduce(ROOT_INDEX) do |parent_index, partition|
+          last_mutation = base_partitions.concat(defer_partitions).reduce(ROOT_INDEX) do |parent_index, partition|
             add_step(
               location: partition.location,
               parent_index: parent_index,
               parent_type: parent_type,
               selections: partition.selections,
+              defer_label: partition.defer_label,
               operation_type: MUTATION_OP,
             ).index
           end
+
+          sequence_defer_queries_after(last_mutation)
 
         else
           raise "Invalid operation type."
         end
       end
 
-      def each_field_in_scope(parent_type, input_selections, &block)
+      def each_field_in_scope(parent_type, input_selections, defer_label: nil, &block)
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            yield(node)
+            yield(node, defer_label)
 
           when GraphQL::Language::Nodes::InlineFragment
             next unless node.type.nil? || parent_type.graphql_name == node.type.name
-            each_field_in_scope(parent_type, node.selections, &block)
+            label = extract_defer_label(parent_type, node)
+            each_field_in_scope(parent_type, node.selections, defer_label: label, &block)
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
@@ -184,6 +209,31 @@ module GraphQL
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
+          end
+        end
+      end
+
+      # sequence the root of each deferred query after a given step; used to shift
+      # deferred selections past mutations steps where they will access mutated state.
+      def sequence_defer_queries_after(step_index)
+        deferred_query_steps = @steps_by_entrypoint.values.select! { _1.defer_label && _1.operation_type == QUERY_OP }
+        return unless deferred_query_steps.any?
+
+        # sorts deferred queries by [label, after] (which should be implicit?)
+        deferred_query_steps.sort! do |a, b|
+          label_diff = a.defer_label.casecmp(b.defer_label)
+          label_diff.zero? ? a.after - b.after : label_diff
+        end
+
+        prev_label = nil
+        prev_index = nil
+
+        # sequence the root of each deferred query after the last mutation step
+        deferred_query_steps.each do |step|
+          if step.defer_label != prev_label || step.after == prev_index
+            prev_label = step.defer_label
+            prev_index = step.after
+            step.after = step_index
           end
         end
       end
@@ -204,6 +254,7 @@ module GraphQL
         # B.2) Filter the selection tree down to just fields of the entrypoint location.
         # Adjoining selections not available here get split off into new entrypoints (C).
         remote_selections = nil
+        defer_selections = nil
         requires_typename = parent_type.kind.abstract?
 
         input_selections.each do |node|
@@ -239,6 +290,12 @@ module GraphQL
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
             next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
 
+            if defer_label = extract_defer_label(fragment_type, node)
+              defer_selections ||= {}
+              defer_selections[defer_label] = node.selections
+              next
+            end
+
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, parent_index, node.selections, path, locale_variables, selection_set)
@@ -267,9 +324,9 @@ module GraphQL
           end
         end
 
-        # B.4) Add a `__typename` selection to abstracts and concrete types that implement
-        # fragments so that resolved type information is available during execution.
-        if requires_typename
+        # B.4) Add a `__typename` selection to abstracts, deferred, and concrete types that
+        # implement fragments so that resolved type information is available during execution.
+        if requires_typename || defer_selections
           locale_selections << SelectionHint.typename_node
         end
 
@@ -308,6 +365,53 @@ module GraphQL
                 boundary: boundary,
               ).selections
             end
+          end
+        end
+
+        if defer_selections
+          # F) Build deferred steps.
+          defer_selections.each do |label, selections|
+            # F.1) Plan a separate step in the current location for each deferred selection scope.
+            deferred_step = add_step(
+              location: current_location,
+              parent_index: parent_index,
+              parent_type: parent_type,
+              selections: selections,
+              path: path.dup,
+              boundary: @supergraph.boundary_for_location(parent_type.graphql_name, current_location),
+              defer_label: label,
+            )
+
+            # F.2) Hoist all deferred selection hints up to the base scope.
+            deferred_step.selections.reject! do |node|
+              if node.is_a?(GraphQL::Language::Nodes::Field) && SelectionHint.key?(node.alias)
+                locale_selections << node
+                true
+              end
+            end
+
+            @steps_by_entrypoint.reject! do |_entrypoint, step|
+              # F.3) Eliminate the deferred root step if now empty (ie: contained only hints).
+              # Otherwise, add a current location hint to the base scope for deferred return.
+              if step.index == deferred_step.index
+                next true if deferred_step.selections.none?
+
+                boundary = @supergraph.boundary_for_location(parent_type.graphql_name, current_location)
+                locale_selections << SelectionHint.key_node(boundary.key)
+
+              # F.4) Connect all deferred child steps directly to the base scope,
+              # and give them the same deferred label identity.
+              elsif step.after == deferred_step.index
+                step.after = deferred_step.after
+                step.defer_label = deferred_step.defer_label
+              end
+              false
+            end
+          end
+
+          locale_selections.uniq! do |node|
+            next node.alias if node.is_a?(GraphQL::Language::Nodes::Field) && SelectionHint.key?(node.alias)
+            node.object_id
           end
         end
 
@@ -425,7 +529,7 @@ module GraphQL
         selections_by_location
       end
 
-      # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
+      # G) Wrap concrete selections targeting abstract boundaries in typed fragments.
       def expand_abstract_boundaries
         @steps_by_entrypoint.each_value do |op|
           next unless op.boundary
@@ -447,6 +551,15 @@ module GraphQL
             type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
             op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
+        end
+      end
+
+      def extract_defer_label(fragment_type, node)
+        return nil if node.type || node.directives.none?
+
+        defer = node.directives.find { _1.name == DEFER_DIRECTIVE }
+        if defer && @supergraph.deferrable_type?(fragment_type.graphql_name)
+          defer.arguments.find { _1.name == DEFER_LABEL_ARG }&.value || SelectionHint.key(DEFER_DIRECTIVE)
         end
       end
     end

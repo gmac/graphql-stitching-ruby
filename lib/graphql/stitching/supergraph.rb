@@ -124,6 +124,16 @@ module GraphQL
         end
       end
 
+      def deferrable_type?(type_name)
+        type_name == @schema.query&.graphql_name ||
+          type_name == @schema.mutation&.graphql_name ||
+          @boundaries.key?(type_name)
+      end
+
+      def boundary_for_location(type_name, location)
+        @boundaries[type_name]&.find { _1.location == location }
+      end
+
       # inverts fields map to provide fields for a type/location
       # "Type" => "location" => ["field1", "field2", ...]
       def fields_by_type_and_location

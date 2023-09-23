@@ -6,13 +6,14 @@ module GraphQL
       GRAPHQL_PRINTER = GraphQL::Language::Printer.new
 
       attr_reader :index, :location, :parent_type, :if_type, :operation_type, :path
-      attr_accessor :after, :selections, :variables, :boundary
+      attr_accessor :after, :defer_label, :selections, :variables, :boundary
 
       def initialize(
         location:,
         parent_type:,
         index:,
         after: nil,
+        defer_label: nil,
         operation_type: "query",
         selections: [],
         variables: {},
@@ -24,6 +25,7 @@ module GraphQL
         @parent_type = parent_type
         @index = index
         @after = after
+        @defer_label = defer_label
         @operation_type = operation_type
         @selections = selections
         @variables = variables
@@ -43,6 +45,7 @@ module GraphQL
           path: @path,
           if_type: @if_type,
           boundary: @boundary,
+          defer_label: @defer_label,
         )
       end
 

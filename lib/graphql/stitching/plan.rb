@@ -11,6 +11,7 @@ module GraphQL
         :selections,
         :variables,
         :path,
+        :defer_label,
         :if_type,
         :boundary,
         keyword_init: true
@@ -24,8 +25,9 @@ module GraphQL
             selections: selections,
             variables: variables,
             path: path,
+            defer_label: defer_label,
             if_type: if_type,
-            boundary: boundary&.as_json
+            boundary: boundary&.as_json,
           }.tap(&:compact!)
         end
       end

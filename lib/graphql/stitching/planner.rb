@@ -268,7 +268,7 @@ module GraphQL
         # B.4) Add a `__typename` selection to abstracts and concrete types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
-          locale_selections << GraphQL::Stitching::TYPENAME_NODE
+          locale_selections << SelectionHint.typename_node
         end
 
         if remote_selections
@@ -282,7 +282,7 @@ module GraphQL
           routes.each_value do |route|
             route.reduce(locale_selections) do |parent_selections, boundary|
               # E.1) Add the key of each boundary query into the prior location's selection set.
-              foreign_key = "_STITCH_#{boundary.key}"
+              foreign_key = SelectionHint.key(boundary.key)
               has_key = false
               has_typename = false
 
@@ -291,13 +291,13 @@ module GraphQL
                 case selection.alias
                 when foreign_key
                   has_key = true
-                when GraphQL::Stitching::TYPENAME_NODE.alias
+                when SelectionHint.typename_key
                   has_typename = true
                 end
               end
 
-              parent_selections << GraphQL::Language::Nodes::Field.new(alias: foreign_key, name: boundary.key) unless has_key
-              parent_selections << GraphQL::Stitching::TYPENAME_NODE unless has_typename
+              parent_selections << SelectionHint.key_node(boundary.key) unless has_key
+              parent_selections << SelectionHint.typename_node unless has_typename
 
               # E.2) Add a planner operation for each new entrypoint location.
               location = boundary.location

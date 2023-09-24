@@ -19,8 +19,8 @@ module GraphQL
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
-        typename ||= raw_object["_STITCH_typename"]
-        raw_object.reject! { |k, _v| k.start_with?("_STITCH_") }
+        typename ||= raw_object[SelectionHint.typename_key]
+        raw_object.reject! { |key, _v| SelectionHint.key?(key) }
 
         selections.each do |node|
           case node

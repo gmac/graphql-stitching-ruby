@@ -6,7 +6,6 @@ module GraphQL
   module Stitching
     EMPTY_OBJECT = {}.freeze
     EMPTY_ARRAY = [].freeze
-    TYPENAME_NODE = GraphQL::Language::Nodes::Field.new(alias: "_STITCH_typename", name: "__typename")
 
     class StitchingError < StandardError; end
 
@@ -35,7 +34,8 @@ require_relative "stitching/plan"
 require_relative "stitching/planner_step"
 require_relative "stitching/planner"
 require_relative "stitching/request"
-require_relative "stitching/skip_include"
+require_relative "stitching/selection_hint"
 require_relative "stitching/shaper"
+require_relative "stitching/skip_include"
 require_relative "stitching/util"
 require_relative "stitching/version"

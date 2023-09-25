@@ -35,7 +35,7 @@ module GraphQL
           end
 
           if filtered_selections.none?
-            filtered_selections << GraphQL::Stitching::TYPENAME_NODE
+            filtered_selections << SelectionHint.typename_node
           end
 
           if changed

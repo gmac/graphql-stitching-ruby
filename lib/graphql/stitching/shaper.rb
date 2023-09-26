@@ -19,7 +19,7 @@ module GraphQL
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
-        typename ||= raw_object[SelectionHint.typename_key]
+        typename ||= raw_object[SelectionHint.typename_node.alias]
         raw_object.reject! { |key, _v| SelectionHint.key?(key) }
 
         selections.each do |node|

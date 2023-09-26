@@ -77,7 +77,7 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
 
     first = plan.ops[0]
     assert_equal "alpha", first.location
-    assert_equal %|{ alpha(id: \"1\") { a b _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
+    assert_equal %|{ alpha(id: \"1\") { a b _STITCH_id: id _STITCH___typename: __typename } }|, first.selections
 
     second = plan.ops[1]
     assert_equal "charlie", second.location

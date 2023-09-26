@@ -5,7 +5,7 @@ require "test_helper"
 describe "GraphQL::Stitching::SelectionHint" do
   def test_identifies_selection_hint_keys
     assert GraphQL::Stitching::SelectionHint.key?("_STITCH_beep")
-    assert GraphQL::Stitching::SelectionHint.key?("_STITCH_typename")
+    assert GraphQL::Stitching::SelectionHint.key?("_STITCH___typename")
 
     assert_equal false, GraphQL::Stitching::SelectionHint.key?("beep")
     assert_equal false, GraphQL::Stitching::SelectionHint.key?("__typename")
@@ -22,13 +22,9 @@ describe "GraphQL::Stitching::SelectionHint" do
     assert_equal "beep", node.name
   end
 
-  def test_provides_typename_hint_key
-    assert_equal "_STITCH_typename", GraphQL::Stitching::SelectionHint.typename_key
-  end
-
   def test_provides_typename_hint_node
     node = GraphQL::Stitching::SelectionHint.typename_node
-    assert_equal "_STITCH_typename", node.alias
+    assert_equal "_STITCH___typename", node.alias
     assert_equal "__typename", node.name
   end
 end

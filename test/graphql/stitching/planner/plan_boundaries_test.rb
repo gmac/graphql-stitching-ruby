@@ -83,7 +83,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "storefronts", first.location
     assert_equal "query", first.operation_type
     assert_equal [], first.path
-    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH_typename: __typename } } }|, first.selections
+    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH___typename: __typename } } }|, first.selections
     assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
@@ -92,7 +92,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "products", second.location
     assert_equal "query", second.operation_type
     assert_equal ["storefront", "products"], second.path
-    assert_equal "{ name manufacturer { products { name } _STITCH_id: id _STITCH_typename: __typename } }", second.selections
+    assert_equal "{ name manufacturer { products { name } _STITCH_id: id _STITCH___typename: __typename } }", second.selections
     assert_equal "product", second.boundary.field
     assert_equal "upc", second.boundary.key
     assert_equal first.step, second.after
@@ -129,7 +129,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal "manufacturers", p1_first.location
     assert_equal "query", p1_first.operation_type
     assert_equal [], p1_first.path
-    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH_typename: __typename } }|, p1_first.selections
+    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH___typename: __typename } }|, p1_first.selections
     assert_equal 1, p1_first.step
     assert_equal 0, p1_first.after
     assert_nil p1_first.boundary
@@ -176,7 +176,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|, first.selections
     assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
@@ -213,7 +213,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH_typename: __typename } }|, first.selections
+    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|, first.selections
     assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary
@@ -251,7 +251,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     first = plan.ops[0]
     assert_equal "a", first.location
     assert_equal [], first.path
-    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH_typename: __typename } _STITCH_typename: __typename } }|, first.selections
+    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH___typename: __typename } _STITCH___typename: __typename } }|, first.selections
     assert_equal 1, first.step
     assert_equal 0, first.after
     assert_nil first.boundary

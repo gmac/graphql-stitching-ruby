@@ -255,7 +255,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     )
     raw = {
       "test" => {
-        "_STITCH_typename" => "Test",
+        "_STITCH___typename" => "Test",
         "req" => nil,
         "opt" => nil
       }
@@ -280,7 +280,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     )
     raw = {
       "test" => {
-        "_STITCH_typename" => "Test",
+        "_STITCH___typename" => "Test",
         "req" => nil,
         "opt" => nil
       }

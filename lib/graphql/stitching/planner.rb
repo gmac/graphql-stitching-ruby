@@ -291,7 +291,7 @@ module GraphQL
                 case selection.alias
                 when foreign_key
                   has_key = true
-                when SelectionHint.typename_key
+                when SelectionHint.typename_node.alias
                   has_typename = true
                 end
               end

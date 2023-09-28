@@ -62,22 +62,26 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
 
     assert_equal 2, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "b", first.location
-    assert_equal [], first.path
-    assert_equal squish_string(expected_root_selection), first.selections
-    assert_equal 0, first.after
-    assert_nil first.if_type
-    assert_nil first.boundary
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "b",
+      selections: squish_string(expected_root_selection),
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
 
-    second = plan.ops[1]
-    assert_equal "a", second.location
-    assert_equal ["buyable"], second.path
-    assert_equal "{ name price }", second.selections
-    assert_equal "products", second.boundary["field"]
-    assert_equal "id", second.boundary["key"]
-    assert_equal "Product", second.if_type
-    assert_equal first.step, second.after
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "a",
+      selections: "{ name price }",
+      path: ["buyable"],
+      if_type: "Product",
+      boundary: {
+        field: "products",
+        key: "id",
+      },
+    }
   end
 
   def test_expands_interface_selection_fragments
@@ -172,15 +176,17 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   def test_retains_interface_selections_appropraite_to_the_location
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new("{ products(ids:[\"1\"]) { id name price } }"),
+      request: GraphQL::Stitching::Request.new(%|{ products(ids:["1"]) { id name price } }|),
     ).perform
 
-    first = plan.ops[0]
-    assert_equal "a", first.location
-    assert_equal [], first.path
-    assert_equal "{ products(ids: [\"1\"]) { id name price } }", first.selections
-    assert_equal 0, first.after
-    assert_nil first.boundary
+    assert_equal 1, plan.ops.length
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      selections: %|{ products(ids: ["1"]) { id name price } }|,
+      path: [],
+      boundary: nil,
+    }
   end
 
   def test_plan_merged_union_types
@@ -231,8 +237,6 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       request: GraphQL::Stitching::Request.new(document),
     ).perform
 
-    assert_equal 4, plan.ops.length
-
     expected_root_selection = %|
       {
         fruit {
@@ -251,27 +255,50 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       }
     |
 
-    first = plan.ops[0]
-    assert_equal "a", first.location
-    assert_equal [], first.path
-    assert_equal squish_string(expected_root_selection), first.selections
+    assert_equal 4, plan.ops.length
 
-    second = plan.ops[1]
-    assert_equal "b", second.location
-    assert_equal "Apple", second.if_type
-    assert_equal ["fruit"], second.path
-    assert_equal "{ b }", second.selections
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      selections: squish_string(expected_root_selection),
+      path: [],
+      boundary: nil,
+    }
 
-    third = plan.ops[2]
-    assert_equal "c", third.location
-    assert_equal "Apple", third.if_type
-    assert_equal ["fruit"], third.path
-    assert_equal "{ c }", third.selections
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      selections: "{ b }",
+      path: ["fruit"],
+      if_type: "Apple",
+      boundary: {
+        location: "b",
+        key: "id",
+      },
+    }
 
-    fourth = plan.ops[3]
-    assert_equal "b", fourth.location
-    assert_equal "Banana", fourth.if_type
-    assert_equal ["fruit"], fourth.path
-    assert_equal "{ b }", fourth.selections
+    assert_keys plan.ops[2].as_json, {
+      after: plan.ops.first.step,
+      location: "c",
+      selections: "{ c }",
+      path: ["fruit"],
+      if_type: "Apple",
+      boundary: {
+        location: "c",
+        key: "id",
+      },
+    }
+
+    assert_keys plan.ops[3].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      selections: "{ b }",
+      path: ["fruit"],
+      if_type: "Banana",
+      boundary: {
+        location: "b",
+        key: "id",
+      },
+    }
   end
 end

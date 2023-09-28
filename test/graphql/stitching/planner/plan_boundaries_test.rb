@@ -79,32 +79,38 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     assert_equal 3, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "storefronts", first.location
-    assert_equal "query", first.operation_type
-    assert_equal [], first.path
-    assert_equal %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH___typename: __typename } } }|, first.selections
-    assert_equal 1, first.step
-    assert_equal 0, first.after
-    assert_nil first.boundary
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "storefronts",
+      operation_type: "query",
+      selections: %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH___typename: __typename } } }|,
+      path: [],
+      boundary: nil,
+    }
 
-    second = plan.ops[1]
-    assert_equal "products", second.location
-    assert_equal "query", second.operation_type
-    assert_equal ["storefront", "products"], second.path
-    assert_equal "{ name manufacturer { products { name } _STITCH_id: id _STITCH___typename: __typename } }", second.selections
-    assert_equal "product", second.boundary.field
-    assert_equal "upc", second.boundary.key
-    assert_equal first.step, second.after
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops[0].step,
+      location: "products",
+      operation_type: "query",
+      selections: %|{ name manufacturer { products { name } _STITCH_id: id _STITCH___typename: __typename } }|,
+      path: ["storefront", "products"],
+      boundary: {
+        field: "product",
+        key: "upc",
+      },
+    }
 
-    third = plan.ops[2]
-    assert_equal "manufacturers", third.location
-    assert_equal "query", third.operation_type
-    assert_equal ["storefront", "products", "manufacturer"], third.path
-    assert_equal "{ address }", third.selections
-    assert_equal "manufacturer", third.boundary.field
-    assert_equal "id", third.boundary.key
-    assert_equal second.step, third.after
+    assert_keys plan.ops[2].as_json, {
+      after: plan.ops[1].step,
+      location: "manufacturers",
+      operation_type: "query",
+      selections: %|{ address }|,
+      path: ["storefront", "products", "manufacturer"],
+      boundary: {
+        field: "manufacturer",
+        key: "id",
+      },
+    }
   end
 
   def test_collects_common_fields_from_first_available_location
@@ -125,32 +131,35 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     assert_equal 2, plan1.ops.length
     assert_equal 1, plan2.ops.length
 
-    p1_first = plan1.ops[0]
-    assert_equal "manufacturers", p1_first.location
-    assert_equal "query", p1_first.operation_type
-    assert_equal [], p1_first.path
-    assert_equal %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH___typename: __typename } }|, p1_first.selections
-    assert_equal 1, p1_first.step
-    assert_equal 0, p1_first.after
-    assert_nil p1_first.boundary
+    assert_keys plan1.ops[0].as_json, {
+      after: 0,
+      location: "manufacturers",
+      operation_type: "query",
+      selections: %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH___typename: __typename } }|,
+      path: [],
+      boundary: nil,
+    }
 
-    p1_second = plan1.ops[1]
-    assert_equal "products", p1_second.location
-    assert_equal "query", p1_second.operation_type
-    assert_equal ["manufacturer"], p1_second.path
-    assert_equal "{ products { name } }", p1_second.selections
-    assert_equal p1_first.step, p1_second.after
-    assert_equal "productsManufacturer", p1_second.boundary.field
-    assert_equal "id", p1_second.boundary.key
+    assert_keys plan1.ops[1].as_json, {
+      after: plan1.ops.first.step,
+      location: "products",
+      operation_type: "query",
+      selections: %|{ products { name } }|,
+      path: ["manufacturer"],
+      boundary: {
+        field: "productsManufacturer",
+        key: "id",
+      },
+    }
 
-    p2_first = plan2.ops[0]
-    assert_equal "products", p2_first.location
-    assert_equal "query", p2_first.operation_type
-    assert_equal [], p2_first.path
-    assert_equal %|{ productsManufacturer(id: "1") { name products { name } } }|, p2_first.selections
-    assert_equal 1, p2_first.step
-    assert_equal 0, p2_first.after
-    assert_nil p2_first.boundary
+    assert_keys plan2.ops[0].as_json, {
+      after: 0,
+      location: "products",
+      operation_type: "query",
+      selections: %|{ productsManufacturer(id: "1") { name products { name } } }|,
+      path: [],
+      boundary: nil,
+    }
   end
 
   def test_expands_selections_targeting_interface_locations
@@ -173,21 +182,28 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(%|{ apple(id:"1") { id name weight } }|),
     ).perform
 
-    first = plan.ops[0]
-    assert_equal "a", first.location
-    assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|, first.selections
-    assert_equal 1, first.step
-    assert_equal 0, first.after
-    assert_nil first.boundary
+    assert_equal 2, plan.ops.length
 
-    second = plan.ops[1]
-    assert_equal "b", second.location
-    assert_equal ["apple"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selections
-    assert_equal "node", second.boundary.field
-    assert_equal "id", second.boundary.key
-    assert_equal first.step, second.after
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      operation_type: "query",
+      selections: %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|,
+      path: [],
+      boundary: nil,
+    }
+
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      operation_type: "query",
+      selections: %|{ ... on Apple { weight } }|,
+      path: ["apple"],
+      boundary: {
+        field: "node",
+        key: "id",
+      },
+    }
   end
 
   def test_expands_selections_targeting_union_locations
@@ -210,21 +226,28 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
     ).perform
 
-    first = plan.ops[0]
-    assert_equal "a", first.location
-    assert_equal [], first.path
-    assert_equal %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|, first.selections
-    assert_equal 1, first.step
-    assert_equal 0, first.after
-    assert_nil first.boundary
+    assert_equal 2, plan.ops.length
 
-    second = plan.ops[1]
-    assert_equal "b", second.location
-    assert_equal ["apple"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selections
-    assert_equal "node", second.boundary.field
-    assert_equal "id", second.boundary.key
-    assert_equal first.step, second.after
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      operation_type: "query",
+      selections: %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|,
+      path: [],
+      boundary: nil,
+    }
+
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      operation_type: "query",
+      selections: %|{ ... on Apple { weight } }|,
+      path: ["apple"],
+      boundary: {
+        field: "node",
+        key: "id",
+      },
+    }
   end
 
   def test_expands_selections_for_abstracts_targeting_abstract_locations
@@ -248,20 +271,27 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       request: GraphQL::Stitching::Request.new(%|{ node(id:"1") { id ...on Apple { name weight } } }|),
     ).perform
 
-    first = plan.ops[0]
-    assert_equal "a", first.location
-    assert_equal [], first.path
-    assert_equal %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH___typename: __typename } _STITCH___typename: __typename } }|, first.selections
-    assert_equal 1, first.step
-    assert_equal 0, first.after
-    assert_nil first.boundary
+    assert_equal 2, plan.ops.length
 
-    second = plan.ops[1]
-    assert_equal "b", second.location
-    assert_equal ["node"], second.path
-    assert_equal "{ ... on Apple { weight } }", second.selections
-    assert_equal "fruit", second.boundary.field
-    assert_equal "id", second.boundary.key
-    assert_equal first.step, second.after
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      operation_type: "query",
+      selections: %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH___typename: __typename } _STITCH___typename: __typename } }|,
+      path: [],
+      boundary: nil,
+    }
+
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      operation_type: "query",
+      selections: %|{ ... on Apple { weight } }|,
+      path: ["node"],
+      boundary: {
+        field: "fruit",
+        key: "id",
+      },
+    }
   end
 end

@@ -93,3 +93,17 @@ def assert_error(pattern, klass=nil)
     assert e.is_a?(klass), "Unexpected error type #{klass.name}" if klass
   end
 end
+
+def assert_keys(actual, expected)
+  expected.each do |key, ex_val|
+    val = actual[key]
+    if ex_val.is_a?(Hash)
+      assert val.is_a?(Hash), "expected a hash for #{key}"
+      assert_keys(val, ex_val)
+    elsif ex_val.nil?
+      assert_nil val
+    else
+      assert_equal ex_val, val
+    end
+  end
+end

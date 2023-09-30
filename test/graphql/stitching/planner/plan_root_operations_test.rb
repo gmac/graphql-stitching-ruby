@@ -40,19 +40,25 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_equal 2, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "widgets", first.location
-    assert_equal "query", first.operation_type
-    assert_equal "{ a: widget { id } c: widget { id } }", first.selections
-    assert_equal 0, first.after
-    assert_nil first.if_type
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "widgets",
+      operation_type: "query",
+      selections: %|{ a: widget { id } c: widget { id } }|,
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
 
-    second = plan.ops[1]
-    assert_equal "sprockets", second.location
-    assert_equal "query", second.operation_type
-    assert_equal "{ b: sprocket { id } d: sprocket { id } }", second.selections
-    assert_equal 0, second.after
-    assert_nil second.if_type
+    assert_keys plan.ops[1].as_json, {
+      after: 0,
+      location: "sprockets",
+      operation_type: "query",
+      selections: %|{ b: sprocket { id } d: sprocket { id } }|,
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
   end
 
   def test_plans_mutation_operations_by_serial_location_groups
@@ -73,26 +79,35 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_equal 3, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "widgets", first.location
-    assert_equal "mutation", first.operation_type
-    assert_equal "{ a: makeWidget { id } }", first.selections
-    assert_equal 0, first.after
-    assert_nil first.if_type
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "widgets",
+      operation_type: "mutation",
+      selections: %|{ a: makeWidget { id } }|,
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
 
-    second = plan.ops[1]
-    assert_equal "sprockets", second.location
-    assert_equal "mutation", second.operation_type
-    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selections
-    assert_equal first.step, second.after
-    assert_nil second.if_type
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops[0].step,
+      location: "sprockets",
+      operation_type: "mutation",
+      selections: %|{ b: makeSprocket { id } c: makeSprocket { id } }|,
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
 
-    third = plan.ops[2]
-    assert_equal "widgets", third.location
-    assert_equal "mutation", third.operation_type
-    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selections
-    assert_equal second.step, third.after
-    assert_nil third.if_type
+    assert_keys plan.ops[2].as_json, {
+      after: plan.ops[1].step,
+      location: "widgets",
+      operation_type: "mutation",
+      selections: %|{ d: makeWidget { id } e: makeWidget { id } }|,
+      path: [],
+      if_type: nil,
+      boundary: nil,
+    }
   end
 
   def test_plans_root_queries_through_fragments
@@ -121,13 +136,17 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_equal 2, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "widgets", first.location
-    assert_equal "{ a: widget { id } c: widget { id } e: widget { id } }", first.selections
+    assert_keys plan.ops[0].as_json, {
+      location: "widgets",
+      operation_type: "query",
+      selections: %|{ a: widget { id } c: widget { id } e: widget { id } }|,
+    }
 
-    second = plan.ops[1]
-    assert_equal "sprockets", second.location
-    assert_equal "{ b: sprocket { id } d: sprocket { id } f: sprocket { id } }", second.selections
+    assert_keys plan.ops[1].as_json, {
+      location: "sprockets",
+      operation_type: "query",
+      selections: %|{ b: sprocket { id } d: sprocket { id } f: sprocket { id } }|,
+    }
   end
 
   def test_plans_mutations_through_fragments
@@ -154,21 +173,25 @@ describe "GraphQL::Stitching::Planner, root operations" do
 
     assert_equal 4, plan.ops.length
 
-    first = plan.ops[0]
-    assert_equal "widgets", first.location
-    assert_equal "{ a: makeWidget { id } }", first.selections
+    assert_keys plan.ops[0].as_json, {
+      location: "widgets",
+      selections: %|{ a: makeWidget { id } }|,
+    }
 
-    second = plan.ops[1]
-    assert_equal "sprockets", second.location
-    assert_equal "{ b: makeSprocket { id } c: makeSprocket { id } }", second.selections
+    assert_keys plan.ops[1].as_json, {
+      location: "sprockets",
+      selections: %|{ b: makeSprocket { id } c: makeSprocket { id } }|,
+    }
 
-    third = plan.ops[2]
-    assert_equal "widgets", third.location
-    assert_equal "{ d: makeWidget { id } e: makeWidget { id } }", third.selections
+    assert_keys plan.ops[2].as_json, {
+      location: "widgets",
+      selections: %|{ d: makeWidget { id } e: makeWidget { id } }|,
+    }
 
-    second = plan.ops[3]
-    assert_equal "sprockets", second.location
-    assert_equal "{ f: makeSprocket { id } }", second.selections
+    assert_keys plan.ops[3].as_json, {
+      location: "sprockets",
+      selections: %|{ f: makeSprocket { id } }|,
+    }
   end
 
   def test_plans_root_fields_to_their_prioritized_location

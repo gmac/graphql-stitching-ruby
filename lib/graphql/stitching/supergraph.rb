@@ -166,7 +166,7 @@ module GraphQL
       # used to connect a partial type across locations via boundary queries
       def route_type_to_locations(type_name, start_location, goal_locations)
         if possible_keys_for_type(type_name).length > 1
-          # multiple keys use an a-star search to traverse intermediary locations
+          # multiple keys use an A* search to traverse intermediary locations
           return route_type_to_locations_via_search(type_name, start_location, goal_locations)
         end
 
@@ -183,7 +183,7 @@ module GraphQL
 
       PathNode = Struct.new(:location, :key, :cost, :boundary, keyword_init: true)
 
-      # tunes a-star search to favor paths with fewest joining locations, ie:
+      # tunes A* search to favor paths with fewest joining locations, ie:
       # favor longer paths through target locations over shorter paths with additional locations.
       def route_type_to_locations_via_search(type_name, start_location, goal_locations)
         results = {}

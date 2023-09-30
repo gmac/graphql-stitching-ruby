@@ -4,6 +4,8 @@ module GraphQL
   module Stitching
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
+      QUERY_OP = "query"
+      MUTATION_OP = "mutation"
       ROOT_INDEX = 0
 
       def initialize(supergraph:, request:)
@@ -16,7 +18,7 @@ module GraphQL
       def perform
         build_root_entrypoints
         expand_abstract_boundaries
-        GraphQL::Stitching::Plan.new(ops: steps.map(&:to_plan_op))
+        Plan.new(ops: steps.map(&:to_plan_op))
       end
 
       def steps
@@ -52,7 +54,7 @@ module GraphQL
       # C.3) Distribute remaining fields among locations weighted by greatest availability.
       #
       # D) Create paths routing to new entrypoint locations via boundary queries.
-      # D.1) Types joining through multiple keys route using a-star search.
+      # D.1) Types joining through multiple keys route using A* search.
       # D.2) Types joining through a single key route via quick location match.
       # (D.2 is an optional optimization of D.1)
       #
@@ -71,7 +73,7 @@ module GraphQL
         selections:,
         variables: {},
         path: [],
-        operation_type: "query",
+        operation_type: QUERY_OP,
         boundary: nil
       )
         # coalesce repeat parameters into a single entrypoint
@@ -115,12 +117,12 @@ module GraphQL
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
         case @request.operation.operation_type
-        when "query"
+        when QUERY_OP
           # A.1) Group query fields by location for parallel execution.
           parent_type = @supergraph.schema.query
 
           selections_by_location = {}
-          each_selection_in_type(parent_type, @request.operation.selections) do |node|
+          each_field_in_scope(parent_type, @request.operation.selections) do |node|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             selections_by_location[locations.first] ||= []
             selections_by_location[locations.first] << node
@@ -135,12 +137,12 @@ module GraphQL
             )
           end
 
-        when "mutation"
+        when MUTATION_OP
           # A.2) Partition mutation fields by consecutive location for serial execution.
           parent_type = @supergraph.schema.mutation
 
           partitions = []
-          each_selection_in_type(parent_type, @request.operation.selections) do |node|
+          each_field_in_scope(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
             if partitions.none? || partitions.last.location != next_location
@@ -156,7 +158,7 @@ module GraphQL
               parent_index: parent_index,
               parent_type: parent_type,
               selections: partition.selections,
-              operation_type: "mutation",
+              operation_type: MUTATION_OP,
             ).index
           end
 
@@ -165,7 +167,7 @@ module GraphQL
         end
       end
 
-      def each_selection_in_type(parent_type, input_selections, &block)
+      def each_field_in_scope(parent_type, input_selections, &block)
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
@@ -173,12 +175,12 @@ module GraphQL
 
           when GraphQL::Language::Nodes::InlineFragment
             next unless node.type.nil? || parent_type.graphql_name == node.type.name
-            each_selection_in_type(parent_type, node.selections, &block)
+            each_field_in_scope(parent_type, node.selections, &block)
 
           when GraphQL::Language::Nodes::FragmentSpread
             fragment = @request.fragment_definitions[node.name]
             next unless parent_type.graphql_name == fragment.type.name
-            each_selection_in_type(parent_type, fragment.selections, &block)
+            each_field_in_scope(parent_type, fragment.selections, &block)
 
           else
             raise "Unexpected node of type #{node.class.name} in selection set."
@@ -286,14 +288,10 @@ module GraphQL
               has_key = false
               has_typename = false
 
-              parent_selections.each do |selection|
-                next unless selection.is_a?(GraphQL::Language::Nodes::Field)
-                case selection.alias
-                when foreign_key
-                  has_key = true
-                when SelectionHint.typename_node.alias
-                  has_typename = true
-                end
+              parent_selections.each do |node|
+                next unless node.is_a?(GraphQL::Language::Nodes::Field)
+                has_key ||= node.alias == foreign_key
+                has_typename ||= node.alias == SelectionHint.typename_node.alias
               end
 
               parent_selections << SelectionHint.key_node(boundary.key) unless has_key

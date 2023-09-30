@@ -31,10 +31,14 @@ describe "GraphQL::Stitching::Planner, introspection" do
 
     assert_equal 2, plan.ops.length
 
-    assert_equal "__super", plan.ops[0].location
-    assert_equal "{ __schema { queryType { name } } }", plan.ops[0].selections
+    assert_keys plan.ops[0].as_json, {
+      location: "__super",
+      selections: %|{ __schema { queryType { name } } }|,
+    }
 
-    assert_equal "a", plan.ops[1].location
-    assert_equal "{ a { name } }", plan.ops[1].selections
+    assert_keys plan.ops[1].as_json, {
+      location: "a",
+      selections: %|{ a { name } }|,
+    }
   end
 end

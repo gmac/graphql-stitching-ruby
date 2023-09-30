@@ -10,7 +10,6 @@ module GraphQL
     class StitchingError < StandardError; end
 
     class << self
-
       def stitch_directive
         @stitch_directive ||= "stitch"
       end

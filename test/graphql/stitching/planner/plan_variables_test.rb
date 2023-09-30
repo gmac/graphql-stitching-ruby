@@ -27,12 +27,12 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_field_arguments
-    query = "
+    query = %|
       query($wid: ID!, $sid: ID!, $lang: String) {
         widget(id: $wid) { id name(lang: $lang) }
         sprocket(id: $sid) { id name(lang: $lang) }
       }
-    "
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -49,12 +49,12 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_field_directives
-    query = "
+    query = %|
       query($a: String!, $b: String, $c: Int) {
         widget { id name @dir(a: $a, c: $c) }
         sprocket { id name @dir(b: $b, c: $c) }
       }
-    "
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -71,12 +71,12 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_inline_input_objects
-    mutation = "
+    mutation = %|
       mutation($wname1: String!, $wname2: String!, $sname1: String!, $sname2: String!, $lang: String) {
         makeWidget(input: { name: $wname1, child: { name: $wname2 } }) { id name(lang: $lang) }
         makeSprocket(input: { name: $sname1, child: { name: $sname2 } }) { id name(lang: $lang) }
       }
-    "
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -93,12 +93,12 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_for_input_object_fragments
-    mutation = "
+    mutation = %|
       mutation($newWidget: MakeWidgetInput!, $newSprocket: MakeSprocketInput!, $lang: String) {
         makeWidget(input: $newWidget) { id name(lang: $lang) }
         makeSprocket(input: $newSprocket) { id name(lang: $lang) }
       }
-    "
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -115,11 +115,11 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_inline_fragments
-    query = <<~GRAPHQL
+    query = %|
       query($wid: ID!, $lang: String) {
         thing(id: $wid) { ...on Widget { id name(lang: $lang) } }
       }
-    GRAPHQL
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,
@@ -133,12 +133,12 @@ describe "GraphQL::Stitching::Planner, variables" do
   end
 
   def test_extracts_variables_from_fragment_spreads
-    query = <<~GRAPHQL
+    query = %|
       query($wid: ID!, $lang: String) {
         thing(id: $wid) { ...WidgetAttrs }
       }
       fragment WidgetAttrs on Widget { id name(lang: $lang) }
-    GRAPHQL
+    |
 
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,

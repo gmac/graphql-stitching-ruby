@@ -156,7 +156,7 @@ describe "GraphQL::Stitching::Planner, defer via root" do
         }
       }
     |
-
+    pp plan.as_json
     assert_equal 3, plan.ops.length
 
     assert_keys plan.ops[0].as_json, {

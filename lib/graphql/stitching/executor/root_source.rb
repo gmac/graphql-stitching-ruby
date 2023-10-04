@@ -3,9 +3,10 @@
 module GraphQL
   module Stitching
     class Executor::RootSource < GraphQL::Dataloader::Source
-      def initialize(executor, location)
+      def initialize(executor, location, defer_label)
         @executor = executor
         @location = location
+        @defer_label = defer_label
       end
 
       def fetch(ops)

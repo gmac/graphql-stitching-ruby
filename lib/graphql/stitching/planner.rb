@@ -184,7 +184,11 @@ module GraphQL
             ).index
           end
 
-          sequence_defer_queries_after(last_mutation)
+          # sequence the root of each deferred query after the final mutation step
+          # (assures deferred selections access mutated state)
+          @steps_by_entrypoint.each_value do |step|
+            step.after = last_mutation if step.defer_label && step.operation_type == QUERY_OP
+          end
 
         else
           raise "Invalid operation type."
@@ -215,28 +219,28 @@ module GraphQL
 
       # sequence the root of each deferred query after a given step; used to shift
       # deferred selections past mutations steps where they will access mutated state.
-      def sequence_defer_queries_after(step_index)
-        deferred_query_steps = @steps_by_entrypoint.values.select! { _1.defer_label && _1.operation_type == QUERY_OP }
-        return unless deferred_query_steps.any?
+      # def sequence_defer_queries_after(step_index)
+      #   deferred_query_steps = @steps_by_entrypoint.values.select! { _1.defer_label && _1.operation_type == QUERY_OP }
+      #   return unless deferred_query_steps.any?
 
-        # sorts deferred queries by [label, after] (which should be implicit?)
-        deferred_query_steps.sort! do |a, b|
-          label_diff = a.defer_label.casecmp(b.defer_label)
-          label_diff.zero? ? a.after - b.after : label_diff
-        end
+      #   # sorts deferred queries by [label, after] (which should be implicit?)
+      #   deferred_query_steps.sort! do |a, b|
+      #     label_diff = a.defer_label.casecmp(b.defer_label)
+      #     label_diff.zero? ? a.after - b.after : label_diff
+      #   end
 
-        prev_label = nil
-        prev_index = nil
+      #   prev_label = nil
+      #   prev_index = nil
 
-        # sequence the root of each deferred query after the last mutation step
-        deferred_query_steps.each do |step|
-          if step.defer_label != prev_label || step.after == prev_index
-            prev_label = step.defer_label
-            prev_index = step.after
-            step.after = step_index
-          end
-        end
-      end
+      #   # sequence the root of each deferred query after the last mutation step
+      #   deferred_query_steps.each do |step|
+      #     if step.defer_label != prev_label || step.after == prev_index
+      #       prev_label = step.defer_label
+      #       prev_index = step.after
+      #       step.after = step_index
+      #     end
+      #   end
+      # end
 
       # B) Contiguous selections are extracted for each entrypoint location.
       def extract_locale_selections(

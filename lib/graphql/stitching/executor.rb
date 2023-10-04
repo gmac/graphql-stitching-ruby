@@ -6,12 +6,13 @@ module GraphQL
   module Stitching
     class Executor
       attr_reader :supergraph, :request, :data, :errors
-      attr_accessor :query_count
+      attr_accessor :query_count # for testing
 
       def initialize(supergraph:, request:, plan:, nonblocking: false)
         @supergraph = supergraph
         @request = request
         @queue = plan.ops
+        @payloads_by_label = {}
         @data = {}
         @errors = []
         @query_count = 0
@@ -48,12 +49,12 @@ module GraphQL
         @dataloader.append_job do
           tasks = @queue
             .select { next_ordinals.include?(_1.after) }
-            .group_by { [_1.location, _1.boundary.nil?] }
-            .map do |(location, root_source), ops|
+            .group_by { [_1.location, _1.boundary.nil?, _1.defer_label] }
+            .map do |(location, root_source, defer_label), ops|
               if root_source
-                @dataloader.with(RootSource, self, location).request_all(ops)
+                @dataloader.with(RootSource, self, location, defer_label).request_all(ops)
               else
-                @dataloader.with(BoundarySource, self, location).request_all(ops)
+                @dataloader.with(BoundarySource, self, location, defer_label).request_all(ops)
               end
             end
 
@@ -72,5 +73,6 @@ module GraphQL
   end
 end
 
+require_relative "./executor/payload"
 require_relative "./executor/boundary_source"
 require_relative "./executor/root_source"

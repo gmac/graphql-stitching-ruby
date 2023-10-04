@@ -34,7 +34,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
   def test_merges_boundaries_with_multiple_keys
     # repeatable directives don't work before v2.0.15
-    skip unless at_least_graphql_version?("2.0.15")
+    skip unless minimum_graphql_version?("2.0.15")
 
     a = %{
       type T { upc:ID! }

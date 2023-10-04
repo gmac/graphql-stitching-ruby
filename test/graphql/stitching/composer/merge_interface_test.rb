@@ -46,7 +46,7 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
   end
 
   def test_merges_inherited_interface_memberships
-    skip if before_graphql_version?("2.0.3")
+    skip unless at_least_graphql_version?("2.0.3")
 
     a = %{interface A { id:ID } interface AA implements A { id:ID } type C implements AA { id:ID } type Query { c:C }}
     b = %{interface B { id:ID } interface BB implements B { id:ID } type C implements BB { id:ID } type Query { c:C }}

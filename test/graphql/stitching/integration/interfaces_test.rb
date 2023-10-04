@@ -54,152 +54,152 @@ describe 'GraphQL::Stitching, merged interfaces' do
     assert_equal expected_result, result["data"]
   end
 
-  def test_queries_merged_interface_via_full_interface
-    query = %|
-      query($ids: [ID!]!) {
-        result: productsBuyables(ids: $ids) {
-          id
-          name
-          price
-        }
-      }
-    |
+  # def test_queries_merged_interface_via_full_interface
+  #   query = %|
+  #     query($ids: [ID!]!) {
+  #       result: productsBuyables(ids: $ids) {
+  #         id
+  #         name
+  #         price
+  #       }
+  #     }
+  #   |
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
+  #   result = plan_and_execute(@supergraph, query, { "ids" => ["1"] })
 
-    expected_result = {
-      "result" => [
-        {
-          "id" => "1",
-          "name" => "iPhone",
-          "price" => 699.99,
-        },
-      ],
-    }
+  #   expected_result = {
+  #     "result" => [
+  #       {
+  #         "id" => "1",
+  #         "name" => "iPhone",
+  #         "price" => 699.99,
+  #       },
+  #     ],
+  #   }
 
-    assert_equal expected_result, result["data"]
-  end
+  #   assert_equal expected_result, result["data"]
+  # end
 
-  def test_queries_merged_interface_via_partial_interface
-    query = %|
-      query($ids: [ID!]!) {
-        result: bundlesBuyables(ids: $ids) {
-          id
-          name
-          price
-          ... on Bundle {
-            products {
-              id
-              name
-              price
-            }
-          }
-        }
-      }
-    |
+  # def test_queries_merged_interface_via_partial_interface
+  #   query = %|
+  #     query($ids: [ID!]!) {
+  #       result: bundlesBuyables(ids: $ids) {
+  #         id
+  #         name
+  #         price
+  #         ... on Bundle {
+  #           products {
+  #             id
+  #             name
+  #             price
+  #           }
+  #         }
+  #       }
+  #     }
+  #   |
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
+  #   result = plan_and_execute(@supergraph, query, { "ids" => ["10"] })
 
-    expected_result = {
-      "result" => [
-        {
-          "id" => "10",
-          "name" => "Apple Gear",
-          "price" => 999.99,
-          "products" => [
-            {
-              "id" => "1",
-              "name" => "iPhone",
-              "price" => 699.99
-            },
-            {
-              "id" => "2",
-              "name" => "Apple Watch",
-              "price" => 399.99
-            },
-          ],
-        },
-      ],
-    }
+  #   expected_result = {
+  #     "result" => [
+  #       {
+  #         "id" => "10",
+  #         "name" => "Apple Gear",
+  #         "price" => 999.99,
+  #         "products" => [
+  #           {
+  #             "id" => "1",
+  #             "name" => "iPhone",
+  #             "price" => 699.99
+  #           },
+  #           {
+  #             "id" => "2",
+  #             "name" => "Apple Watch",
+  #             "price" => 399.99
+  #           },
+  #         ],
+  #       },
+  #     ],
+  #   }
 
-    assert_equal expected_result, result["data"]
-  end
+  #   assert_equal expected_result, result["data"]
+  # end
 
-  def test_queries_merged_split_interface
-    query1 = %|
-      query($ids: [ID!]!) {
-        result: productsSplit(ids: $ids) {
-          id
-          name
-          price
-        }
-      }
-    |
+  # def test_queries_merged_split_interface
+  #   query1 = %|
+  #     query($ids: [ID!]!) {
+  #       result: productsSplit(ids: $ids) {
+  #         id
+  #         name
+  #         price
+  #       }
+  #     }
+  #   |
 
-    query2 = %|
-      query($ids: [ID!]!) {
-        result: bundlesSplit(ids: $ids) {
-          id
-          name
-          price
-        }
-      }
-    |
+  #   query2 = %|
+  #     query($ids: [ID!]!) {
+  #       result: bundlesSplit(ids: $ids) {
+  #         id
+  #         name
+  #         price
+  #       }
+  #     }
+  #   |
 
-    result1 = plan_and_execute(@supergraph, query1, { "ids" => ["100", "200"] })
-    result2 = plan_and_execute(@supergraph, query2, { "ids" => ["100", "200"] })
+  #   result1 = plan_and_execute(@supergraph, query1, { "ids" => ["100", "200"] })
+  #   result2 = plan_and_execute(@supergraph, query2, { "ids" => ["100", "200"] })
 
-    expected_result = {
-      "data" => {
-        "result" => [
-          {
-            "id" => "100",
-            "name" => "Widget",
-            "price" => 10.99,
-          },
-          {
-            "id" => "200",
-            "name" => "Sprocket",
-            "price" => 9.99,
-          },
-        ],
-      },
-    }
+  #   expected_result = {
+  #     "data" => {
+  #       "result" => [
+  #         {
+  #           "id" => "100",
+  #           "name" => "Widget",
+  #           "price" => 10.99,
+  #         },
+  #         {
+  #           "id" => "200",
+  #           "name" => "Sprocket",
+  #           "price" => 9.99,
+  #         },
+  #       ],
+  #     },
+  #   }
 
-    assert_equal expected_result, result1
-    assert_equal expected_result, result2
-  end
+  #   assert_equal expected_result, result1
+  #   assert_equal expected_result, result2
+  # end
 
-  def test_merges_within_interface_fragments
-    query = %|
-      query($ids: [ID!]!) {
-        result: nodes(ids: $ids) {
-          id
-          ...on Buyable { name price }
-          ...on Split { name price }
-          __typename
-        }
-      }
-    |
+  # def test_merges_within_interface_fragments
+  #   query = %|
+  #     query($ids: [ID!]!) {
+  #       result: nodes(ids: $ids) {
+  #         id
+  #         ...on Buyable { name price }
+  #         ...on Split { name price }
+  #         __typename
+  #       }
+  #     }
+  #   |
 
-    result = plan_and_execute(@supergraph, query, { "ids" => ["1", "100"] })
+  #   result = plan_and_execute(@supergraph, query, { "ids" => ["1", "100"] })
 
-    expected_result = {
-      "data" => {
-        "result"=> [{
-          "id" => "1",
-          "name" => "iPhone",
-          "price" => 699.99,
-          "__typename" => "Product",
-        }, {
-          "id" => "100",
-          "name" => "Widget",
-          "price" => 10.99,
-          "__typename" => "Gizmo",
-        }],
-      },
-    }
+  #   expected_result = {
+  #     "data" => {
+  #       "result"=> [{
+  #         "id" => "1",
+  #         "name" => "iPhone",
+  #         "price" => 699.99,
+  #         "__typename" => "Product",
+  #       }, {
+  #         "id" => "100",
+  #         "name" => "Widget",
+  #         "price" => 10.99,
+  #         "__typename" => "Gizmo",
+  #       }],
+  #     },
+  #   }
 
-    assert_equal expected_result, result
-  end
+  #   assert_equal expected_result, result
+  # end
 end

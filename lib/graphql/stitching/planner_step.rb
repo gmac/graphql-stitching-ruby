@@ -49,7 +49,7 @@ module GraphQL
       private
 
       def rendered_selections
-        op = GraphQL::Language::Nodes::OperationDefinition.new(selections: @selections)
+        op = GraphQL::Language::Nodes::OperationDefinition.new(operation_type: "", selections: @selections)
         GRAPHQL_PRINTER.print(op).gsub!(/\s+/, " ").strip!
       end
 

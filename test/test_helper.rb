@@ -22,11 +22,15 @@ def squish_string(str)
   str.gsub(/\s+/, " ").strip
 end
 
-def before_graphql_version?(versioning)
+def minimum_graphql_version?(versioning)
   lib_versioning = GraphQL::VERSION.split(".").map(&:to_i)
   versioning.split(".").map(&:to_i).each_with_index.any? do |version, i|
     lib_version = lib_versioning[i] || 0
-    lib_version < version
+    if i == versioning.length - 1
+      return lib_version >= version
+    elsif lib_version > version
+      return true
+    end
   end
 end
 

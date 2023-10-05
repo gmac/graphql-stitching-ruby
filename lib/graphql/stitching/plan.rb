@@ -2,6 +2,8 @@
 
 module GraphQL
   module Stitching
+    # Immutable structures representing a query plan.
+    # May serialize to/from JSON.
     class Plan
       Op = Struct.new(
         :step,

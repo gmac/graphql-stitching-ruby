@@ -2,6 +2,9 @@
 
 module GraphQL
   module Stitching
+    # A planned step in the sequence of stitching entrypoints together.
+    # This is a mutable object that may change throughout the planning process.
+    # It ultimately builds an immutable Plan::Op at the end of planning.
     class PlannerStep
       GRAPHQL_PRINTER = GraphQL::Language::Printer.new
 

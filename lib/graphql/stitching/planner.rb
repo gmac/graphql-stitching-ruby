@@ -4,6 +4,7 @@ module GraphQL
   module Stitching
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
+      TYPENAME = "__typename"
       QUERY_OP = "query"
       MUTATION_OP = "mutation"
       ROOT_INDEX = 0
@@ -35,18 +36,14 @@ module GraphQL
       # A.2) Partition mutation fields by consecutive location for serial execution.
       #
       # B) Extract contiguous selections for each entrypoint location.
-      #
       # B.1) Selections on interface types that do not belong to the interface at the
-      # entrypoint location are expanded into concrete type fragments prior to extraction.
-      #
+      #      entrypoint location are expanded into concrete type fragments prior to extraction.
       # B.2) Filter the selection tree down to just fields of the entrypoint location.
-      # Adjoining selections not available here get split off into new entrypoints (C).
-      #
+      #      Adjoining selections not available here get split off into new entrypoints (C).
       # B.3) Collect all variable definitions used within the filtered selection.
-      # These specify which request variables to pass along with the selection.
-      #
-      # B.4) Add a `__typename` selection to abstracts and concrete types that implement
-      # fragments. This provides resolved type information used during execution.
+      #      These specify which request variables to pass along with each step.
+      # B.4) Add a `__typename` hint to abstracts and types that implement fragments.
+      #      This provides resolved type information used during execution.
       #
       # C) Delegate adjoining selections to new entrypoint locations.
       # C.1) Distribute unique fields among their required locations.
@@ -60,7 +57,7 @@ module GraphQL
       #
       # E) Translate boundary pathways into new entrypoints.
       # E.1) Add the key of each boundary query into the prior location's selection set.
-      # E.2) Add a planner operation for each new entrypoint location, then extract it (B).
+      # E.2) Add a planner step for each new entrypoint location, then extract it (B).
       #
       # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
       # **
@@ -77,8 +74,7 @@ module GraphQL
         boundary: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        boundary_key = boundary ? boundary.key : "_"
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary_key}")
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary&.key}")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -89,11 +85,6 @@ module GraphQL
         end
 
         if step.nil?
-          # concrete types that are not root Query/Mutation report themselves as a type condition
-          # executor must check the __typename of loaded objects to see if they match subsequent operations
-          # this prevents the executor from taking action on unused fragment selections
-          conditional = !parent_type.kind.abstract? && parent_type != @supergraph.schema.root_type_for_operation(operation_type)
-
           @steps_by_entrypoint[entrypoint] = PlannerStep.new(
             index: next_index,
             after: parent_index,
@@ -103,7 +94,6 @@ module GraphQL
             selections: selections,
             variables: variables,
             path: path,
-            if_type: conditional ? parent_type.graphql_name : nil,
             boundary: boundary,
           )
         else
@@ -209,7 +199,7 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.name == "__typename"
+            if node.name == TYPENAME
               locale_selections << node
               next
             end
@@ -267,7 +257,7 @@ module GraphQL
           end
         end
 
-        # B.4) Add a `__typename` selection to abstracts and concrete types that implement
+        # B.4) Add a `__typename` hint to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
           locale_selections << SelectionHint.typename_node
@@ -297,13 +287,12 @@ module GraphQL
               parent_selections << SelectionHint.key_node(boundary.key) unless has_key
               parent_selections << SelectionHint.typename_node unless has_typename
 
-              # E.2) Add a planner operation for each new entrypoint location.
-              location = boundary.location
+              # E.2) Add a planner step for each new entrypoint location.
               add_step(
-                location: location,
+                location: boundary.location,
                 parent_index: parent_index,
                 parent_type: parent_type,
-                selections: remote_selections_by_location[location] || [],
+                selections: remote_selections_by_location[boundary.location] || [],
                 path: path.dup,
                 boundary: boundary,
               ).selections
@@ -323,7 +312,7 @@ module GraphQL
 
         expanded_selections = nil
         input_selections = input_selections.filter_map do |node|
-          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != "__typename" && !local_interface_fields.include?(node.name)
+          if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != TYPENAME && !local_interface_fields.include?(node.name)
             expanded_selections ||= []
             expanded_selections << node
             nil
@@ -345,7 +334,7 @@ module GraphQL
       end
 
       # B.3) Collect all variable definitions used within the filtered selection.
-      # These specify which request variables to pass along with the selection.
+      # These specify which request variables to pass along with each step.
       def extract_node_variables(node_with_args, variable_definitions)
         node_with_args.arguments.each do |argument|
           case argument.value
@@ -391,15 +380,11 @@ module GraphQL
 
         # C.3) Distribute remaining fields among locations weighted by greatest availability.
         if remote_selections.any?
-          field_count_by_location = if remote_selections.length > 1
-            remote_selections.each_with_object({}) do |node, memo|
-              possible_locations_by_field[node.name].each do |location|
-                memo[location] ||= 0
-                memo[location] += 1
-              end
+          field_count_by_location = remote_selections.each_with_object({}) do |node, memo|
+            possible_locations_by_field[node.name].each do |location|
+              memo[location] ||= 0
+              memo[location] += 1
             end
-          else
-            GraphQL::Stitching::EMPTY_OBJECT
           end
 
           remote_selections.each do |node|
@@ -407,11 +392,11 @@ module GraphQL
             preferred_location = possible_locations.first
 
             possible_locations.reduce(0) do |max_availability, possible_location|
-              available_fields = field_count_by_location.fetch(possible_location, 0)
+              availability = field_count_by_location.fetch(possible_location, 0)
 
-              if available_fields > max_availability
+              if availability > max_availability
                 preferred_location = possible_location
-                available_fields
+                availability
               else
                 max_availability
               end

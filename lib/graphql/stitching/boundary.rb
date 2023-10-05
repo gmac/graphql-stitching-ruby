@@ -2,6 +2,7 @@
 
 module GraphQL
   module Stitching
+    # Defines a boundary query that provides direct access to an entity type.
     Boundary = Struct.new(
       :location,
       :type_name,

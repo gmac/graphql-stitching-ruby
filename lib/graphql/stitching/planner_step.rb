@@ -2,10 +2,13 @@
 
 module GraphQL
   module Stitching
+    # A planned step in the sequence of stitching entrypoints together.
+    # This is a mutable object that may change throughout the planning process.
+    # It ultimately builds an immutable Plan::Op at the end of planning.
     class PlannerStep
       GRAPHQL_PRINTER = GraphQL::Language::Printer.new
 
-      attr_reader :index, :location, :parent_type, :if_type, :operation_type, :path
+      attr_reader :index, :location, :parent_type, :operation_type, :path
       attr_accessor :after, :selections, :variables, :boundary
 
       def initialize(
@@ -17,7 +20,6 @@ module GraphQL
         selections: [],
         variables: {},
         path: [],
-        if_type: nil,
         boundary: nil
       )
         @location = location
@@ -28,7 +30,6 @@ module GraphQL
         @selections = selections
         @variables = variables
         @path = path
-        @if_type = if_type
         @boundary = boundary
       end
 
@@ -41,12 +42,19 @@ module GraphQL
           selections: rendered_selections,
           variables: rendered_variables,
           path: @path,
-          if_type: @if_type,
+          if_type: type_condition,
           boundary: @boundary,
         )
       end
 
       private
+
+      # Concrete types going to a boundary report themselves as a type condition.
+      # This is used by the executor to evalute which planned fragment selections
+      # actually apply to the resolved object types.
+      def type_condition
+        @parent_type.graphql_name if @boundary && !parent_type.kind.abstract?
+      end
 
       def rendered_selections
         op = GraphQL::Language::Nodes::OperationDefinition.new(operation_type: "", selections: @selections)

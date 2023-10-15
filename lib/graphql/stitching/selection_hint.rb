@@ -2,6 +2,8 @@
 
 module GraphQL
   module Stitching
+    # Builds hidden selection fields added by stitiching code,
+    # used to request operational data about resolved objects.
     class SelectionHint
       HINT_PREFIX = "_STITCH_"
 

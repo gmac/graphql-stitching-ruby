@@ -400,6 +400,26 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
 
 The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
+## Batching
+
+The stitching executor automatically batches subgraph requests so that only one request is made per location per generation of data. This is done using batched queries that combine all data access for a given a location. For example:
+
+```graphql
+query MyOperation_2 {
+  _0_result: widgets(ids:["a","b","c"]) { ... } # << 3 Widget
+  _1_0_result: sprocket(id:"x") { ... } # << 1 Sprocket
+  _1_1_result: sprocket(id:"y") { ... } # << 1 Sprocket
+  _1_2_result: sprocket(id:"z") { ... } # << 1 Sprocket
+}
+```
+
+Tips:
+
+* List queries (like the `widgets` selection above) are more compact for accessing multiple records, and are therefore preferable as stitching accessors.
+* Assure that root field resolvers across your subgraph implement batching to anticipate cases like the three `sprocket` selections above.
+
+Otherwise, there's no developer intervention necessary (or generally possible) to improve upon data access. Note that multiple generations of data may still force the executor to return to a previous location for more data.
+
 ## Concurrency
 
 The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based implementation of `GraphQL::Dataloader`. Non-blocking concurrency requires setting a fiber scheduler via `Fiber.set_scheduler`, see [graphql-ruby docs](https://graphql-ruby.org/dataloader/nonblocking.html). You may also need to build your own remote clients using corresponding HTTP libraries.

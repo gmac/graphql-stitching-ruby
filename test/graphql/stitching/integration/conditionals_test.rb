@@ -11,7 +11,7 @@ describe 'GraphQL::Stitching, type conditions' do
       "base" => Schemas::Conditionals::Abstracts,
     })
 
-    @query = <<~GRAPHQL
+    @query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
           ...on Apple { extensions { color } }
@@ -19,7 +19,7 @@ describe 'GraphQL::Stitching, type conditions' do
           __typename
         }
       }
-    GRAPHQL
+    |
   end
 
   def test_performs_specific_queries_planned_for_the_returned_type
@@ -66,7 +66,7 @@ describe 'GraphQL::Stitching, type conditions' do
   end
 
   def test_performs_specific_queries_planned_for_the_returned_type_via_fragment
-    @query = <<~GRAPHQL
+    @query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
           ...on HasExtension {
@@ -77,7 +77,7 @@ describe 'GraphQL::Stitching, type conditions' do
           }
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, @query, {
       "ids" => ["1"]
@@ -97,7 +97,7 @@ describe 'GraphQL::Stitching, type conditions' do
   end
 
   def test_performs_all_queries_for_all_returned_types_via_fragment
-    @query = <<~GRAPHQL
+    @query = %|
       query($ids: [ID!]!) {
         fruits(ids: $ids) {
           ...on HasExtension {
@@ -111,7 +111,7 @@ describe 'GraphQL::Stitching, type conditions' do
         ...on AppleExtension { color }
         ...on BananaExtension { shape }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, @query, {
       "ids" => ["1", "2"]

@@ -14,7 +14,7 @@ describe 'GraphQL::Stitching, mutations' do
   end
 
   def test_mutates_serially_and_stitches_results
-    mutations = <<~GRAPHQL
+    mutations = %|
       mutation AddRecords {
         first:  addViaA { id via a b }
         second: addViaB { id via a b }
@@ -22,7 +22,7 @@ describe 'GraphQL::Stitching, mutations' do
         fourth: addViaA { id via a b }
         fifth:  addViaA { id via a b }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, mutations)
 

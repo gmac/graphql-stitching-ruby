@@ -412,15 +412,15 @@ module GraphQL
 
       # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
       def expand_abstract_boundaries
-        @steps_by_entrypoint.each_value do |op|
-          next unless op.boundary
+        @steps_by_entrypoint.each_value do |step|
+          next unless step.boundary
 
-          boundary_type = @supergraph.memoized_schema_types[op.boundary.type_name]
+          boundary_type = @supergraph.memoized_schema_types[step.boundary.type_name]
           next unless boundary_type.kind.abstract?
-          next if boundary_type == op.parent_type
+          next if boundary_type == step.parent_type
 
           expanded_selections = nil
-          op.selections.reject! do |node|
+          step.selections.reject! do |node|
             if node.is_a?(GraphQL::Language::Nodes::Field)
               expanded_selections ||= []
               expanded_selections << node
@@ -429,8 +429,8 @@ module GraphQL
           end
 
           if expanded_selections
-            type_name = GraphQL::Language::Nodes::TypeName.new(name: op.parent_type.graphql_name)
-            op.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
+            type_name = GraphQL::Language::Nodes::TypeName.new(name: step.parent_type.graphql_name)
+            step.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end
         end
       end

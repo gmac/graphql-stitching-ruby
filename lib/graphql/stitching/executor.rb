@@ -5,13 +5,13 @@ require "json"
 module GraphQL
   module Stitching
     class Executor
-      attr_reader :supergraph, :request, :data, :errors
+      attr_reader :supergraph, :request, :plan, :data, :errors
       attr_accessor :query_count
 
       def initialize(supergraph:, request:, plan:, nonblocking: false)
         @supergraph = supergraph
         @request = request
-        @queue = plan.ops
+        @plan = plan
         @data = {}
         @errors = []
         @query_count = 0
@@ -39,22 +39,20 @@ module GraphQL
 
       private
 
-      def exec!(next_ordinals = [0])
-        if @exec_cycles > @queue.length
+      def exec!(next_steps = [0])
+        if @exec_cycles > @plan.ops.length
           # sanity check... if we've exceeded queue size, then something went wrong.
           raise StitchingError, "Too many execution requests attempted."
         end
 
         @dataloader.append_job do
-          tasks = @queue
-            .select { next_ordinals.include?(_1.after) }
+          tasks = @plan
+            .ops
+            .select { next_steps.include?(_1.after) }
             .group_by { [_1.location, _1.boundary.nil?] }
             .map do |(location, root_source), ops|
-              if root_source
-                @dataloader.with(RootSource, self, location).request_all(ops)
-              else
-                @dataloader.with(BoundarySource, self, location).request_all(ops)
-              end
+              source_type = root_source ? RootSource : BoundarySource
+              @dataloader.with(source_type, self, location).request_all(ops)
             end
 
           tasks.each(&method(:exec_task))
@@ -65,8 +63,8 @@ module GraphQL
       end
 
       def exec_task(task)
-        next_ordinals = task.load.tap(&:compact!)
-        exec!(next_ordinals) if next_ordinals.any?
+        next_steps = task.load.tap(&:compact!)
+        exec!(next_steps) if next_steps.any?
       end
     end
   end

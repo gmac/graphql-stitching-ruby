@@ -23,7 +23,11 @@ module GraphQL
         end
 
         if origin_sets_by_operation.any?
-          query_document, variable_names = build_document(origin_sets_by_operation, @executor.request.operation_name)
+          query_document, variable_names = build_document(
+            origin_sets_by_operation,
+            @executor.request.operation_name,
+            @executor.request.operation_directives,
+          )
           variables = @executor.request.variables.slice(*variable_names)
           raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request.context)
           @executor.query_count += 1
@@ -44,7 +48,7 @@ module GraphQL
       #   _1_1_result: item(key:"y") { boundarySelections... }
       #   _1_2_result: item(key:"z") { boundarySelections... }
       # }"
-      def build_document(origin_sets_by_operation, operation_name = nil)
+      def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
         query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
@@ -78,6 +82,10 @@ module GraphQL
         if variable_defs.any?
           variable_str = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
           doc << "(#{variable_str})"
+        end
+
+        if operation_directives
+          doc << " #{operation_directives} "
         end
 
         doc << "{ #{query_fields.join(" ")} }"

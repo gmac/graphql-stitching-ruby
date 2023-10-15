@@ -11,7 +11,11 @@ module GraphQL
       def fetch(ops)
         op = ops.first # There should only ever be one per location at a time
 
-        query_document = build_document(op, @executor.request.operation_name)
+        query_document = build_document(
+          op,
+          @executor.request.operation_name,
+          @executor.request.operation_directives,
+        )
         query_variables = @executor.request.variables.slice(*op.variables.keys)
         result = @executor.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request.context)
         @executor.query_count += 1
@@ -27,7 +31,7 @@ module GraphQL
 
       # Builds root source documents
       # "query MyOperation_1($var:VarType) { rootSelections ... }"
-      def build_document(op, operation_name = nil)
+      def build_document(op, operation_name = nil, operation_directives = nil)
         doc = String.new
         doc << op.operation_type
 
@@ -38,6 +42,10 @@ module GraphQL
         if op.variables.any?
           variable_defs = op.variables.map { |k, v| "$#{k}:#{v}" }.join(",")
           doc << "(#{variable_defs})"
+        end
+
+        if operation_directives
+          doc << " #{operation_directives} "
         end
 
         doc << op.selections

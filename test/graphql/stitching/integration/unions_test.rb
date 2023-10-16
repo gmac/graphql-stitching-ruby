@@ -13,15 +13,15 @@ describe 'GraphQL::Stitching, unions' do
   end
 
   def test_plan_abstract_merged_via_concrete_boundaries
-    query = <<~GRAPHQL
+    query = %|
       {
-        fruitsA(ids: [\"1\", \"3\"]) {
+        fruitsA(ids: ["1", "3"]) {
           ...on Apple { a b c }
           ...on Banana { a b }
           ...on Coconut { b c }
         }
       }
-    GRAPHQL
+    |
 
     expected = {
       "fruitsA" => [
@@ -35,15 +35,15 @@ describe 'GraphQL::Stitching, unions' do
   end
 
   def test_plan_abstract_merged_types_via_abstract_boundary
-    query = <<~GRAPHQL
+    query = %|
       {
-        fruitsC(ids: [\"1\", \"4\"]) {
+        fruitsC(ids: ["1", "4"]) {
           ...on Apple { a b c }
           ...on Banana { a b }
           ...on Coconut { b c }
         }
       }
-    GRAPHQL
+    |
 
     expected = {
       "fruitsC" => [

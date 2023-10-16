@@ -60,7 +60,7 @@ module GraphQL
             result << type
             result.push(*expand_abstract_type(schema, type)) if type.kind.interface?
           end
-          result.uniq
+          result.tap(&:uniq!)
         end
       end
     end

@@ -17,6 +17,7 @@ require 'graphql/stitching'
 
 ComposerError = GraphQL::Stitching::Composer::ComposerError
 ValidationError = GraphQL::Stitching::Composer::ValidationError
+STITCH_DEFINITION = "directive @stitch(key: String!) repeatable on FIELD_DEFINITION\n"
 
 def squish_string(str)
   str.gsub(/\s+/, " ").strip
@@ -37,8 +38,7 @@ end
 def compose_definitions(locations, options={})
   locations = locations.each_with_object({}) do |(location, schema_or_sdl), memo|
     schema = if schema_or_sdl.is_a?(String)
-      boundary = "directive @stitch(key: String!) repeatable on FIELD_DEFINITION\n"
-      schema_or_sdl = boundary + schema_or_sdl if schema_or_sdl.include?("@stitch")
+      schema_or_sdl = STITCH_DEFINITION + schema_or_sdl if schema_or_sdl.include?("@stitch")
       GraphQL::Schema.from_definition(schema_or_sdl)
     else
       schema_or_sdl

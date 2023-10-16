@@ -12,7 +12,7 @@ describe 'GraphQL::Stitching, shareables' do
   end
 
   def test_mutates_serially_and_stitches_results
-    query = <<~GRAPHQL
+    query = %|
       query {
         gadgetA(id: "1") {
           id
@@ -29,7 +29,7 @@ describe 'GraphQL::Stitching, shareables' do
           uniqueToB
         }
       }
-    GRAPHQL
+    |
 
     result = plan_and_execute(@supergraph, query)
 

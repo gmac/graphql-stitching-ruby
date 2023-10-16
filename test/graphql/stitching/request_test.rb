@@ -59,6 +59,19 @@ describe "GraphQL::Stitching::Request" do
     end
   end
 
+  def test_access_operation_directives
+    query = %|
+      query First @inContext(lang: "EN") { widget { id } }
+      mutation Second @alpha(a: 1) @bravo(b: true) { makeSprocket(id: "1") { id } }
+    |
+
+    request1 = GraphQL::Stitching::Request.new(query, operation_name: "First")
+    request2 = GraphQL::Stitching::Request.new(query, operation_name: "Second")
+
+    assert_equal %|@inContext(lang: "EN")|, request1.operation_directives
+    assert_equal %|@alpha(a: 1) @bravo(b: true)|, request2.operation_directives
+  end
+
   def test_accesses_document_variable_definitions
     query = "
       query($ids: [ID!]!, $ns: String!, $lang: String) {

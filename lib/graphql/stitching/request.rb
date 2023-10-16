@@ -48,6 +48,13 @@ module GraphQL
         end
       end
 
+      def operation_directives
+        @operation_directives ||= if operation.directives.any?
+          printer = GraphQL::Language::Printer.new
+          operation.directives.map { printer.print(_1) }.join(" ")
+        end
+      end
+
       def variable_definitions
         @variable_definitions ||= operation.variables.each_with_object({}) do |v, memo|
           memo[v.name] = v.type

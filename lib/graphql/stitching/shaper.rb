@@ -3,6 +3,8 @@
 
 module GraphQL
   module Stitching
+    # Shapes the final results payload to the request selection and schema definition.
+    # This eliminates unrequested selection hints and applies null bubbling.
     class Shaper
       def initialize(supergraph:, request:)
         @supergraph = supergraph

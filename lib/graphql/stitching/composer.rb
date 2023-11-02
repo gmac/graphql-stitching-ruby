@@ -362,8 +362,8 @@ module GraphQL
             next
           end
 
-          # Getting double args sometimes... why?
-          return if owner.arguments.any? { _1.first == argument_name }
+          # Getting double args sometimes on auto-generated connection types... why?
+          next if owner.arguments.any? { _1.first == argument_name }
 
           type = merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name)
           schema_argument = owner.argument(

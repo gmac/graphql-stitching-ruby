@@ -37,6 +37,10 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     @supergraph = compose_definitions({ "a" => a, "b" => b })
   end
 
+  def test_get_not_configured
+    puts GraphQL::Stitching::Composer::NO_DEFAULT_VALUE
+  end
+
   def test_expands_interface_selections_for_target_location
     plan = GraphQL::Stitching::Planner.new(
       supergraph: @supergraph,

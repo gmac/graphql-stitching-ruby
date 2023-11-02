@@ -5,9 +5,13 @@ module GraphQL
     class Composer
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
+      class ReferenceType < GraphQL::Schema::Object
+        field(:f, String) do
+          argument(:a, String)
+        end
+      end
 
-      attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
-
+      NO_DEFAULT_VALUE = ReferenceType.get_field("f").get_argument("a").default_value
       BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
       BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
@@ -15,6 +19,8 @@ module GraphQL
         "ValidateInterfaces",
         "ValidateBoundaries",
       ].freeze
+
+      attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
 
       def initialize(
         query_name: "Query",

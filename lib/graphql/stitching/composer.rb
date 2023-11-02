@@ -8,8 +8,8 @@ module GraphQL
 
       attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
 
-      DEFAULT_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
-      DEFAULT_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
+      BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
+      BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
       VALIDATORS = [
         "ValidateInterfaces",
@@ -21,15 +21,17 @@ module GraphQL
         mutation_name: "Mutation",
         description_merger: nil,
         deprecation_merger: nil,
+        default_value_merger: nil,
         directive_kwarg_merger: nil,
         root_field_location_selector: nil
       )
         @query_name = query_name
         @mutation_name = mutation_name
-        @description_merger = description_merger || DEFAULT_VALUE_MERGER
-        @deprecation_merger = deprecation_merger || DEFAULT_VALUE_MERGER
-        @directive_kwarg_merger = directive_kwarg_merger || DEFAULT_VALUE_MERGER
-        @root_field_location_selector = root_field_location_selector || DEFAULT_ROOT_FIELD_LOCATION_SELECTOR
+        @description_merger = description_merger || BASIC_VALUE_MERGER
+        @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
+        @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
+        @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
+        @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
         @stitch_directives = {}
       end
 
@@ -365,6 +367,20 @@ module GraphQL
           # Getting double args sometimes... why?
           return if owner.arguments.any? { _1.first == argument_name }
 
+          kwargs = {}
+          default_values_by_location = arguments_by_location.each_with_object({}) do |(location, argument), memo|
+            next if argument.default_value.class == Object # << pass on NOT_CONFIGURED (todo: improve this check)
+            memo[location] = argument.default_value
+          end
+
+          if default_values_by_location.any?
+            kwargs[:default_value] = @default_value_merger.call(default_values_by_location, {
+              type_name: type_name,
+              field_name: field_name,
+              argument_name: argument_name,
+            })
+          end
+
           type = merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name)
           schema_argument = owner.argument(
             argument_name,
@@ -373,6 +389,7 @@ module GraphQL
             type: Util.unwrap_non_null(type),
             required: type.non_null?,
             camelize: false,
+            **kwargs,
           )
 
           build_merged_directives(type_name, arguments_by_location, schema_argument, field_name: field_name, argument_name: argument_name)

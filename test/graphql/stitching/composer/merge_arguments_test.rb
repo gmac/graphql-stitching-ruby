@@ -86,8 +86,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
   end
 
   def test_merges_argument_descriptions
-    a = %{input Test { """a""" arg:String } type Query { test("""a""" arg:Test):String }}
-    b = %{input Test { """b""" arg:String } type Query { test("""b""" arg:Test):String }}
+    a = %|input Test { """a""" arg:String } type Query { test("""a""" arg:Test):String }|
+    b = %|input Test { """b""" arg:String } type Query { test("""b""" arg:Test):String }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -98,8 +98,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
   end
 
   def test_merges_argument_deprecations
-    a = %{input Test { arg:String @deprecated(reason:"a") } type Query { test(arg:Test @deprecated(reason:"a")):String }}
-    b = %{input Test { arg:String @deprecated(reason:"b") } type Query { test(arg:Test @deprecated(reason:"b")):String }}
+    a = %|input Test { arg:String @deprecated(reason:"a") } type Query { test(arg:Test @deprecated(reason:"a")):String }|
+    b = %|input Test { arg:String @deprecated(reason:"b") } type Query { test(arg:Test @deprecated(reason:"b")):String }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       deprecation_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -110,15 +110,15 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
   end
 
   def test_merges_argument_directives
-    a = <<~GRAPHQL
+    a = %|
       directive @fizzbuzz(arg: String!) on ARGUMENT_DEFINITION
       type Query { test(arg:String @fizzbuzz(arg:"a")):String }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       directive @fizzbuzz(arg: String!) on ARGUMENT_DEFINITION
       type Query { test(arg:String @fizzbuzz(arg:"b")):String }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -153,5 +153,25 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     assert_error('Required argument `Query.test.arg2` must be defined in all locations.', ComposerError) do
       compose_definitions({ "a" => a, "b" => b })
     end
+  end
+
+  def test_merged_field_arguments_with_default_value
+    a = %|type Query { test(arg:Int):String }|
+    b = %|type Query { test(arg:Int = 1):String }|
+    c = %|type Query { test(arg:Int = 2):String }|
+
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
+    assert_equal 1, supergraph.schema.types["Query"].fields["test"].arguments["arg"].default_value
+  end
+
+  def test_merged_field_arguments_with_selected_default_value
+    a = %|type Query { test(arg:Int):String }|
+    b = %|type Query { test(arg:Int = 1):String }|
+    c = %|type Query { test(arg:Int = 2):String }|
+
+    supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c }, {
+      default_value_merger: ->(values_by_location, _info) { values_by_location.values.max }
+    })
+    assert_equal 2, supergraph.schema.types["Query"].fields["test"].arguments["arg"].default_value
   end
 end

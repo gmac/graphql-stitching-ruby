@@ -216,17 +216,17 @@ module GraphQL
         builder = self
 
         # "value" => "location" => enum_value
-        enum_values_by_value_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
+        enum_values_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
           type_candidate.enum_values.each do |enum_value_candidate|
-            memo[enum_value_candidate.value] ||= {}
-            memo[enum_value_candidate.value][location] ||= {}
-            memo[enum_value_candidate.value][location] = enum_value_candidate
+            memo[enum_value_candidate.graphql_name] ||= {}
+            memo[enum_value_candidate.graphql_name][location] ||= {}
+            memo[enum_value_candidate.graphql_name][location] = enum_value_candidate
           end
         end
 
         # intersect input enum types
-        if enum_usage.fetch(type_name, []).include?(:write)
-          enum_values_by_value_location.reject! do |value, enum_values_by_location|
+        if enum_usage.fetch(type_name, EMPTY_ARRAY).include?(:write)
+          enum_values_by_name_location.reject! do |value, enum_values_by_location|
             types_by_location.keys.length != enum_values_by_location.keys.length
           end
         end
@@ -236,14 +236,14 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_directives(type_name, types_by_location, self)
 
-          enum_values_by_value_location.each do |value, enum_values_by_location|
-            enum_value = value(value,
-              value: value,
-              description: builder.merge_descriptions(type_name, enum_values_by_location, enum_value: value),
-              deprecation_reason: builder.merge_deprecations(type_name, enum_values_by_location, enum_value: value),
+          enum_values_by_name_location.each do |value_name, enum_values_by_location|
+            enum_value = value(value_name,
+              value: value_name,
+              description: builder.merge_descriptions(type_name, enum_values_by_location, enum_value: value_name),
+              deprecation_reason: builder.merge_deprecations(type_name, enum_values_by_location, enum_value: value_name),
             )
 
-            builder.build_merged_directives(type_name, enum_values_by_location, enum_value, enum_value: value)
+            builder.build_merged_directives(type_name, enum_values_by_location, enum_value, enum_value: value_name)
           end
         end
       end
@@ -600,11 +600,11 @@ module GraphQL
           end
         end
 
-        usage = reads.uniq.each_with_object({}) do |enum_name, memo|
+        usage = reads.tap(&:uniq!).each_with_object({}) do |enum_name, memo|
           memo[enum_name] ||= []
           memo[enum_name] << :read
         end
-        writes.uniq.each_with_object(usage) do |enum_name, memo|
+        writes.tap(&:uniq!).each_with_object(usage) do |enum_name, memo|
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end

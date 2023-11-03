@@ -12,6 +12,7 @@ composer = GraphQL::Stitching::Composer.new(
   mutation_name: "Mutation",
   description_merger: ->(values_by_location, info) { values_by_location.values.join("\n") },
   deprecation_merger: ->(values_by_location, info) { values_by_location.values.first },
+  default_value_merger: ->(values_by_location, info) { values_by_location.values.first },
   directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
   root_field_location_selector: ->(locations, info) { locations.last },
 )
@@ -26,6 +27,8 @@ Constructor arguments:
 - **`description_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element description strings from across locations.
 
 - **`deprecation_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element deprecation strings from across locations.
+
+- **`default_value_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging argument default values from across locations.
 
 - **`directive_kwarg_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging directive keyword arguments from across locations.
 

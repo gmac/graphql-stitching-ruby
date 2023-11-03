@@ -83,7 +83,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: 0,
       location: "storefronts",
       operation_type: "query",
-      selections: %|{ storefront(id: "1") { name products { _STITCH_upc: upc _STITCH___typename: __typename } } }|,
+      selections: %|{ storefront(id: "1") { name products { _export_upc: upc _export___typename: __typename } } }|,
       path: [],
       boundary: nil,
     }
@@ -92,7 +92,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: plan.ops[0].step,
       location: "products",
       operation_type: "query",
-      selections: %|{ name manufacturer { products { name } _STITCH_id: id _STITCH___typename: __typename } }|,
+      selections: %|{ name manufacturer { products { name } _export_id: id _export___typename: __typename } }|,
       path: ["storefront", "products"],
       boundary: {
         field: "product",
@@ -135,7 +135,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: 0,
       location: "manufacturers",
       operation_type: "query",
-      selections: %|{ manufacturer(id: "1") { name _STITCH_id: id _STITCH___typename: __typename } }|,
+      selections: %|{ manufacturer(id: "1") { name _export_id: id _export___typename: __typename } }|,
       path: [],
       boundary: nil,
     }
@@ -188,7 +188,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: 0,
       location: "a",
       operation_type: "query",
-      selections: %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|,
+      selections: %|{ apple(id: "1") { id name _export_id: id _export___typename: __typename } }|,
       path: [],
       boundary: nil,
     }
@@ -232,7 +232,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: 0,
       location: "a",
       operation_type: "query",
-      selections: %|{ apple(id: "1") { id name _STITCH_id: id _STITCH___typename: __typename } }|,
+      selections: %|{ apple(id: "1") { id name _export_id: id _export___typename: __typename } }|,
       path: [],
       boundary: nil,
     }
@@ -277,7 +277,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       after: 0,
       location: "a",
       operation_type: "query",
-      selections: %|{ node(id: "1") { id ... on Apple { name _STITCH_id: id _STITCH___typename: __typename } _STITCH___typename: __typename } }|,
+      selections: %|{ node(id: "1") { id ... on Apple { name _export_id: id _export___typename: __typename } _export___typename: __typename } }|,
       path: [],
       boundary: nil,
     }

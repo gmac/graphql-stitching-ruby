@@ -48,14 +48,14 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         buyable(id: "1") {
           id
           ... on Product {
-            _STITCH_id: id
-            _STITCH___typename: __typename
+            _export_id: id
+            _export___typename: __typename
           }
           ... on Bundle {
             name
             price
           }
-          _STITCH___typename: __typename
+          _export___typename: __typename
         }
       }
     |
@@ -115,15 +115,15 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         buyable(id: "1") {
           id
           ... on Product {
-            _STITCH_id: id
-            _STITCH___typename: __typename
+            _export_id: id
+            _export___typename: __typename
           }
           ... on Bundle {
             name
             price
           }
-          _STITCH___typename: __typename
-          _STITCH___typename: __typename
+          _export___typename: __typename
+          _export___typename: __typename
         }
       }
     |
@@ -155,11 +155,11 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       {
         buyable(id: \"1\") {
           id
-          ... on Product { _STITCH_id: id _STITCH___typename: __typename }
+          ... on Product { _export_id: id _export___typename: __typename }
           ... on Bundle { name price }
-          _STITCH___typename: __typename
-          _STITCH___typename: __typename
-          _STITCH___typename: __typename
+          _export___typename: __typename
+          _export___typename: __typename
+          _export___typename: __typename
         }
       }
     |
@@ -242,15 +242,15 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
         fruit {
           ... on Apple {
             a
-            _STITCH_id: id
-            _STITCH___typename: __typename
+            _export_id: id
+            _export___typename: __typename
           }
           ... on Banana {
             a
-            _STITCH_id: id
-            _STITCH___typename: __typename
+            _export_id: id
+            _export___typename: __typename
           }
-          _STITCH___typename: __typename
+          _export___typename: __typename
         }
       }
     |

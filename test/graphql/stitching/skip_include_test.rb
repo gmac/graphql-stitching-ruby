@@ -89,7 +89,7 @@ describe "GraphQL::Stitching::SkipInclude" do
 
     assert changed?
     assert_result "query {
-      a { _STITCH___typename: __typename }
+      a { _export___typename: __typename }
     }"
   end
 

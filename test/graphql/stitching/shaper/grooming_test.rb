@@ -12,8 +12,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     )
     raw = {
       "test" => {
-        "_STITCH_req" => "yes",
-        "_STITCH___typename" => "Test",
+        "_export_req" => "yes",
+        "_export___typename" => "Test",
         "__typename" => "Test",
         "req" => "yes",
         "opt" => nil,
@@ -38,8 +38,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     )
     raw = {
       "test" => {
-        "_STITCH_req" => "yes",
-        "_STITCH___typename" => "Test",
+        "_export_req" => "yes",
+        "_export___typename" => "Test",
         "req" => "yes",
       }
     }
@@ -70,8 +70,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     )
     raw = {
       "test" => {
-        "_STITCH_req" => "yes",
-        "_STITCH___typename" => "Test",
+        "_export_req" => "yes",
+        "_export___typename" => "Test",
         "req" => "yes",
       }
     }
@@ -98,8 +98,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     )
     raw = {
       "test" => {
-        "_STITCH_req" => "yes",
-        "_STITCH___typename" => "Test",
+        "_export_req" => "yes",
+        "_export___typename" => "Test",
         "req" => "yes",
       }
     }

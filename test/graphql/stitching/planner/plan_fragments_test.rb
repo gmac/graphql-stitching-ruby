@@ -17,18 +17,18 @@ describe "GraphQL::Stitching::Planner, fragments" do
           ... on Apple {
             id
             extensions {
-              _STITCH_id: id
-              _STITCH___typename: __typename
+              _export_id: id
+              _export___typename: __typename
             }
           }
           ... on Banana {
             id
             extensions {
-              _STITCH_id: id
-              _STITCH___typename: __typename
+              _export_id: id
+              _export___typename: __typename
             }
           }
-          _STITCH___typename: __typename
+          _export___typename: __typename
         }
       }
     |
@@ -159,7 +159,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
     second = plan.ops[1]
     assert_equal "alpha", second.location
     assert_equal ["namespace", "test"], second.path
-    assert_equal "{ a x y nest { a _STITCH_id: id _STITCH___typename: __typename } }", second.selections
+    assert_equal "{ a x y nest { a _export_id: id _export___typename: __typename } }", second.selections
 
     third = plan.ops[2]
     assert_equal "bravo", third.location

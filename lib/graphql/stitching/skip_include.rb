@@ -35,7 +35,7 @@ module GraphQL
           end
 
           if filtered_selections.none?
-            filtered_selections << SelectionHint.typename_node
+            filtered_selections << ExportSelection.typename_node
           end
 
           if changed

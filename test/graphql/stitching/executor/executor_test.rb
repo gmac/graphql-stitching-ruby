@@ -57,7 +57,7 @@ describe "GraphQL::Stitching::Executor" do
     req = %|{ featured { name } }|
 
     expected1 = %|
-      query{ featured { _STITCH_id: id _STITCH___typename: __typename } }
+      query{ featured { _export_id: id _export___typename: __typename } }
     |
     expected2 = %|
       query{
@@ -70,9 +70,9 @@ describe "GraphQL::Stitching::Executor" do
     execs = mock_execs(req, [
       {
         "featured" => [
-          { "_STITCH_id" => "1", "_STITCH___typename" => "Product" },
-          { "_STITCH_id" => "2", "_STITCH___typename" => "Product" },
-          { "_STITCH_id" => "3", "_STITCH___typename" => "Product" },
+          { "_export_id" => "1", "_export___typename" => "Product" },
+          { "_export_id" => "2", "_export___typename" => "Product" },
+          { "_export_id" => "3", "_export___typename" => "Product" },
         ]
       },
       {
@@ -95,14 +95,14 @@ describe "GraphQL::Stitching::Executor" do
     req = %|query Test @inContext(lang: "EN") { featured { name } }|
 
     expected1 = %|
-      query Test_1 @inContext(lang: "EN") { featured { _STITCH_id: id _STITCH___typename: __typename } }
+      query Test_1 @inContext(lang: "EN") { featured { _export_id: id _export___typename: __typename } }
     |
     expected2 = %|
       query Test_2 @inContext(lang: "EN") { _0_0_result: product(id:"1") { name } }
     |
 
     execs = mock_execs(req, [
-      { "featured" => [{ "_STITCH_id" => "1", "_STITCH___typename" => "Product" }] },
+      { "featured" => [{ "_export_id" => "1", "_export___typename" => "Product" }] },
       { "_0_0_result" => { "name" => "Potato" } },
     ], operation_name: "Test")
 

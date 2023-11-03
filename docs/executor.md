@@ -50,8 +50,8 @@ The raw result will contain many irregularities from the stitching process, howe
   "data" => {
     "product" => {
       "upc" => "1",
-      "_STITCH_upc" => "1",
-      "_STITCH_typename" => "Product",
+      "_export_upc" => "1",
+      "_export_typename" => "Product",
       "name" => "iPhone",
       "price" => nil,
     }

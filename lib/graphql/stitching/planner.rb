@@ -42,7 +42,7 @@ module GraphQL
       #      Adjoining selections not available here get split off into new entrypoints (C).
       # B.3) Collect all variable definitions used within the filtered selection.
       #      These specify which request variables to pass along with each step.
-      # B.4) Add a `__typename` hint to abstracts and types that implement fragments.
+      # B.4) Add a `__typename` export to abstracts and types that implement fragments.
       #      This provides resolved type information used during execution.
       #
       # C) Delegate adjoining selections to new entrypoint locations.
@@ -199,7 +199,9 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.name == TYPENAME
+            if node.alias&.start_with?(ExportSelection::EXPORT_PREFIX)
+              raise %(Field alias "#{node.alias}" cannot start with reserved prefix "#{ExportSelection::EXPORT_PREFIX}")
+            elsif node.name == TYPENAME
               locale_selections << node
               next
             end
@@ -257,10 +259,10 @@ module GraphQL
           end
         end
 
-        # B.4) Add a `__typename` hint to abstracts and types that implement
+        # B.4) Add a `__typename` export to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
-          locale_selections << SelectionHint.typename_node
+          locale_selections << ExportSelection.typename_node
         end
 
         if remote_selections
@@ -274,18 +276,18 @@ module GraphQL
           routes.each_value do |route|
             route.reduce(locale_selections) do |parent_selections, boundary|
               # E.1) Add the key of each boundary query into the prior location's selection set.
-              foreign_key = SelectionHint.key(boundary.key)
+              foreign_key = ExportSelection.key(boundary.key)
               has_key = false
               has_typename = false
 
               parent_selections.each do |node|
                 next unless node.is_a?(GraphQL::Language::Nodes::Field)
                 has_key ||= node.alias == foreign_key
-                has_typename ||= node.alias == SelectionHint.typename_node.alias
+                has_typename ||= node.alias == ExportSelection.typename_node.alias
               end
 
-              parent_selections << SelectionHint.key_node(boundary.key) unless has_key
-              parent_selections << SelectionHint.typename_node unless has_typename
+              parent_selections << ExportSelection.key_node(boundary.key) unless has_key
+              parent_selections << ExportSelection.typename_node unless has_typename
 
               # E.2) Add a planner step for each new entrypoint location.
               add_step(

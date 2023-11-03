@@ -43,8 +43,8 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
 
     @source = GraphQL::Stitching::Executor::BoundarySource.new({}, "products")
     @origin_sets_by_operation = {
-      @op1 => [{ "_STITCH_id" => "7" }, { "_STITCH_id" => "8" }],
-      @op2 => [{ "_STITCH_upc" => "abc" }, { "_STITCH_upc" => "xyz" }],
+      @op1 => [{ "_export_id" => "7" }, { "_export_id" => "8" }],
+      @op2 => [{ "_export_upc" => "abc" }, { "_export_upc" => "xyz" }],
     }
   end
 
@@ -105,12 +105,12 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
     })
 
     expected1 = [
-      { "_STITCH_id" => "7", "name" => "fizz" },
-      { "_STITCH_id" => "8", "name" => "bang" }
+      { "_export_id" => "7", "name" => "fizz" },
+      { "_export_id" => "8", "name" => "bang" }
     ]
     expected2 = [
-      { "_STITCH_upc" => "abc", "price" => 1.99 },
-      { "_STITCH_upc" => "xyz", "price" => 10.99 }
+      { "_export_upc" => "abc", "price" => 1.99 },
+      { "_export_upc" => "xyz", "price" => 10.99 }
     ]
 
     assert_equal expected1, @origin_sets_by_operation[@op1]
@@ -120,8 +120,8 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
   def test_extracts_errors_for_operation_batch
     data = {
       "storefronts" => [
-        { "_STITCH_id" => "7", "product" => { "_STITCH_upc" => "abc" } },
-        { "_STITCH_id" => "8", "product" => { "_STITCH_upc" => "xyz" } }
+        { "_export_id" => "7", "product" => { "_export_upc" => "abc" } },
+        { "_export_id" => "8", "product" => { "_export_upc" => "xyz" } }
       ]
     }
 

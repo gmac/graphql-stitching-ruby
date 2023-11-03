@@ -16,7 +16,7 @@ module GraphQL
 
           if op.if_type
             # operations planned around unused fragment conditions should not trigger requests
-            origin_set.select! { _1[SelectionHint.typename_node.alias] == op.if_type }
+            origin_set.select! { _1[ExportSelection.typename_node.alias] == op.if_type }
           end
 
           memo[op] = origin_set if origin_set.any?
@@ -94,9 +94,9 @@ module GraphQL
       end
 
       def build_key(key, origin_obj, federation: false)
-        key_value = JSON.generate(origin_obj[SelectionHint.key(key)])
+        key_value = JSON.generate(origin_obj[ExportSelection.key(key)])
         if federation
-          "{ __typename: \"#{origin_obj[SelectionHint.typename_node.alias]}\", #{key}: #{key_value} }"
+          "{ __typename: \"#{origin_obj[ExportSelection.typename_node.alias]}\", #{key}: #{key_value} }"
         else
           key_value
         end

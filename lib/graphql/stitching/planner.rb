@@ -200,7 +200,7 @@ module GraphQL
           case node
           when GraphQL::Language::Nodes::Field
             if node.alias&.start_with?(ExportSelection::EXPORT_PREFIX)
-              raise %(Field alias "#{node.alias}" cannot start with reserved prefix "#{ExportSelection::EXPORT_PREFIX}")
+              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{ExportSelection::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
               next

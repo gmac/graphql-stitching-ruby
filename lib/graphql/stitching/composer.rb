@@ -201,7 +201,7 @@ module GraphQL
           description(builder.merge_descriptions(directive_name, directives_by_location))
           repeatable(directives_by_location.values.any?(&:repeatable?))
           locations(*directives_by_location.values.flat_map(&:locations).uniq)
-          builder.build_merged_arguments(directive_name, directives_by_location, self)
+          builder.build_merged_arguments(directive_name, directives_by_location, self, directive_name: directive_name)
         end
       end
 
@@ -349,7 +349,7 @@ module GraphQL
         end
       end
 
-      def build_merged_arguments(type_name, members_by_location, owner, field_name: nil)
+      def build_merged_arguments(type_name, members_by_location, owner, field_name: nil, directive_name: nil)
         # "argument_name" => "location" => argument
         args_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
           member_candidate.arguments.each do |argument_name, argument|
@@ -375,7 +375,7 @@ module GraphQL
 
           kwargs = {}
           default_values_by_location = arguments_by_location.each_with_object({}) do |(location, argument), memo|
-            next if argument.default_value.class == Object # << pass on NOT_CONFIGURED (todo: improve this check)
+            next if argument.default_value == NO_DEFAULT_VALUE
             memo[location] = argument.default_value
           end
 
@@ -384,7 +384,8 @@ module GraphQL
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
-            })
+              directive_name: directive_name,
+            }.tap(&:compact!))
           end
 
           type = merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name)
@@ -436,7 +437,7 @@ module GraphQL
               enum_value: enum_value,
               directive_name: directive_name,
               kwarg_name: kwarg_name,
-            }.compact!)
+            }.tap(&:compact!))
           end
 
           owner.directive(directive_class, **kwargs)
@@ -444,7 +445,7 @@ module GraphQL
       end
 
       def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
-        path = [type_name, field_name, argument_name].compact.join(".")
+        path = [type_name, field_name, argument_name].tap(&:compact!).join(".")
         alt_structures = type_candidates.map { Util.flatten_type_structure(_1) }
         basis_structure = alt_structures.shift
 
@@ -481,7 +482,7 @@ module GraphQL
           field_name: field_name,
           argument_name: argument_name,
           enum_value: enum_value,
-        }.compact!)
+        }.tap(&:compact!))
       end
 
       def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
@@ -491,7 +492,7 @@ module GraphQL
           field_name: field_name,
           argument_name: argument_name,
           enum_value: enum_value,
-        }.compact!)
+        }.tap(&:compact!))
       end
 
       def extract_boundaries(type_name, types_by_location)

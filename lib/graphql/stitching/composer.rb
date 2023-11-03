@@ -88,25 +88,25 @@ module GraphQL
 
         # "Typename" => merged_type
         schema_types = @candidate_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
-          kinds = types_by_location.values.map { _1.kind.name }.uniq
+          kinds = types_by_location.values.map { _1.kind.name }.tap(&:uniq!)
 
           if kinds.length > 1
             raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
           memo[type_name] = case kinds.first
-          when "SCALAR"
+          when GraphQL::TypeKinds::SCALAR.name
             build_scalar_type(type_name, types_by_location)
-          when "ENUM"
+          when GraphQL::TypeKinds::ENUM.name
             build_enum_type(type_name, types_by_location, enum_usage)
-          when "OBJECT"
+          when GraphQL::TypeKinds::OBJECT.name
             extract_boundaries(type_name, types_by_location) if type_name == @query_name
             build_object_type(type_name, types_by_location)
-          when "INTERFACE"
+          when GraphQL::TypeKinds::INTERFACE.name
             build_interface_type(type_name, types_by_location)
-          when "UNION"
+          when GraphQL::TypeKinds::UNION.name
             build_union_type(type_name, types_by_location)
-          when "INPUT_OBJECT"
+          when GraphQL::TypeKinds::INPUT_OBJECT.name
             build_input_object_type(type_name, types_by_location)
           else
             raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
@@ -200,7 +200,7 @@ module GraphQL
           graphql_name(directive_name)
           description(builder.merge_descriptions(directive_name, directives_by_location))
           repeatable(directives_by_location.values.any?(&:repeatable?))
-          locations(*directives_by_location.values.flat_map(&:locations).uniq)
+          locations(*directives_by_location.values.flat_map(&:locations).tap(&:uniq!))
           builder.build_merged_arguments(directive_name, directives_by_location, self, directive_name: directive_name)
         end
       end

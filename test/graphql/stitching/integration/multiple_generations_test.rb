@@ -90,15 +90,15 @@ describe 'GraphQL::Stitching, multiple generations' do
         "products" => [
           {
             "upc" => "1",
-            "_STITCH_upc" => "1",
-            "_STITCH___typename" => "Product",
+            "_export_upc" => "1",
+            "_export___typename" => "Product",
             "name" => "iPhone",
             "price"=>699.99,
           },
           {
             "upc" => "2",
-            "_STITCH_upc" => "2",
-            "_STITCH___typename" => "Product",
+            "_export_upc" => "2",
+            "_export___typename" => "Product",
             "name" => "Apple Watch",
             "price"=>399.99,
           },

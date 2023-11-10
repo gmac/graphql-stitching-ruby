@@ -4,7 +4,7 @@
 module GraphQL
   module Stitching
     # Shapes the final results payload to the request selection and schema definition.
-    # This eliminates unrequested selection hints and applies null bubbling.
+    # This eliminates unrequested export selections and applies null bubbling.
     class Shaper
       def initialize(supergraph:, request:)
         @supergraph = supergraph
@@ -21,8 +21,8 @@ module GraphQL
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
-        typename ||= raw_object[SelectionHint.typename_node.alias]
-        raw_object.reject! { |key, _v| SelectionHint.key?(key) }
+        typename ||= raw_object[ExportSelection.typename_node.alias]
+        raw_object.reject! { |key, _v| ExportSelection.key?(key) }
 
         selections.each do |node|
           case node

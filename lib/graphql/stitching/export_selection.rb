@@ -4,18 +4,18 @@ module GraphQL
   module Stitching
     # Builds hidden selection fields added by stitiching code,
     # used to request operational data about resolved objects.
-    class SelectionHint
-      HINT_PREFIX = "_STITCH_"
+    class ExportSelection
+      EXPORT_PREFIX = "_export_"
 
       class << self
         def key?(name)
           return false unless name
 
-          name.start_with?(HINT_PREFIX)
+          name.start_with?(EXPORT_PREFIX)
         end
 
         def key(name)
-          "#{HINT_PREFIX}#{name}"
+          "#{EXPORT_PREFIX}#{name}"
         end
 
         def key_node(field_name)

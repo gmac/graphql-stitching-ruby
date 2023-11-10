@@ -11,7 +11,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       operation_type: "query",
       path: [],
       if_type: "Storefront",
-      selections: "{ storefront(id:$id) { products { _STITCH_id: id } } }",
+      selections: "{ storefront(id:$id) { products { _export_id: id } } }",
       variables: { "id" => "ID!" },
       boundary: nil
     )
@@ -24,7 +24,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
 
     expected = %|
       query($id:ID!){
-        storefront(id:$id) { products { _STITCH_id: id } }
+        storefront(id:$id) { products { _export_id: id } }
       }
     |
 
@@ -36,7 +36,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
 
     expected = %|
       query MyOperation_1($id:ID!){
-        storefront(id:$id) { products { _STITCH_id: id } }
+        storefront(id:$id) { products { _export_id: id } }
       }
     |
 
@@ -48,7 +48,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
 
     expected = %|
       query MyOperation_1($id:ID!) @inContext(lang: "EN") {
-        storefront(id:$id) { products { _STITCH_id: id } }
+        storefront(id:$id) { products { _export_id: id } }
       }
     |
 

@@ -53,7 +53,7 @@ module GraphQL
           end
         end
 
-        # "Typename" => merged_directive
+        # "directive_name" => merged_directive
         @schema_directives = @candidate_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
           memo[directive_name] = build_directive(directive_name, directives_by_location)
         end
@@ -88,11 +88,13 @@ module GraphQL
 
         # "Typename" => merged_type
         schema_types = @candidate_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
-          kinds = types_by_location.values.map { _1.kind.name }.uniq
+          kinds = types_by_location.values.map { _1.kind.name }.tap(&:uniq!)
 
           if kinds.length > 1
             raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
+
+          extract_boundaries(type_name, types_by_location) if type_name == @query_name
 
           memo[type_name] = case kinds.first
           when "SCALAR"
@@ -100,7 +102,6 @@ module GraphQL
           when "ENUM"
             build_enum_type(type_name, types_by_location, enum_usage)
           when "OBJECT"
-            extract_boundaries(type_name, types_by_location) if type_name == @query_name
             build_object_type(type_name, types_by_location)
           when "INTERFACE"
             build_interface_type(type_name, types_by_location)
@@ -200,7 +201,7 @@ module GraphQL
           graphql_name(directive_name)
           description(builder.merge_descriptions(directive_name, directives_by_location))
           repeatable(directives_by_location.values.any?(&:repeatable?))
-          locations(*directives_by_location.values.flat_map(&:locations).uniq)
+          locations(*directives_by_location.values.flat_map(&:locations).tap(&:uniq!))
           builder.build_merged_arguments(directive_name, directives_by_location, self, directive_name: directive_name)
         end
       end
@@ -262,7 +263,7 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
-          interface_names.uniq.each do |interface_name|
+          interface_names.tap(&:uniq!).each do |interface_name|
             implements(builder.build_type_binding(interface_name))
           end
 
@@ -280,7 +281,7 @@ module GraphQL
           description(builder.merge_descriptions(type_name, types_by_location))
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
-          interface_names.uniq.each do |interface_name|
+          interface_names.tap(&:uniq!).each do |interface_name|
             implements(builder.build_type_binding(interface_name))
           end
 
@@ -296,7 +297,7 @@ module GraphQL
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
 
-          possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.uniq
+          possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.tap(&:uniq!)
           possible_types(*possible_names.map { builder.build_type_binding(_1) })
           builder.build_merged_directives(type_name, types_by_location, self)
         end

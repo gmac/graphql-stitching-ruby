@@ -137,7 +137,8 @@ describe "GraphQL::Stitching::Request" do
       }
     GRAPHQL
 
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "a" => true, "b" => false, "c" => false })
+    variables = { "a" => true, "b" => false, "c" => false }
+    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: variables)
     request.prepare!
 
     expected = { "a" => true, "b" => false, "c" => false }

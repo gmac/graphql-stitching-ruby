@@ -130,6 +130,20 @@ describe "GraphQL::Stitching::Request" do
     assert_equal expected, request.variables
   end
 
+  def test_prepare_variables_preserves_boolean_values
+    query = <<~GRAPHQL
+      query($a: Boolean, $b: Boolean, $c: Boolean = true) {
+        base(a: $a, b: $b, c: $c) { id }
+      }
+    GRAPHQL
+
+    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "a" => true, "b" => false, "c" => false })
+    request.prepare!
+
+    expected = { "a" => true, "b" => false, "c" => false }
+    assert_equal expected, request.variables
+  end
+
   def test_applies_skip_and_include_directives_via_boolean_literals
     query = <<~GRAPHQL
       query {

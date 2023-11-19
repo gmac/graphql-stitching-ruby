@@ -69,7 +69,7 @@ module GraphQL
 
       def prepare!
         operation.variables.each do |v|
-          @variables[v.name] ||= v.default_value
+          @variables[v.name] = v.default_value if @variables[v.name].nil?
         end
 
         if @may_contain_runtime_directives

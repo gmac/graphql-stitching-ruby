@@ -61,16 +61,16 @@ Arguments for the `execute` method include:
 The client provides cache hooks to enable caching query plans across requests. Without caching, every request made to the client will be planned individually. With caching, a query may be planned once, cached, and then executed from cache for subsequent requests. Cache keys are a normalized digest of each query string.
 
 ```ruby
-client.on_cache_read do |key, _context|
+client.on_cache_read do |key, _context, _request|
   $redis.get(key) # << 3P code
 end
 
-client.on_cache_write do |key, payload, _context|
+client.on_cache_write do |key, payload, _context, _request|
   $redis.set(key, payload) # << 3P code
 end
 ```
 
-Note that inlined input data works against caching, so you should _avoid_ this:
+Note that inlined input data works against caching, so you should _avoid_ this when possible:
 
 ```graphql
 query {
@@ -78,7 +78,7 @@ query {
 }
 ```
 
-Instead, always leverage variables in queries so that the document body remains consistent across requests:
+Instead, leverage query variables so that the document body remains consistent across requests:
 
 ```graphql
 query($id: ID!) {

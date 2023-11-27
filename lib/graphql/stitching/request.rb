@@ -4,14 +4,13 @@ module GraphQL
   module Stitching
     class Request
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
+      SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
 
       attr_reader :document, :variables, :operation_name, :context
 
       def initialize(document, operation_name: nil, variables: nil, context: nil)
-        @may_contain_runtime_directives = true
-
         @document = if document.is_a?(String)
-          @may_contain_runtime_directives = document.include?("@")
+          @string = document
           GraphQL.parse(document)
         else
           document
@@ -23,11 +22,19 @@ module GraphQL
       end
 
       def string
-        @string ||= @document.to_query_string
+        @string || normalized_string
+      end
+
+      def normalized_string
+        @normalized_string ||= @document.to_query_string
       end
 
       def digest
         @digest ||= Digest::SHA2.hexdigest(string)
+      end
+
+      def normalized_digest
+        @normalized_digest ||= Digest::SHA2.hexdigest(normalized_string)
       end
 
       def operation
@@ -69,18 +76,15 @@ module GraphQL
 
       def prepare!
         operation.variables.each do |v|
-          @variables[v.name] = v.default_value if @variables[v.name].nil?
+          @variables[v.name] = v.default_value if @variables[v.name].nil? && !v.default_value.nil?
         end
 
-        if @may_contain_runtime_directives
-          @document, modified = SkipInclude.render(@document, @variables)
-
-          if modified
-            @string = nil
-            @digest = nil
-            @operation = nil
-            @variable_definitions = nil
-            @fragment_definitions = nil
+        if @string.nil? || @string.match?(SKIP_INCLUDE_DIRECTIVE)
+          SkipInclude.render(@document, @variables) do |modified_ast|
+            @document = modified_ast
+            @string = @normalized_string = nil
+            @digest = @normalized_digest = nil
+            @operation = @operation_directives = @variable_definitions = nil
           end
         end
 

@@ -117,7 +117,39 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
     assert_equal expected2, @origin_sets_by_operation[@op2]
   end
 
-  def test_extracts_errors_for_operation_batch
+  def test_extracts_base_error_for_operation_batch
+    with_mock_source do |source, origin_sets_by_operation|
+      result = source.extract_errors!(origin_sets_by_operation, [
+        { "path" => [], "message" => "base error" },
+      ])
+
+      expected = [
+        { "path" => [], "message" => "base error" },
+      ]
+
+      assert_equal expected, result
+    end
+  end
+
+  def test_extracts_pathed_errors_for_operation_batch
+    with_mock_source do |source, origin_sets_by_operation|
+      result = source.extract_errors!(origin_sets_by_operation, [
+        { "path" => ["_0_result", 1], "message" => "list error" },
+        { "path" => ["_1_1_result"], "message" => "itemized error" },
+      ])
+
+      expected = [
+        { "path" => ["storefronts", 1], "message" => "list error" },
+        { "path" => ["storefronts", 1, "product"], "message" => "itemized error" },
+      ]
+
+      assert_equal expected, result
+    end
+  end
+
+  private
+
+  def with_mock_source
     data = {
       "storefronts" => [
         { "_export_id" => "7", "product" => { "_export_upc" => "abc" } },
@@ -130,24 +162,12 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
     mock = GraphQL::Stitching::Executor.new(supergraph: {}, request: mock, plan: plan)
     mock.instance_variable_set(:@data, data)
 
-    @source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")
-    @origin_sets_by_operation = {
+    source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")
+    origin_sets_by_operation = {
       @op1 => data["storefronts"],
       @op2 => data["storefronts"].map { _1["product"] },
     }
 
-    result = @source.extract_errors!(@origin_sets_by_operation, [
-      { "path" => [], "message" => "base error" },
-      { "path" => ["_0_result", 1], "message" => "list error" },
-      { "path" => ["_1_1_result"], "message" => "itemized error" },
-    ])
-
-    expected = [
-      { "path" => [], "message" => "base error" },
-      { "path" => ["storefronts", 1], "message" => "list error" },
-      { "path" => ["storefronts", 1, "product"], "message" => "itemized error" },
-    ]
-
-    assert_equal expected, result
+    yield(source, origin_sets_by_operation)
   end
 end

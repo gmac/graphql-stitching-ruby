@@ -20,11 +20,11 @@ describe "GraphQL::Stitching::Request" do
   end
 
   def test_selects_from_multiple_operations_by_operation_name
-    query = "
+    query = %|
       query First { widget { id } }
       query Second { sprocket { id } }
-      mutation Third { makeSprocket(id: \"1\") { id } }
-    "
+      mutation Third { makeSprocket(id: "1") { id } }
+    |
     request1 = GraphQL::Stitching::Request.new(query, operation_name: "First")
     request2 = GraphQL::Stitching::Request.new(query, operation_name: "Second")
     request3 = GraphQL::Stitching::Request.new(query, operation_name: "Third")
@@ -73,11 +73,11 @@ describe "GraphQL::Stitching::Request" do
   end
 
   def test_accesses_document_variable_definitions
-    query = "
+    query = %|
       query($ids: [ID!]!, $ns: String!, $lang: String) {
         widget(ids: $ids, ns: $ns) { id name(lang: $lang) }
       }
-    "
+    |
     request = GraphQL::Stitching::Request.new(query)
     variables = request.variable_definitions.each_with_object({}) do |(name, type), memo|
       memo[name] = GraphQL::Language::Printer.new.print(type)
@@ -93,35 +93,60 @@ describe "GraphQL::Stitching::Request" do
   end
 
   def test_accesses_document_fragment_definitions
-    query = "
+    query = %|
       query { things { ...WidgetAttrs ...SprocketAttrs } }
       fragment WidgetAttrs on Widget { widget }
       fragment SprocketAttrs on Sprocket { sprocket }
-    "
+    |
     request = GraphQL::Stitching::Request.new(query)
 
     assert_equal "widget", request.fragment_definitions["WidgetAttrs"].selections.first.name
     assert_equal "sprocket", request.fragment_definitions["SprocketAttrs"].selections.first.name
   end
 
-  def test_generates_a_digest_from_string_and_ast_input
-    sample_ast = GraphQL.parse("query { things { name } }")
-    sample_query = GraphQL::Language::Printer.new.print(sample_ast)
-    expected_digest = "88908d0790f7b20afe4a7508a8bba6343c62f98abb9c5abff17345c64d90c0d0"
+  def test_provides_string_and_normalized_string
+    string = %|
+      query {
+        things { name }
+      }
+    |
 
-    request1 = GraphQL::Stitching::Request.new(sample_ast)
-    assert_equal expected_digest, request1.digest
+    document = GraphQL.parse(string)
+    request = GraphQL::Stitching::Request.new(string)
+    assert_equal string, request.string
+    assert_equal GraphQL.parse(string).to_query_string, request.normalized_string
+  end
 
-    request2 = GraphQL::Stitching::Request.new(sample_query)
-    assert_equal expected_digest, request2.digest
+  def test_provides_string_and_normalized_string_for_parsed_ast_input
+    document = GraphQL.parse("query { things { name } }")
+    request = GraphQL::Stitching::Request.new(document)
+    expected = document.to_query_string
+
+    assert_equal expected, request.string
+    assert_equal expected, request.normalized_string
+  end
+
+  def test_provides_digest_and_normalized_digest
+    string = %|
+      query {
+        things { name }
+      }
+    |
+
+    request = GraphQL::Stitching::Request.new(string)
+    expected = "ad4b4eb706f67020084a7927ed5bd73b7196e393e0af3535d25ae2d22df33232"
+    expected_normalized = "88908d0790f7b20afe4a7508a8bba6343c62f98abb9c5abff17345c64d90c0d0"
+
+    assert_equal expected, request.digest
+    assert_equal expected_normalized, request.normalized_digest
   end
 
   def test_prepare_variables_collects_variable_defaults
-    query = <<~GRAPHQL
+    query = %|
       query($a: String! = "defaultA", $b: String! = "defaultB") {
         base(a: $a, b: $b) { id }
       }
-    GRAPHQL
+    |
 
     request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "a" => "yes" })
     request.prepare!
@@ -131,11 +156,11 @@ describe "GraphQL::Stitching::Request" do
   end
 
   def test_prepare_variables_preserves_boolean_values
-    query = <<~GRAPHQL
+    query = %|
       query($a: Boolean, $b: Boolean, $c: Boolean = true) {
         base(a: $a, b: $b, c: $c) { id }
       }
-    GRAPHQL
+    |
 
     variables = { "a" => true, "b" => false, "c" => false }
     request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: variables)
@@ -145,15 +170,30 @@ describe "GraphQL::Stitching::Request" do
     assert_equal expected, request.variables
   end
 
+  def test_prepare_variables_does_not_add_null_keys
+    query = %|
+      query($a: Boolean, $b: Boolean = false) {
+        base(a: $a, b: $b) { id }
+      }
+    |
+
+    variables = {}
+    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: variables)
+    request.prepare!
+
+    expected = { "b" => false }
+    assert_equal expected, request.variables
+  end
+
   def test_applies_skip_and_include_directives_via_boolean_literals
-    query = <<~GRAPHQL
+    query = %|
       query {
         skipKeep @skip(if: false) { id }
         skipOmit @skip(if: true) { id }
         includeKeep @include(if: true) { id }
         includeOmit @include(if: false) { id }
       }
-    GRAPHQL
+    |
 
     request = GraphQL::Stitching::Request.new(GraphQL.parse(query))
     request.prepare!
@@ -162,14 +202,14 @@ describe "GraphQL::Stitching::Request" do
   end
 
   def test_applies_skip_and_include_directives_via_variables
-    query = <<~GRAPHQL
+    query = %|
       query($yes: Boolean!, $no: Boolean!) {
         skipKeep @skip(if: $no) { id }
         skipOmit @skip(if: $yes) { id }
         includeKeep @include(if: $yes) { id }
         includeOmit @include(if: $no) { id }
       }
-    GRAPHQL
+    |
 
     request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "yes" => true, "no" => false })
     request.prepare!

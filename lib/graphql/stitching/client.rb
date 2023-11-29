@@ -75,14 +75,14 @@ module GraphQL
 
       def fetch_plan(request)
         if @on_cache_read
-          cached_plan = @on_cache_read.call(request.digest, request.context)
+          cached_plan = @on_cache_read.call(request.digest, request.context, request)
           return GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan)) if cached_plan
         end
 
         plan = yield
 
         if @on_cache_write
-          @on_cache_write.call(request.digest, JSON.generate(plan.as_json), request.context)
+          @on_cache_write.call(request.digest, JSON.generate(plan.as_json), request.context, request)
         end
 
         plan

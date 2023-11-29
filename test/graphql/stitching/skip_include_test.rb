@@ -105,7 +105,10 @@ describe "GraphQL::Stitching::SkipInclude" do
 
   def render_skip_include(source, variables = {})
     @source = source
-    @result, @changed = GraphQL::Stitching::SkipInclude.render(GraphQL.parse(@source), variables)
+    @changed = false
+    @result = GraphQL::Stitching::SkipInclude.render(GraphQL.parse(@source), variables) do
+      @changed = true
+    end
   end
 
   def assert_result(result)

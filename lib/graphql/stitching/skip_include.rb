@@ -15,7 +15,11 @@ module GraphQL
             definition
           end
 
-          return document.merge(definitions: definitions), changed
+          return document unless changed
+
+          document = document.merge(definitions: definitions)
+          yield(document) if block_given?
+          document
         end
 
         private

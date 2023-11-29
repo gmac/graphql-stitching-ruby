@@ -160,7 +160,8 @@ module GraphQL
             errors_result.concat(pathed_errors_by_object_id.values)
           end
         end
-        errors_result.flatten!
+
+        errors_result.tap(&:flatten!)
       end
 
       private

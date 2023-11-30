@@ -3,34 +3,89 @@
 module GraphQL
   module Stitching
     class Supergraph
-      LOCATION = "__super"
+      SUPERGRAPH_LOCATION = "__super"
 
-      def self.validate_executable!(location, executable)
-        return true if executable.is_a?(Class) && executable <= GraphQL::Schema
-        return true if executable && executable.respond_to?(:call)
-        raise StitchingError, "Invalid executable provided for location `#{location}`."
+      class ResolverDirective < GraphQL::Schema::Directive
+        graphql_name "resolver"
+        locations OBJECT, INTERFACE, UNION
+        argument :location, String, required: true
+        argument :key, String, required: true
+        argument :field, String, required: true
+        argument :arg, String, required: true
+        argument :list, Boolean, required: false
+        argument :federation, Boolean, required: false
+        repeatable true
       end
 
-      def self.from_export(schema:, delegation_map:, executables:)
-        schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
+      class SourceDirective < GraphQL::Schema::Directive
+        graphql_name "source"
+        locations FIELD_DEFINITION
+        argument :location, String, required: true
+        repeatable true
+      end
 
-        executables = delegation_map["locations"].each_with_object({}) do |location, memo|
-          executable = executables[location] || executables[location.to_sym]
-          if validate_executable!(location, executable)
-            memo[location] = executable
+      class << self
+        def validate_executable!(location, executable)
+          return true if executable.is_a?(Class) && executable <= GraphQL::Schema
+          return true if executable && executable.respond_to?(:call)
+          raise StitchingError, "Invalid executable provided for location `#{location}`."
+        end
+
+        def from_definition(schema, executables:)
+          schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
+          field_map = {}
+          boundary_map = {}
+          possible_locations = {}
+          introspection_types = schema.introspection_system.types.keys
+
+          schema.types.each do |type_name, type|
+            next if introspection_types.include?(type_name)
+
+            type.directives.each do |directive|
+              next unless directive.graphql_name == ResolverDirective.graphql_name
+
+              kwargs = directive.arguments.keyword_arguments
+              boundary_map[type_name] ||= []
+              boundary_map[type_name] << Boundary.new(
+                type_name: type_name,
+                location: kwargs[:location],
+                key: kwargs[:key],
+                field: kwargs[:field],
+                arg: kwargs[:arg],
+                list: kwargs[:list] || false,
+                federation: kwargs[:federation] || false,
+              )
+            end
+
+            next unless type.kind.fields?
+
+            type.fields.each do |field_name, field|
+              field.directives.each do |d|
+                next unless d.graphql_name == SourceDirective.graphql_name
+
+                location = d.arguments.keyword_arguments[:location]
+                field_map[type_name] ||= {}
+                field_map[type_name][field_name] ||= []
+                field_map[type_name][field_name] << location
+                possible_locations[location] = true
+              end
+            end
           end
-        end
 
-        boundaries = delegation_map["boundaries"].map do |k, b|
-          [k, b.map { Boundary.new(**_1) }]
-        end
+          executables = possible_locations.keys.each_with_object({}) do |location, memo|
+            executable = executables[location] || executables[location.to_sym]
+            if validate_executable!(location, executable)
+              memo[location] = executable
+            end
+          end
 
-        new(
-          schema: schema,
-          fields: delegation_map["fields"],
-          boundaries: boundaries.to_h,
-          executables: executables,
-        )
+          new(
+            schema: schema,
+            fields: field_map,
+            boundaries: boundary_map,
+            executables: executables,
+          )
+        end
       end
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
@@ -48,16 +103,69 @@ module GraphQL
           next unless type.kind.fields?
 
           memo[type_name] = type.fields.keys.each_with_object({}) do |field_name, m|
-            m[field_name] = [LOCATION]
+            m[field_name] = [SUPERGRAPH_LOCATION]
           end
         end.freeze
 
         # validate and normalize executable references
-        @executables = executables.each_with_object({ LOCATION => @schema }) do |(location, executable), memo|
+        @executables = executables.each_with_object({ SUPERGRAPH_LOCATION => @schema }) do |(location, executable), memo|
           if self.class.validate_executable!(location, executable)
             memo[location.to_s] = executable
           end
         end.freeze
+      end
+
+      def to_definition
+        if @schema.directives[ResolverDirective.graphql_name].nil?
+          @schema.directive(ResolverDirective)
+        end
+        if @schema.directives[SourceDirective.graphql_name].nil?
+          @schema.directive(SourceDirective)
+        end
+
+        @schema.types.each do |type_name, type|
+          if boundaries_for_type = @boundaries.dig(type_name)
+            boundaries_for_type.each do |boundary|
+              existing = type.directives.find do |d|
+                kwargs = d.arguments.keyword_arguments
+                d.graphql_name == ResolverDirective.graphql_name &&
+                  kwargs[:location] == boundary.location &&
+                  kwargs[:key] == boundary.key &&
+                  kwargs[:field] == boundary.field &&
+                  kwargs[:arg] == boundary.arg &&
+                  kwargs.fetch(:list, false) == boundary.list &&
+                  kwargs.fetch(:federation, false) == boundary.federation
+              end
+
+              type.directive(ResolverDirective, **{
+                location: boundary.location,
+                key: boundary.key,
+                field: boundary.field,
+                arg: boundary.arg,
+                list: boundary.list || nil,
+                federation: boundary.federation || nil,
+              }.tap(&:compact!)) if existing.nil?
+            end
+          end
+
+          next unless type.kind.fields?
+
+          type.fields.each do |field_name, field|
+            locations_for_field = @locations_by_type_and_field.dig(type_name, field_name)
+            next if locations_for_field.nil?
+
+            locations_for_field.each do |location|
+              existing = field.directives.find do |d|
+                d.graphql_name == SourceDirective.graphql_name &&
+                  d.arguments.keyword_arguments[:location] == location
+              end
+
+              field.directive(SourceDirective, location: location) if existing.nil?
+            end
+          end
+        end
+
+        @schema.to_definition
       end
 
       def fields
@@ -65,15 +173,7 @@ module GraphQL
       end
 
       def locations
-        @executables.keys.reject { _1 == LOCATION }
-      end
-
-      def export
-        return GraphQL::Schema::Printer.print_schema(@schema), {
-          "locations" => locations,
-          "fields" => fields,
-          "boundaries" => @boundaries.map { |k, b| [k, b.map(&:as_json)] }.to_h,
-        }
+        @executables.keys.reject { _1 == SUPERGRAPH_LOCATION }
       end
 
       def memoized_introspection_types

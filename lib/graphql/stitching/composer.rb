@@ -541,7 +541,7 @@ module GraphQL
                 field: field_candidate.name,
                 arg: argument_name,
                 list: boundary_structure.first.list?,
-                federation: kwargs[:federation],
+                federation: kwargs[:federation] || false,
               )
             end
           end

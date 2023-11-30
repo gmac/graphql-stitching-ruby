@@ -3,7 +3,7 @@
 module GraphQL
   module Stitching
     class Planner
-      SUPERGRAPH_LOCATIONS = [Supergraph::LOCATION].freeze
+      SUPERGRAPH_LOCATIONS = [Supergraph::SUPERGRAPH_LOCATION].freeze
       TYPENAME = "__typename"
       QUERY_OP = "query"
       MUTATION_OP = "mutation"

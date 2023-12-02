@@ -52,7 +52,7 @@ module GraphQL
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
         error_result([e])
       rescue StandardError => e
-        custom_message = @on_error.call(e, request.context) if @on_error
+        custom_message = @on_error.call(request, e) if @on_error
         error_result([{ "message" => custom_message || "An unexpected error occured." }])
       end
 
@@ -75,14 +75,14 @@ module GraphQL
 
       def fetch_plan(request)
         if @on_cache_read
-          cached_plan = @on_cache_read.call(request.digest, request.context, request)
+          cached_plan = @on_cache_read.call(request)
           return GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan)) if cached_plan
         end
 
         plan = yield
 
         if @on_cache_write
-          @on_cache_write.call(request.digest, JSON.generate(plan.as_json), request.context, request)
+          @on_cache_write.call(request, JSON.generate(plan.as_json))
         end
 
         plan

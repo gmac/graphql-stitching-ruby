@@ -3,17 +3,21 @@
 A `Request` contains a parsed GraphQL document and variables, and handles the logistics of extracting the appropriate operation, variable definitions, and fragments. A `Request` should be built once per server request and passed through to other stitching components that utilize request information.
 
 ```ruby
-document = "query FetchMovie($id: ID!) { movie(id:$id) { id genre } }"
-request = GraphQL::Stitching::Request.new(document, variables: { "id" => "1" }, operation_name: "FetchMovie")
-
-request.document # parsed AST via GraphQL.parse
-request.variables # user-submitted variables
-request.string # normalized printed document string
-request.digest # SHA digest of the normalized document string
-
-request.variable_definitions # a mapping of variable names to their type definitions
-request.fragment_definitions # a mapping of fragment names to their fragment definitions
+source = "query FetchMovie($id: ID!) { movie(id:$id) { id genre } }"
+request = GraphQL::Stitching::Request.new(source, variables: { "id" => "1" }, operation_name: "FetchMovie")
 ```
+
+A `Request` provides the following information:
+
+- `req.document`: parsed AST of the GraphQL source
+- `req.variables`: a hash of user-submitted variables
+- `req.string`: the original GraphQL source string, or printed document
+- `req.digest`: a SHA2 of the request string
+- `req.normalized_string`: printed document string with consistent whitespace
+- `req.normalized_digest`: a SHA2 of the normalized string
+- `req.operation`: the operation definition selected for the request
+- `req.variable_definitions`: a mapping of variable names to their type definitions
+- `req.fragment_definitions`: a mapping of fragment names to their fragment definitions
 
 ### Preparing requests
 

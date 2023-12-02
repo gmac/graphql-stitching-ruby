@@ -61,16 +61,16 @@ Arguments for the `execute` method include:
 The client provides cache hooks to enable caching query plans across requests. Without caching, every request made to the client will be planned individually. With caching, a query may be planned once, cached, and then executed from cache for subsequent requests. Cache keys are a normalized digest of each query string.
 
 ```ruby
-client.on_cache_read do |key, _context, _request|
-  $redis.get(key) # << 3P code
+client.on_cache_read do |request|
+  $redis.get(request.digest) # << 3P code
 end
 
-client.on_cache_write do |key, payload, _context, _request|
-  $redis.set(key, payload) # << 3P code
+client.on_cache_write do |request, payload|
+  $redis.set(request.digest, payload) # << 3P code
 end
 ```
 
-Note that inlined input data works against caching, so you should _avoid_ this when possible:
+Note that inlined input data works against caching, so you should _avoid_ these input literals when possible:
 
 ```graphql
 query {
@@ -93,11 +93,11 @@ query($id: ID!) {
 The client also provides an error hook. Any program errors rescued during execution will be passed to the `on_error` handler, which can report on the error as needed and return a formatted error message for the client to add to the [GraphQL errors](https://spec.graphql.org/June2018/#sec-Errors) result.
 
 ```ruby
-client.on_error do |err, context|
+client.on_error do |request, err|
   # log the error
   Bugsnag.notify(err)
 
   # return a formatted message for the public response
-  "Whoops, please contact support abount request '#{context[:request_id]}'"
+  "Whoops, please contact support abount request '#{request.context[:request_id]}'"
 end
 ```

@@ -262,8 +262,8 @@ describe "GraphQL::Stitching::Client" do
       }
     |
 
-    @client.on_cache_read { |key| cache[key] }
-    @client.on_cache_write { |key, payload| cache[key] = payload.gsub("price", "name price") }
+    @client.on_cache_read { |req| cache[req.digest] }
+    @client.on_cache_write { |req, payload| cache[req.digest] = payload.gsub("price", "name price") }
 
     uncached_result = @client.execute(query: test_query)
     expected_uncached = { "data" => { "product" => { "price" => 699.99 } } }
@@ -285,16 +285,16 @@ describe "GraphQL::Stitching::Client" do
     read_context = nil
     write_context = nil
 
-    client.on_cache_read do |key, context|
-      read_context = context[:key]
+    client.on_cache_read do |req|
+      read_context = req.context[:key]
       nil
     end
-    client.on_cache_write do |key, payload, context|
-      write_context = context[:key]
+    client.on_cache_write do |req, payload|
+      write_context = req.context[:key]
       nil
     end
 
-    client.execute(query: "{ product(upc: \"1\") { price } }", context: context)
+    client.execute(query: %|{ product(upc: "1") { price } }|, context: context)
     assert_equal context[:key], read_context
     assert_equal context[:key], write_context
   end
@@ -340,8 +340,8 @@ describe "GraphQL::Stitching::Client" do
       }
     })
 
-    client.on_error do |_err, context|
-      "An error occured. Request id: #{context[:request_id]}"
+    client.on_error do |req, _err|
+      "An error occured. Request id: #{req.context[:request_id]}"
     end
 
     result = client.execute(

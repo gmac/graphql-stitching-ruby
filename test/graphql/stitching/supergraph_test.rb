@@ -222,21 +222,21 @@ describe "GraphQL::Stitching::Supergraph" do
   end
 
   def test_route_type_to_locations_connects_types_across_locations
-    a = %{
+    a = %|
       type T { upc:ID! }
       type Query { a(upc:ID!):T @stitch(key: "upc") }
-    }
-    b = %{
+    |
+    b = %|
       type T { id:ID! upc:ID! }
       type Query {
         ba(upc:ID!):T @stitch(key: "upc")
         bc(id:ID!):T @stitch(key: "id")
       }
-    }
-    c = %{
+    |
+    c = %|
       type T { id:ID! }
       type Query { c(id:ID!):T @stitch(key: "id") }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
@@ -254,38 +254,38 @@ describe "GraphQL::Stitching::Supergraph" do
   end
 
   def test_route_type_to_locations_favors_longer_paths_through_necessary_locations
-    a = %{
+    a = %|
       type T { id:ID! }
       type Query { a(id:ID!):T @stitch(key: "id") }
-    }
-    b = %{
+    |
+    b = %|
       type T { id:ID! upc:ID! }
       type Query {
         ba(id:ID!):T @stitch(key: "id")
         bc(upc:ID!):T @stitch(key: "upc")
       }
-    }
-    c = %{
+    |
+    c = %|
       type T { upc:ID! gid:ID! }
       type Query {
         cb(upc:ID!):T @stitch(key: "upc")
         cd(gid:ID!):T @stitch(key: "gid")
       }
-    }
-    d = %{
+    |
+    d = %|
       type T { gid:ID! code:ID! }
       type Query {
         dc(gid:ID!):T @stitch(key: "gid")
         de(code:ID!):T @stitch(key: "code")
       }
-    }
-    e = %{
+    |
+    e = %|
       type T { code:ID! id:ID! }
       type Query {
         ed(code:ID!):T @stitch(key: "code")
         ea(id:ID!):T @stitch(key: "id")
       }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
 
@@ -295,18 +295,18 @@ describe "GraphQL::Stitching::Supergraph" do
   end
 
   def test_route_type_to_locations_returns_nil_for_unreachable_locations
-    a = %{
+    a = %|
       type T { upc:ID! }
       type Query { a(upc:ID!):T @stitch(key: "upc") }
-    }
-    b = %{
+    |
+    b = %|
       type T { id:ID! }
       type Query { b(id:ID!):T @stitch(key: "id") }
-    }
-    c = %{
+    |
+    c = %|
       type T { id:ID! }
       type Query { c(id:ID!):T @stitch(key: "id") }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
@@ -315,34 +315,51 @@ describe "GraphQL::Stitching::Supergraph" do
     assert_nil routes["a"]
   end
 
-  describe "GraphQL::Stitching::Supergraph" do
+  describe "#to_definition / #from_definition" do
     def setup
-      alpha = %{
+      alpha = %|
         type T { id:ID! a:String }
         type Query { a(id:ID!):T @stitch(key: "id") }
-      }
-      bravo = %{
+      |
+      bravo = %|
         type T { id:ID! b:String }
         type Query { b(id:ID!):T @stitch(key: "id") }
-      }
+      |
 
       @supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
-      @schema_sdl, @delegation_map = @supergraph.export
+      @schema_sdl = @supergraph.to_definition
     end
 
-    def test_exports_and_restores_supergraph
-      assert_equal @delegation_map["fields"], @supergraph.fields
-      assert_equal @delegation_map["boundaries"], @supergraph.boundaries.map {|k, b| [k, b.map(&:as_json)] }.to_h
-      assert_equal @delegation_map["locations"], @supergraph.locations
+    def test_to_definition_annotates_schema
+      @schema_sdl = squish_string(@schema_sdl)
+      assert @schema_sdl.include?("directive @resolver")
+      assert @schema_sdl.include?("directive @source")
+      assert @schema_sdl.include?(squish_string(%|
+        type T @resolver(location: "alpha", key: "id", field: "a", arg: "id")
+               @resolver(location: "bravo", key: "id", field: "b", arg: "id") {
+      |))
+      assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
+      assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)
+      assert @schema_sdl.include?(%|b: String @source(location: "bravo")|)
+      assert @schema_sdl.include?(%|a(id: ID!): T @source(location: "alpha")|)
+      assert @schema_sdl.include?(%|b(id: ID!): T @source(location: "bravo")|)
+    end
 
-      supergraph_import = GraphQL::Stitching::Supergraph.from_export(
-        schema: @schema_sdl,
-        delegation_map: @delegation_map,
-        executables: {
-          "alpha" => Proc.new { true },
-          "bravo" => Proc.new { true },
-        }
-      )
+    def test_to_definition_annotations_are_idempotent
+      @supergraph.to_definition
+      assert_equal 2, @supergraph.schema.get_type("T").directives.length
+      assert_equal 2, @supergraph.schema.get_type("T").get_field("id").directives.length
+
+      @supergraph.to_definition
+      assert_equal 2, @supergraph.schema.get_type("T").directives.length
+      assert_equal 2, @supergraph.schema.get_type("T").get_field("id").directives.length
+    end
+
+    def test_from_definition_restores_supergraph
+      supergraph_import = GraphQL::Stitching::Supergraph.from_definition(@schema_sdl, executables: {
+        "alpha" => Proc.new { true },
+        "bravo" => Proc.new { true },
+      })
 
       assert_equal @supergraph.fields, supergraph_import.fields
       assert_equal @supergraph.boundaries, supergraph_import.boundaries
@@ -351,40 +368,28 @@ describe "GraphQL::Stitching::Supergraph" do
     end
 
     def test_normalizes_executable_location_names
-      supergraph_import = GraphQL::Stitching::Supergraph.from_export(
-        schema: @schema_sdl,
-        delegation_map: @delegation_map,
-        executables: {
-          alpha: Proc.new { true },
-          bravo: Proc.new { true },
-        }
-      )
+      supergraph_import = GraphQL::Stitching::Supergraph.from_definition(@schema_sdl, executables: {
+        alpha: Proc.new { true },
+        bravo: Proc.new { true },
+      })
 
       assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
     end
 
     def test_errors_for_invalid_executables
       assert_error "Invalid executable provided for location" do
-        GraphQL::Stitching::Supergraph.from_export(
-          schema: @schema_sdl,
-          delegation_map: @delegation_map,
-          executables: {
-            alpha: Proc.new { true },
-            bravo: "nope",
-          }
-        )
+        GraphQL::Stitching::Supergraph.from_definition(@schema_sdl, executables: {
+          alpha: Proc.new { true },
+          bravo: "nope",
+        })
       end
     end
 
     def test_errors_for_missing_executables
       assert_error "Invalid executable provided for location" do
-        GraphQL::Stitching::Supergraph.from_export(
-          schema: @schema_sdl,
-          delegation_map: @delegation_map,
-          executables: {
-            alpha: Proc.new { true },
-          }
-        )
+        GraphQL::Stitching::Supergraph.from_definition(@schema_sdl, executables: {
+          alpha: Proc.new { true },
+        })
       end
     end
   end

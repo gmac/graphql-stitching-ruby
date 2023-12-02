@@ -128,9 +128,8 @@ describe "GraphQL::Stitching::Client" do
   end
 
   def test_client_builds_with_provided_supergraph
-    supergraph = GraphQL::Stitching::Supergraph.from_export(
-      schema: "type Thing { id: String } type Query { thing: Thing }",
-      delegation_map: { "fields" => {}, "boundaries" => {}, "locations" => ["alpha"] },
+    supergraph = supergraph_from_schema(
+      "type Thing { id: String } type Query { thing: Thing }",
       executables: {
         alpha: Proc.new { true },
       }

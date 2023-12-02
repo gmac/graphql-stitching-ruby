@@ -27,15 +27,15 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
   end
 
   def test_merges_field_directives
-    a = <<~GRAPHQL
+    a = %|
       directive @fizzbuzz(arg: String!) on FIELD_DEFINITION
       type Query { test(arg:String):String @fizzbuzz(arg:"a") }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       directive @fizzbuzz(arg: String!) on FIELD_DEFINITION
       type Query { test(arg:String):String @fizzbuzz(arg:"b") }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }

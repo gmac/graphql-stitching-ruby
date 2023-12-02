@@ -4,8 +4,8 @@ require "test_helper"
 
 describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   def test_creates_boundary_map
-    a = %{type Test { id: ID!, a: String } type Query { a(id: ID!):Test @stitch(key: "id") }}
-    b = %{type Test { id: ID!, b: String } type Query { b(ids: [ID!]!):[Test]! @stitch(key: "id") }}
+    a = %|type Test { id: ID!, a: String } type Query { a(id: ID!):Test @stitch(key: "id") }|
+    b = %|type Test { id: ID!, b: String } type Query { b(ids: [ID!]!):[Test]! @stitch(key: "id") }|
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
     expected_boundaries_map = {
@@ -16,6 +16,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
           field: "a",
           arg: "id",
           list: false,
+          federation: false,
           type_name: "Test"
         ),
         GraphQL::Stitching::Boundary.new(
@@ -24,6 +25,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
           field: "b",
           arg: "ids",
           list: true,
+          federation: false,
           type_name: "Test"
         ),
       ],
@@ -36,18 +38,18 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     # repeatable directives don't work before v2.0.15
     skip unless minimum_graphql_version?("2.0.15")
 
-    a = %{
+    a = %|
       type T { upc:ID! }
       type Query { a(upc:ID!):T @stitch(key: "upc") }
-    }
-    b = %{
+    |
+    b = %|
       type T { id:ID! upc:ID! }
       type Query { b(id: ID, upc:ID):T @stitch(key: "id:id") @stitch(key: "upc:upc") }
-    }
-    c = %{
+    |
+    c = %|
       type T { id:ID! }
       type Query { c(id:ID!):T @stitch(key: "id") }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
@@ -58,21 +60,21 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   end
 
   def test_expands_interface_boundary_accessors_to_relevant_types
-    a = %{
+    a = %|
       interface Fruit { id:ID! }
       type Apple implements Fruit { id:ID! name:String }
       type Banana implements Fruit { id:ID! name:String }
       type Coconut implements Fruit { id:ID! name:String }
       type Query { fruit(id:ID!):Fruit @stitch(key: "id") }
-    }
-    b = %{
+    |
+    b = %|
       type Apple { id:ID! color:String }
       type Banana { id:ID! color:String }
       type Query {
         a(id:ID!):Apple @stitch(key: "id")
         b(id:ID!):Banana @stitch(key: "id")
       }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
@@ -89,23 +91,23 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
   end
 
   def test_expands_union_boundary_accessors_to_relevant_types
-    a = %{
+    a = %|
       type Apple { id:ID! name:String }
       type Banana { id:ID! name:String }
-      union Fruit = Apple | Banana
+      union Fruit = Apple \| Banana
       type Query {
         fruit(id:ID!):Fruit @stitch(key: "id")
       }
-    }
-    b = %{
+    |
+    b = %|
       type Apple { id:ID! color:String }
       type Coconut { id:ID! name:String }
-      union Fruit = Apple | Coconut
+      union Fruit = Apple \| Coconut
       type Query {
         a(id:ID!):Apple @stitch(key: "id")
         c(id:ID!):Coconut
       }
-    }
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
     assert_equal 1, supergraph.boundaries["Fruit"].length

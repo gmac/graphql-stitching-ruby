@@ -51,6 +51,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           key: "id",
           arg: "id",
           list: false,
+          federation: false,
         ),
         GraphQL::Stitching::Boundary.new(
           location: "bravo",
@@ -59,6 +60,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           key: "id",
           arg: "key",
           list: false,
+          federation: false,
         ),
       ]
     }

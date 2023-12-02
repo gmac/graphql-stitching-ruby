@@ -25,11 +25,9 @@ client = GraphQL::Stitching::Client.new(locations: {
 Alternatively, you may pass a prebuilt `Supergraph` instance to the `Client` constructor. This is useful when [exporting and rehydrating](./supergraph.md#export-and-caching) supergraph instances, which bypasses the need for runtime composition:
 
 ```ruby
-exported_schema = "type Query { ..."
-exported_mapping = JSON.parse("{ ... }")
-supergraph = GraphQL::Stitching::Supergraph.from_export(
-  schema: exported_schema,
-  delegation_map: exported_mapping,
+supergraph_sdl = File.read("precomposed_schema.graphql")
+supergraph = GraphQL::Stitching::Supergraph.from_definition(
+  supergraph_sdl,
   executables: { ... },
 )
 

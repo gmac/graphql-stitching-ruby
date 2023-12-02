@@ -5,19 +5,19 @@ require "test_helper"
 describe 'GraphQL::Stitching::Composer, merging directives' do
 
   def test_merges_directive_definitions
-    a = <<~GRAPHQL
+    a = %|
       """a"""
       directive @fizzbuzz(a: String!) on OBJECT
       type Test @fizzbuzz(a: "A") { field: String }
       type Query { test: Test }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       """b"""
       directive @fizzbuzz(a: String!, b: String) on OBJECT
       type Test @fizzbuzz(a: "A", b: "B") { field: String }
       type Query { test: Test }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -29,19 +29,19 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
   end
 
   def test_combines_distinct_directives_assigned_to_an_element
-    a = <<~GRAPHQL
+    a = %|
       directive @fizz(arg: String!) on OBJECT
       directive @buzz on OBJECT
       type Test @fizz(arg: "a") @buzz { field: String }
       type Query { test:Test }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       directive @fizz(arg: String!) on OBJECT
       directive @widget on OBJECT
       type Test @fizz(arg: "b") @widget { field: String }
       type Query { test:Test }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -55,17 +55,17 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
   end
 
   def test_omits_stitching_directives
-    a = <<~GRAPHQL
+    a = %|
       directive @stitch(key: String!) repeatable on FIELD_DEFINITION
       type Test { id: ID! a: String }
       type Query { testA(id: ID!): Test @stitch(key: "id") }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       directive @stitch(key: String!) repeatable on FIELD_DEFINITION
       type Test { id: ID! b: String }
       type Query { testB(id: ID!): Test @stitch(key: "id") }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }

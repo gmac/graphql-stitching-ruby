@@ -4,7 +4,12 @@ A `Request` contains a parsed GraphQL document and variables, and handles the lo
 
 ```ruby
 source = "query FetchMovie($id: ID!) { movie(id:$id) { id genre } }"
-request = GraphQL::Stitching::Request.new(source, variables: { "id" => "1" }, operation_name: "FetchMovie")
+request = GraphQL::Stitching::Request.new(
+  source,
+  variables: { "id" => "1" },
+  operation_name: "FetchMovie",
+  context: { ... },
+)
 ```
 
 A `Request` provides the following information:

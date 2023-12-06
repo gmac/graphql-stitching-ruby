@@ -32,15 +32,15 @@ Plans are designed to be cacheable. This is very useful for redundant GraphQL do
 cached_plan = $redis.get(request.digest)
 
 plan = if cached_plan
-  JSON.parse(cached_plan)
+  GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan))
 else
-  plan_hash = GraphQL::Stitching::Planner.new(
+  plan = GraphQL::Stitching::Planner.new(
     supergraph: supergraph,
     request: request,
-  ).perform.to_h
+  ).perform
 
-  $redis.set(request.digest, JSON.generate(plan_hash))
-  plan_hash
+  $redis.set(request.digest, JSON.generate(plan.as_json))
+  plan
 end
 
 # execute the plan...

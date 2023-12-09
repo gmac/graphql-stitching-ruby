@@ -20,6 +20,10 @@ module GraphQL
           composer ||= GraphQL::Stitching::Composer.new
           composer.perform(locations)
         end
+
+        @on_cache_read = nil
+        @on_cache_write = nil
+        @on_error = nil
       end
 
       def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)

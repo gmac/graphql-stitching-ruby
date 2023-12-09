@@ -39,6 +39,12 @@ module GraphQL
         @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
         @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
         @stitch_directives = {}
+
+        @field_map = nil
+        @boundary_map = nil
+        @mapped_type_names = nil
+        @candidate_directives_by_name_and_location = nil
+        @schema_directives = nil
       end
 
       def perform(locations_input)

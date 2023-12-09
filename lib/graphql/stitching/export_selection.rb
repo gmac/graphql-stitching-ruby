@@ -8,6 +8,8 @@ module GraphQL
       EXPORT_PREFIX = "_export_"
 
       class << self
+        @typename_node = nil
+
         def key?(name)
           return false unless name
 

@@ -9,6 +9,7 @@ module GraphQL
       def initialize(supergraph:, request:)
         @supergraph = supergraph
         @request = request
+        @root_type = nil
       end
 
       def perform!(raw)

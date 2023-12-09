@@ -9,6 +9,15 @@ module GraphQL
       attr_reader :document, :variables, :operation_name, :context
 
       def initialize(document, operation_name: nil, variables: nil, context: nil)
+        @string = nil
+        @digest = nil
+        @normalized_string = nil
+        @normalized_digest = nil
+        @operation = nil
+        @operation_directives = nil
+        @variable_definitions = nil
+        @fragment_definitions = nil
+
         @document = if document.is_a?(String)
           @string = document
           GraphQL.parse(document)

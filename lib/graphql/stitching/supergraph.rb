@@ -97,6 +97,10 @@ module GraphQL
         @possible_keys_by_type_and_location = {}
         @memoized_schema_possible_types = {}
         @memoized_schema_fields = {}
+        @memoized_introspection_types = nil
+        @memoized_schema_types = nil
+        @fields_by_type_and_location = nil
+        @locations_by_type = nil
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|

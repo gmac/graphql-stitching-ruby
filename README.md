@@ -113,12 +113,12 @@ products_schema = <<~GRAPHQL
   }
 GRAPHQL
 
-shipping_schema = <<~GRAPHQL
+catalog_schema = <<~GRAPHQL
   directive @stitch(key: String!) repeatable on FIELD_DEFINITION
 
   type Product {
     id: ID!
-    weight: Float!
+    price: Float!
   }
 
   type Query {
@@ -131,7 +131,7 @@ client = GraphQL::Stitching::Client.new(locations: {
     schema: GraphQL::Schema.from_definition(products_schema),
     executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
   },
-  shipping: {
+  catalog: {
     schema: GraphQL::Schema.from_definition(shipping_schema),
     executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
   },
@@ -151,9 +151,9 @@ type Query {
 ```
 
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
-* The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible (more on arguments later).
+* The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
 
-Each location that provides a unique variant of a type must provide one stitching query per key. The exception to this requirement are types that contain only a single key field:
+Each location that provides a unique variant of a type must provide at least one stitching query. The exception to this requirement are types that contain only a single key field:
 
 ```graphql
 type Product {
@@ -228,7 +228,7 @@ type Query {
 }
 ```
 
-The `@stitch` directive is also repeatable (_requires graphql-ruby >= v2.0.15_), allowing a single query to associate with multiple keys:
+The `@stitch` directive is also repeatable, allowing a single query to associate with multiple keys:
 
 ```graphql
 type Product {
@@ -311,16 +311,15 @@ The [Apollo Federation specification](https://www.apollographql.com/docs/federat
 The composer will automatcially detect and stitch schemas with an `_entities` query, for example:
 
 ```ruby
-accounts_schema = <<~GRAPHQL
+products_schema = <<~GRAPHQL
   directive @key(fields: String!) repeatable on OBJECT
 
-  type User @key(fields: "id") {
+  type Product @key(fields: "id") {
     id: ID!
     name: String!
-    address: String!
   }
 
-  union _Entity = User
+  union _Entity = Product
   scalar _Any
 
   type Query {
@@ -329,15 +328,15 @@ accounts_schema = <<~GRAPHQL
   }
 GRAPHQL
 
-comments_schema = <<~GRAPHQL
+catalog_schema = <<~GRAPHQL
   directive @key(fields: String!) repeatable on OBJECT
 
-  type User @key(fields: "id") {
+  type Product @key(fields: "id") {
     id: ID!
-    comments: [String!]!
+    price: Float!
   }
 
-  union _Entity = User
+  union _Entity = Product
   scalar _Any
 
   type Query {
@@ -346,12 +345,12 @@ comments_schema = <<~GRAPHQL
 GRAPHQL
 
 client = GraphQL::Stitching::Client.new(locations: {
-  accounts: {
-    schema: GraphQL::Schema.from_definition(accounts_schema),
+  products: {
+    schema: GraphQL::Schema.from_definition(products_schema),
     executable: ...,
   },
-  comments: {
-    schema: GraphQL::Schema.from_definition(comments_schema),
+  catalog: {
+    schema: GraphQL::Schema.from_definition(catalog_schema),
     executable: ...,
   },
 })

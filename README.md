@@ -165,7 +165,7 @@ The above representation of a `Product` type provides no unique data beyond a ke
 
 #### List queries
 
-It's okay ([even preferable](https://www.youtube.com/watch?v=VmK0KBHTcWs) in many circumstances) to provide a list accessor as a stitching query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
+It's okay ([even preferable](#batching) in most circumstances) to provide a list accessor as a stitching query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
 
 ```graphql
 type Query {

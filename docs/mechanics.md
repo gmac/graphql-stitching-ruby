@@ -1,5 +1,59 @@
 ## Schema Stitching, mechanics
 
+### Deploying a stitched schema
+
+Among the simplest and most effective ways to manage a stitched schema is to compose it locally, write the composed SDL as a `.graphql` file in your repo, and then load the composed schema into a stitching client at runtime. For example, setup a `rake` task that loads/fetches subgraph schemas, composes them, and then writes the composed schema definition as a file committed to the repo:
+
+```ruby
+task :compose_graphql do
+  schema1_sdl = ... # load schema 1
+  schema2_sdl = ... # load schema 2
+
+  supergraph = GraphQL::Stitching::Composer.new.perform({
+    schema1: {
+      schema: GraphQL::Schema.from_definition(schema1_sdl)
+    },
+    schema2: {
+      schema: GraphQL::Schema.from_definition(schema2_sdl)
+    }
+  })
+
+  File.write("schema/supergraph.graphql", supergraph.to_definition)
+  puts "Schema composition was successful."
+end
+
+# bundle exec rake compose-graphql
+```
+
+Then at runtime, load the composed schema into a stitching client:
+
+```ruby
+class GraphQlController
+  class < self
+    def client
+      @client ||= begin
+        supergraph_sdl = File.read("schema/supergraph.graphql")
+        supergraph = GraphQL::Stitching::Supergraph.from_definition(supergraph_sdl, executables: {
+          schema1: GraphQL::Stitching::HttpExecutable.new("http://localhost:3001/graphql"),
+          schema2: GraphQL::Stitching::HttpExecutable.new("http://localhost:3002/graphql"),
+        })
+        GraphQL::Stitching::Client.new(supergraph: supergraph)
+      end
+    end
+  end
+
+  def exec
+    self.class.client.execute(
+      params[:query],
+      variables: params[:variables],
+      operation_name: params[:operation_name]
+    )
+  end 
+end
+```
+
+This process assures that composition always happens before deployment where failures can be detected. Hot reloading of the supergraph can also be accommodated by uploading the composed schema to a sync location (cloud storage, etc) that is polled by the application runtime. When the schema changes, load it into a new stitching client and swap that into the application.
+
 ### Field selection routing
 
 Fields of a merged type may exist in multiple locations. For example, the `title` field below is provided by both locations:

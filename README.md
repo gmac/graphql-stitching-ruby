@@ -165,7 +165,7 @@ The above representation of a `Product` type provides no unique data beyond a ke
 
 #### List queries
 
-It's okay ([even preferable](https://www.youtube.com/watch?v=VmK0KBHTcWs) in many circumstances) to provide a list accessor as a stitching query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
+It's okay ([even preferable](#batching) in most circumstances) to provide a list accessor as a stitching query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
 
 ```graphql
 type Query {
@@ -425,6 +425,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 ## Additional topics
 
+- [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
 - [Field selection routing](./docs/mechanics.md#field-selection-routing)
 - [Root selection routing](./docs/mechanics.md#root-selection-routing)
 - [Stitched errors](./docs/mechanics.md#stitched-errors)

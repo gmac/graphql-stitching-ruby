@@ -7,9 +7,6 @@ describe "GraphQL::Stitching::Request" do
   def setup
     @supergraph = GraphQL::Stitching::Supergraph.new(
       schema: Schemas::Example::Products,
-      fields: {},
-      boundaries: {},
-      executables: {},
     )
   end
 

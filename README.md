@@ -436,6 +436,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 This repo includes working examples of stitched schemas running across small Rack servers. Clone the repo, `cd` into each example and try running it following its README instructions.
 
 - [Merged types](./examples/merged_types)
+- [File uploads](./examples/file_uploads)
 
 ## Tests
 

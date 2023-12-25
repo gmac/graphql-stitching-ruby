@@ -8,10 +8,10 @@ module GraphQL
       attr_reader :supergraph, :request, :plan, :data, :errors
       attr_accessor :query_count
 
-      def initialize(supergraph:, request:, plan:, nonblocking: false)
-        @supergraph = supergraph
+      def initialize(request, nonblocking: false)
         @request = request
-        @plan = plan
+        @supergraph = request.supergraph
+        @plan = request.plan
         @data = {}
         @errors = []
         @query_count = 0
@@ -24,10 +24,7 @@ module GraphQL
         result = {}
 
         if @data && @data.length > 0
-          result["data"] = raw ? @data : GraphQL::Stitching::Shaper.new(
-            supergraph: @supergraph,
-            request: @request,
-          ).perform!(@data)
+          result["data"] = raw ? @data : GraphQL::Stitching::Shaper.new(@request).perform!(@data)
         end
 
         if @errors.length > 0

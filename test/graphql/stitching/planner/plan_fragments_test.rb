@@ -44,10 +44,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(query),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 3, plan.ops.length
 
@@ -82,10 +79,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
       fragment BananaAttrs on Banana { id extensions { shape } }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(query),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 3, plan.ops.length
 
@@ -146,10 +140,7 @@ describe "GraphQL::Stitching::Planner, fragments" do
 
     @supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(query),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 3, plan.ops.length
 

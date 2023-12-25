@@ -6,9 +6,9 @@ module GraphQL
     # Shapes the final results payload to the request selection and schema definition.
     # This eliminates unrequested export selections and applies null bubbling.
     class Shaper
-      def initialize(supergraph:, request:)
-        @supergraph = supergraph
+      def initialize(request)
         @request = request
+        @supergraph = request.supergraph
         @root_type = nil
       end
 

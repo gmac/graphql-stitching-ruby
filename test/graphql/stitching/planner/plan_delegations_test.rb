@@ -48,19 +48,19 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
   })
 
   def test_delegates_common_fields_to_current_routing_location
-    plan1 = GraphQL::Stitching::Planner.new(
-      supergraph: SUPERGRAPH,
-      request: GraphQL::Stitching::Request.new('query { alpha(id: "1") { a b } }'),
-    ).perform
+    plan1 = GraphQL::Stitching::Request.new(
+      SUPERGRAPH,
+      'query { alpha(id: "1") { a b } }',
+    ).plan
 
     op1 = plan1.ops[0]
     assert_equal "alpha", op1.location
     assert_equal %|{ alpha(id: \"1\") { a b } }|, op1.selections
 
-    plan2 = GraphQL::Stitching::Planner.new(
-      supergraph: SUPERGRAPH,
-      request: GraphQL::Stitching::Request.new('query { bravo(id: "1") { a b } }'),
-    ).perform
+    plan2 = GraphQL::Stitching::Request.new(
+      SUPERGRAPH,
+      'query { bravo(id: "1") { a b } }',
+    ).plan
 
     op2 = plan2.ops[0]
     assert_equal "bravo", op2.location
@@ -68,10 +68,10 @@ describe "GraphQL::Stitching::Planner, delegation strategies" do
   end
 
   def test_delegates_remote_selections_by_unique_location_then_used_location_then_highest_availability
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: SUPERGRAPH,
-      request: GraphQL::Stitching::Request.new('query { alpha(id: "1") { a b c d e f } }'),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      SUPERGRAPH,
+      'query { alpha(id: "1") { a b c d e f } }',
+    ).plan
 
     assert_equal 3, plan.ops.length
 

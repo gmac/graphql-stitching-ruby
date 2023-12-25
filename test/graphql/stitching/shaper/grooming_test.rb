@@ -6,10 +6,11 @@ require_relative "../../../schemas/introspection"
 describe "GraphQL::Stitching::Shaper, grooming" do
   def test_prunes_stitching_fields
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { __typename req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      "{ test { __typename req opt } }",
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -32,10 +33,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
 
   def test_adds_missing_fields
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      "{ test { req opt } }",
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -64,10 +66,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
         }
       }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(query),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -92,10 +95,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       fragment Test1 on Test { req opt }
       fragment Test2 on Test { ...Test1 }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(query),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -123,10 +127,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
         ...RootAttrs
       }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(source),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      source,
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = { "__typename" => "QueryRoot", "typename1" => "QueryRoot", "typename2" => "QueryRoot" }
     expected = { "__typename" => "Query", "typename1" => "Query", "typename2" => "Query" }
@@ -143,10 +148,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
         ...RootAttrs
       }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(source),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      source,
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = { "__typename" => "MutationRoot", "typename1" => "MutationRoot", "typename2" => "MutationRoot" }
     expected = { "__typename" => "Mutation", "typename1" => "Mutation", "typename2" => "Mutation" }
@@ -156,10 +162,11 @@ describe "GraphQL::Stitching::Shaper, grooming" do
   def test_handles_introspection_types
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     schema = GraphQL::Schema.from_definition(schema_sdl)
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema),
-      request: GraphQL::Stitching::Request.new(INTROSPECTION_QUERY),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema),
+      INTROSPECTION_QUERY,
     )
+    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = schema.execute(query: INTROSPECTION_QUERY).to_h
     assert shaper.perform!(raw)

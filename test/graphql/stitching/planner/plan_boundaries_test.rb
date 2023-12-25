@@ -72,10 +72,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: build_sample_graph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(build_sample_graph, document).plan
 
     assert_equal 3, plan.ops.length
 
@@ -118,15 +115,8 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     document1 = %|{         manufacturer(id: "1") { name products { name } } }|
     document2 = %|{ productsManufacturer(id: "1") { name products { name } } }|
 
-    plan1 = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new(document1),
-    ).perform
-
-    plan2 = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new(document2),
-    ).perform
+    plan1 = GraphQL::Stitching::Request.new(supergraph, document1).plan
+    plan2 = GraphQL::Stitching::Request.new(supergraph, document2).plan
 
     assert_equal 2, plan1.ops.length
     assert_equal 1, plan2.ops.length
@@ -177,10 +167,10 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new(%|{ apple(id:"1") { id name weight } }|),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      supergraph,
+      %|{ apple(id:"1") { id name weight } }|,
+    ).plan
 
     assert_equal 2, plan.ops.length
 
@@ -221,10 +211,10 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new("{ apple(id:\"1\") { id name weight } }"),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      supergraph,
+      %|{ apple(id:"1") { id name weight } }|,
+    ).plan
 
     assert_equal 2, plan.ops.length
 
@@ -266,10 +256,10 @@ describe "GraphQL::Stitching::Planner, boundaries" do
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: GraphQL::Stitching::Request.new(%|{ node(id:"1") { id ...on Apple { name weight } } }|),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      supergraph,
+      %|{ node(id:"1") { id ...on Apple { name weight } } }|,
+    ).plan
 
     assert_equal 2, plan.ops.length
 

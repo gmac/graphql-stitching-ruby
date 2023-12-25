@@ -13,15 +13,13 @@ document = <<~GRAPHQL
 GRAPHQL
 
 request = GraphQL::Stitching::Request.new(
+  supergraph,
   document,
   variables: { "id" => "1" },
   operation_name: "MyQuery",
 ).prepare!
 
-plan = GraphQL::Stitching::Planner.new(
-  supergraph: supergraph,
-  request: request,
-).perform
+plan = request.plan
 ```
 
 ### Caching
@@ -34,10 +32,7 @@ cached_plan = $redis.get(request.digest)
 plan = if cached_plan
   GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan))
 else
-  plan = GraphQL::Stitching::Planner.new(
-    supergraph: supergraph,
-    request: request,
-  ).perform
+  plan = request.plan
 
   $redis.set(request.digest, JSON.generate(plan.as_json))
   plan

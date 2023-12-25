@@ -28,6 +28,7 @@ module GraphQL
 
       def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)
         request = GraphQL::Stitching::Request.new(
+          @supergraph,
           query,
           operation_name: operation_name,
           variables: variables,
@@ -40,19 +41,8 @@ module GraphQL
         end
 
         request.prepare!
-
-        plan = fetch_plan(request) do
-          GraphQL::Stitching::Planner.new(
-            supergraph: @supergraph,
-            request: request,
-          ).perform
-        end
-
-        GraphQL::Stitching::Executor.new(
-          supergraph: @supergraph,
-          request: request,
-          plan: plan,
-        ).perform
+        request.plan = fetch_plan(request) { request.plan }
+        request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
         error_result([e])
       rescue StandardError => e

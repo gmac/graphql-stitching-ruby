@@ -6,9 +6,10 @@ module GraphQL
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
 
-      attr_reader :document, :variables, :operation_name, :context
+      attr_reader :supergraph, :document, :variables, :operation_name, :context
 
-      def initialize(document, operation_name: nil, variables: nil, context: nil)
+      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil)
+        @supergraph = supergraph
         @string = nil
         @digest = nil
         @normalized_string = nil
@@ -17,6 +18,7 @@ module GraphQL
         @operation_directives = nil
         @variable_definitions = nil
         @fragment_definitions = nil
+        @plan = nil
 
         @document = if document.is_a?(String)
           @string = document
@@ -93,11 +95,21 @@ module GraphQL
             @document = modified_ast
             @string = @normalized_string = nil
             @digest = @normalized_digest = nil
-            @operation = @operation_directives = @variable_definitions = nil
+            @operation = @operation_directives = @variable_definitions = @plan = nil
           end
         end
 
         self
+      end
+
+      def plan
+        @plan ||= GraphQL::Stitching::Planner.new(self).perform
+      end
+
+      attr_writer :plan
+
+      def execute(raw: false)
+        GraphQL::Stitching::Executor.new(self).perform(raw:)
       end
     end
   end

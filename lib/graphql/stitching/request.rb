@@ -112,7 +112,7 @@ module GraphQL
       end
 
       def execute(raw: false)
-        GraphQL::Stitching::Executor.new(self).perform(raw:)
+        GraphQL::Stitching::Executor.new(self).perform(raw: raw)
       end
     end
   end

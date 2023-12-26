@@ -8,9 +8,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     request = GraphQL::Stitching::Request.new(
       supergraph_from_schema(schema_sdl),
-      "{ test { __typename req opt } }",
+      %|{ test { __typename req opt } }|,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -28,7 +27,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_adds_missing_fields
@@ -37,7 +36,6 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema_sdl),
       "{ test { req opt } }",
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -52,7 +50,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_grooms_through_inline_fragments
@@ -70,7 +68,6 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema_sdl),
       query,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -85,7 +82,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_grooms_through_fragment_spreads
@@ -99,7 +96,6 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema_sdl),
       query,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
     raw = {
       "test" => {
         "_export_req" => "yes",
@@ -114,7 +110,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_renames_root_query_typenames
@@ -131,11 +127,10 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema_sdl),
       source,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = { "__typename" => "QueryRoot", "typename1" => "QueryRoot", "typename2" => "QueryRoot" }
     expected = { "__typename" => "Query", "typename1" => "Query", "typename2" => "Query" }
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_renames_root_mutation_typenames
@@ -152,11 +147,10 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema_sdl),
       source,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = { "__typename" => "MutationRoot", "typename1" => "MutationRoot", "typename2" => "MutationRoot" }
     expected = { "__typename" => "Mutation", "typename1" => "Mutation", "typename2" => "Mutation" }
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_handles_introspection_types
@@ -166,9 +160,8 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       supergraph_from_schema(schema),
       INTROSPECTION_QUERY,
     )
-    shaper = GraphQL::Stitching::Shaper.new(request)
 
     raw = schema.execute(query: INTROSPECTION_QUERY).to_h
-    assert shaper.perform!(raw)
+    assert GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 end

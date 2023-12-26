@@ -33,10 +33,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      document,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
 
@@ -72,10 +69,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      document,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 3, plan.ops.length
 
@@ -129,10 +123,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      document,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
 
@@ -166,10 +157,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      document,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 4, plan.ops.length
 

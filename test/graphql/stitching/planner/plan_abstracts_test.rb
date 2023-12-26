@@ -40,7 +40,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   def test_expands_interface_selections_for_target_location
     plan = GraphQL::Stitching::Request.new(
       @supergraph,
-      "{ buyable(id:\"1\") { id name price } }",
+      %|{ buyable(id:"1") { id name price } }|,
     ).plan
 
     expected_root_selection = %|

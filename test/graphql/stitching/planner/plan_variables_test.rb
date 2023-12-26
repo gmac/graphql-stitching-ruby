@@ -34,10 +34,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      query,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 2, plan.ops.length
 
@@ -56,10 +53,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      query,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 2, plan.ops.length
 
@@ -78,10 +72,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      mutation,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, mutation).plan
 
     assert_equal 2, plan.ops.length
 
@@ -100,10 +91,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      mutation,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, mutation).plan
 
     assert_equal 2, plan.ops.length
 
@@ -121,10 +109,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      query,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 1, plan.ops.length
 
@@ -140,10 +125,7 @@ describe "GraphQL::Stitching::Planner, variables" do
       fragment WidgetAttrs on Widget { id name(lang: $lang) }
     |
 
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      query,
-    ).plan
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
 
     assert_equal 1, plan.ops.length
 

@@ -25,7 +25,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
   def test_stitches_introspection_with_other_locations
     plan = GraphQL::Stitching::Request.new(
       @supergraph,
-      "{ __schema { queryType { name } } a { name } }",
+      %|{ __schema { queryType { name } } a { name } }|,
     ).plan
 
     assert_equal 2, plan.ops.length
@@ -44,7 +44,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
   def test_passes_through_typename_selections
     plan = GraphQL::Stitching::Request.new(
       @supergraph,
-      "{ a { name __typename } }",
+      %|{ a { name __typename } }|,
     ).plan
 
     assert_equal 1, plan.ops.length
@@ -59,7 +59,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
     assert_error %|Alias "_export_name" is not allowed because "_export_" is a reserved prefix| do
       GraphQL::Stitching::Request.new(
         @supergraph,
-        "{ a { _export_name: name } }",
+        %|{ a { _export_name: name } }|,
       ).plan
     end
   end

@@ -21,7 +21,11 @@ module GraphQL
         end
 
         def key_node(field_name)
-          GraphQL::Language::Nodes::Field.new(alias: key(field_name), name: field_name)
+          if Util.graphql_version?(2, 2)
+            GraphQL::Language::Nodes::Field.new(field_alias: key(field_name), name: field_name)
+          else
+            GraphQL::Language::Nodes::Field.new(alias: key(field_name), name: field_name)
+          end
         end
 
         def typename_node

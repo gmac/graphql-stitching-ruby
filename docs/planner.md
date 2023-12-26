@@ -31,15 +31,14 @@ plan = GraphQL::Stitching::Planner.new(request).perform
 Plans are designed to be cacheable. This is very useful for redundant GraphQL documents (commonly sent by frontend clients) where there's no sense in planning every request individually. It's far more efficient to generate a plan once and cache it, then simply retreive the plan and execute it for future requests.
 
 ```ruby
-cached_plan = $redis.get(request.digest)
+cached_plan = $cache.get(request.digest)
 
-plan = if cached_plan
-  GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan))
+if cached_plan
+  plan = GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan))
+  request.plan(plan)
 else
   plan = request.plan
-
-  $redis.set(request.digest, JSON.generate(plan.as_json))
-  plan
+  $cache.set(request.digest, JSON.generate(plan.as_json))
 end
 
 # execute the plan...

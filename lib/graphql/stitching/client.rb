@@ -41,11 +41,7 @@ module GraphQL
         end
 
         request.prepare!
-        request.plan do
-          fetch_plan(request) do
-            GraphQL::Stitching::Planner.new(request).perform
-          end
-        end
+        load_plan(request)
         request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
         error_result([e])
@@ -71,13 +67,13 @@ module GraphQL
 
       private
 
-      def fetch_plan(request)
-        if @on_cache_read
-          cached_plan = @on_cache_read.call(request)
-          return GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan)) if cached_plan
+      def load_plan(request)
+        if @on_cache_read && plan_json = @on_cache_read.call(request)
+          plan = GraphQL::Stitching::Plan.from_json(JSON.parse(plan_json))
+          return request.plan(plan)
         end
 
-        plan = yield
+        plan = request.plan
 
         if @on_cache_write
           @on_cache_write.call(request, JSON.generate(plan.as_json))

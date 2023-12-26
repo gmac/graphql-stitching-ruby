@@ -19,7 +19,11 @@ request = GraphQL::Stitching::Request.new(
   operation_name: "MyQuery",
 ).prepare!
 
+# Via Request:
 plan = request.plan
+
+# Via Planner:
+plan = GraphQL::Stitching::Planner.new(request).perform
 ```
 
 ### Caching

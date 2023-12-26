@@ -20,8 +20,11 @@ request = GraphQL::Stitching::Request.new(
   context: { ... },
 )
 
-plan = request.plan
+# Via Request:
 result = request.execute
+
+# Via Executor:
+result = GraphQL::Stitching::Executor.new(request).perform
 ```
 
 ### Raw results
@@ -29,8 +32,9 @@ result = request.execute
 By default, execution results are always returned with document shaping (stitching additions removed, missing fields added, null bubbling applied). You may access the raw execution result by calling the `perform` method with a `raw: true` argument:
 
 ```ruby
-# get the raw result without shaping
+# get the raw result without shaping using either form:
 raw_result = request.execute(raw: true)
+raw_result = GraphQL::Stitching::Executor.new(request).perform(raw: true)
 ```
 
 The raw result will contain many irregularities from the stitching process, however may be insightful when debugging inconsistencies in results:

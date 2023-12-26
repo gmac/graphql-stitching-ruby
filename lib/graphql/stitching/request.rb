@@ -103,10 +103,11 @@ module GraphQL
       end
 
       def plan
-        @plan ||= GraphQL::Stitching::Planner.new(self).perform
+        @plan ||= begin
+          plan = yield if block_given?
+          plan || GraphQL::Stitching::Planner.new(self).perform
+        end
       end
-
-      attr_writer :plan
 
       def execute(raw: false)
         GraphQL::Stitching::Executor.new(self).perform(raw:)

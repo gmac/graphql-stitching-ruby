@@ -41,7 +41,11 @@ module GraphQL
         end
 
         request.prepare!
-        request.plan = fetch_plan(request) { request.plan }
+        request.plan do
+          fetch_plan(request) do
+            GraphQL::Stitching::Planner.new(request).perform
+          end
+        end
         request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
         error_result([e])

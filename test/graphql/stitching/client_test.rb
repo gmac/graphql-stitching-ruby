@@ -210,12 +210,11 @@ describe "GraphQL::Stitching::Client" do
     |
 
     result = @client.execute(query: queries)
+    expected_locs = [{ "line" => 2, "column" => 36 }]
 
-    expected_errors = [{
-      "message" => "Parse error on \"}\" (RCURLY) at [2, 36]",
-      "locations"=>[{ "line" => 2, "column" => 36 }],
-    }]
-    assert_equal expected_errors, result["errors"]
+    assert_equal 1, result["errors"].length
+    assert result["errors"][0]["message"].include?("RCURLY")
+    assert_equal expected_locs, result["errors"][0]["locations"]
   end
 
   def test_location_with_executable

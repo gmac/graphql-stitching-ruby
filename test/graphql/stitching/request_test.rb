@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../schemas/example"
 
 describe "GraphQL::Stitching::Request" do
   def setup
-    @supergraph = {}
+    @supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: Schemas::Example::Products,
+      fields: {},
+      boundaries: {},
+      executables: {},
+    )
   end
 
   def test_builds_with_pre_parsed_ast
@@ -224,6 +230,14 @@ describe "GraphQL::Stitching::Request" do
 
     expected = "query($yes: Boolean!, $no: Boolean!) { skipKeep { id } includeKeep { id } }"
     assert_equal expected, squish_string(request.document.to_query_string)
+  end
+
+  def test_validates_the_request
+    request1 = GraphQL::Stitching::Request.new(@supergraph, %|{ product(upc: "1") { upc} }|)
+    assert request1.validate.none?
+
+    request2 = GraphQL::Stitching::Request.new(@supergraph, %|{ invalidSelection }|)
+    assert_equal 1, request2.validate.length
   end
 
   def test_assigns_a_plan_for_the_request

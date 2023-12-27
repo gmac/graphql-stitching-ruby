@@ -12,16 +12,7 @@ module GraphQL
         end
       end
 
-      GRAPHQL_VERSION = GraphQL::VERSION.split(".").map(&:to_i).freeze
-
       class << self
-        def graphql_version?(major, minor = nil, patch = nil)
-          result = GRAPHQL_VERSION[0] >= major
-          result &&= GRAPHQL_VERSION[1] >= minor if minor
-          result &&= GRAPHQL_VERSION[2] >= patch if patch
-          result
-        end
-
         # specifies if a type is a primitive leaf value
         def is_leaf_type?(type)
           type.kind.scalar? || type.kind.enum?

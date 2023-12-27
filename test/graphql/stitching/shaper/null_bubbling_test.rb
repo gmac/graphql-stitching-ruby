@@ -5,9 +5,9 @@ require "test_helper"
 describe "GraphQL::Stitching::Shaper, null bubbling" do
   def test_basic_object_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => {
@@ -22,14 +22,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       }
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_single_object_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => {
@@ -39,14 +39,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     }
     expected = { "test" => nil }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_recursive_object_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test! }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => {
@@ -55,14 +55,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       }
     }
 
-    assert_nil shaper.perform!(raw)
+    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_basic_list_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -77,14 +77,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -99,14 +99,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_required_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -118,14 +118,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil,
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_required_lists
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [Test!]! }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -134,14 +134,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_nil shaper.perform!(raw)
+    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_basic_nested_list_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -156,14 +156,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_nested_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -178,14 +178,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_nested_required_list_elements
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -200,14 +200,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_inner_required_lists
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!] }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -219,14 +219,14 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_through_nested_required_list_scopes
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test!]!]! }"
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new("{ test { req opt } }"),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test { req opt } }|,
     )
     raw = {
       "test" => [
@@ -235,7 +235,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_nil shaper.perform!(raw)
+    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubble_through_inline_fragment
@@ -249,9 +249,9 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
         }
       }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(query),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
     )
     raw = {
       "test" => {
@@ -264,7 +264,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 
   def test_bubble_through_fragment_spreads
@@ -274,9 +274,9 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       fragment Test1 on Test { req opt }
       fragment Test2 on Test { ...Test1 }
     |
-    shaper = GraphQL::Stitching::Shaper.new(
-      supergraph: supergraph_from_schema(schema_sdl),
-      request: GraphQL::Stitching::Request.new(query),
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
     )
     raw = {
       "test" => {
@@ -289,6 +289,6 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, shaper.perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
 end

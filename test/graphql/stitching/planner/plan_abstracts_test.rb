@@ -38,10 +38,10 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   end
 
   def test_expands_interface_selections_for_target_location
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new("{ buyable(id:\"1\") { id name price } }"),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      @supergraph,
+      %|{ buyable(id:"1") { id name price } }|,
+    ).plan
 
     expected_root_selection = %|
       {
@@ -129,10 +129,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     |
 
     [document1, document2, document3].each do |document|
-      plan = GraphQL::Stitching::Planner.new(
-        supergraph: @supergraph,
-        request: GraphQL::Stitching::Request.new(document),
-      ).perform
+      plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
       assert_equal 2, plan.ops.length
       assert_equal squish_string(expected_root_selection), plan.ops.first.selections
@@ -164,20 +161,17 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
     assert_equal squish_string(expected_root_selection), plan.ops.first.selections
   end
 
   def test_retains_interface_selections_appropraite_to_the_location
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(%|{ products(ids:["1"]) { id name price } }|),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(
+      @supergraph,
+      %|{ products(ids:["1"]) { id name price } }|,
+    ).plan
 
     assert_equal 1, plan.ops.length
     assert_keys plan.ops[0].as_json, {
@@ -232,10 +226,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
 
     @supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     expected_root_selection = %|
       {

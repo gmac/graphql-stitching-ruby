@@ -33,10 +33,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
 
@@ -72,10 +69,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 3, plan.ops.length
 
@@ -129,10 +123,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
 
@@ -166,10 +157,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: @supergraph,
-      request: GraphQL::Stitching::Request.new(document),
-    ).perform
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 4, plan.ops.length
 
@@ -205,10 +193,8 @@ describe "GraphQL::Stitching::Planner, root operations" do
     })
 
     ["query", "mutation"].each do |operation_type|
-      planner = GraphQL::Stitching::Planner.new(
-        supergraph: supergraph,
-        request: GraphQL::Stitching::Request.new("#{operation_type} { a b c }"),
-      )
+      request = GraphQL::Stitching::Request.new(supergraph, "#{operation_type} { a b c }")
+      planner = GraphQL::Stitching::Planner.new(request)
       planner.perform
 
       first = planner.steps[0]

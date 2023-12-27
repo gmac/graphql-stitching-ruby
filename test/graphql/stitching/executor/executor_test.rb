@@ -33,22 +33,12 @@ describe "GraphQL::Stitching::Executor" do
       },
     })
 
-    request = GraphQL::Stitching::Request.new(
+    GraphQL::Stitching::Request.new(
+      supergraph,
       source,
       operation_name: operation_name,
       variables: variables,
-    ).prepare!
-
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: request,
-    ).perform
-
-    GraphQL::Stitching::Executor.new(
-      supergraph: supergraph,
-      request: request,
-      plan: plan,
-    ).perform
+    ).prepare!.execute
 
     results
   end

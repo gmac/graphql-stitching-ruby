@@ -157,9 +157,10 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       ]
     }
 
-    plan = GraphQL::Stitching::Plan.new(ops: [])
-    mock = GraphQL::Stitching::Request.new("{}")
-    mock = GraphQL::Stitching::Executor.new(supergraph: {}, request: mock, plan: plan)
+    mock = GraphQL::Stitching::Request.new({}, "{}")
+    mock.plan(GraphQL::Stitching::Plan.new(ops: []))
+
+    mock = GraphQL::Stitching::Executor.new(mock)
     mock.instance_variable_set(:@data, data)
 
     source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")

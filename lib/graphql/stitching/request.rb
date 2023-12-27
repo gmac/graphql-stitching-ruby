@@ -85,6 +85,10 @@ module GraphQL
         end
       end
 
+      def validate
+        @supergraph.schema.validate(@document, context: @context)
+      end
+
       def prepare!
         operation.variables.each do |v|
           @variables[v.name] = v.default_value if @variables[v.name].nil? && !v.default_value.nil?

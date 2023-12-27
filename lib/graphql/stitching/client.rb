@@ -36,7 +36,7 @@ module GraphQL
         )
 
         if validate
-          validation_errors = @supergraph.schema.validate(request.document)
+          validation_errors = request.validate
           return error_result(validation_errors) if validation_errors.any?
         end
 

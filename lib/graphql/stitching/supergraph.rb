@@ -209,7 +209,7 @@ module GraphQL
         end
       end
 
-      def execute_at_location(location, source, variables, context)
+      def execute_at_location(location, source, variables, request)
         executable = executables[location]
 
         if executable.nil?
@@ -218,11 +218,11 @@ module GraphQL
           executable.execute(
             query: source,
             variables: variables,
-            context: context.frozen? ? context.dup : context,
+            context: request.context.frozen? ? request.context.dup : request.context,
             validate: false,
           )
         elsif executable.respond_to?(:call)
-          executable.call(location, source, variables, context)
+          executable.call(location, source, variables, request)
         else
           raise StitchingError, "Missing valid executable for #{location} location."
         end

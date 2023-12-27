@@ -225,4 +225,20 @@ describe "GraphQL::Stitching::Request" do
     expected = "query($yes: Boolean!, $no: Boolean!) { skipKeep { id } includeKeep { id } }"
     assert_equal expected, squish_string(request.document.to_query_string)
   end
+
+  def test_assigns_a_plan_for_the_request
+    plan = GraphQL::Stitching::Plan.new(ops: [])
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ widget { id } }")
+
+    request.plan(plan)
+    assert_equal plan.object_id, request.plan.object_id
+  end
+
+  def test_assigning_a_plan_must_be_plan_instance
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ widget { id } }")
+
+    assert_error "Plan must be a `GraphQL::Stitching::Plan`", GraphQL::Stitching::StitchingError do
+      request.plan({})
+    end
+  end
 end

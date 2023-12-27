@@ -104,7 +104,7 @@ module GraphQL
 
       def plan(new_plan = nil)
         if new_plan
-          raise StitchingError, "Plan must be a `GraphQL::Stitching::Plan` instance" unless new_plan.is_a?(Plan)
+          raise StitchingError, "Plan must be a `GraphQL::Stitching::Plan`." unless new_plan.is_a?(Plan)
           @plan = new_plan
         else
           @plan ||= GraphQL::Stitching::Planner.new(self).perform

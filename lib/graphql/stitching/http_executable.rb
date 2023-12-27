@@ -12,7 +12,7 @@ module GraphQL
         @headers = { "Content-Type" => "application/json" }.merge!(headers)
       end
 
-      def call(_location, document, variables, _context)
+      def call(_location, document, variables, _request)
         response = Net::HTTP.post(
           URI(@url),
           JSON.generate({ "query" => document, "variables" => variables }),

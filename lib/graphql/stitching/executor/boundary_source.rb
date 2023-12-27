@@ -29,7 +29,7 @@ module GraphQL
             @executor.request.operation_directives,
           )
           variables = @executor.request.variables.slice(*variable_names)
-          raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request.context)
+          raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
           @executor.query_count += 1
 
           merge_results!(origin_sets_by_operation, raw_result.dig("data"))

@@ -13,9 +13,9 @@ module GraphQL
         @upload_types = upload_types
       end
 
-      def call(_location, document, variables, request)
+      def call(request, document, variables)
         multipart_form = if request.variable_definitions.any? && variables&.any?
-          extract_multipart_form(document, variables, request)
+          extract_multipart_form(request, document, variables)
         end
 
         response = if multipart_form
@@ -50,7 +50,7 @@ module GraphQL
 
       # extract multipart upload forms
       # spec: https://github.com/jaydenseric/graphql-multipart-request-spec
-      def extract_multipart_form(document, variables, request)
+      def extract_multipart_form(request, document, variables)
         return unless @upload_types
 
         path = []

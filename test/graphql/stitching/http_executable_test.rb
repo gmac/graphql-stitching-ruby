@@ -70,7 +70,7 @@ describe "GraphQL::Stitching::HttpExecutable" do
       upload_types: ["Upload"],
     )
 
-    result = exe.extract_multipart_form(document, variables, request).tap do |r|
+    result = exe.extract_multipart_form(request, document, variables).tap do |r|
       r["operations"] = JSON.parse(r["operations"])
       r["map"] = JSON.parse(r["map"])
     end

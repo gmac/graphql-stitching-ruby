@@ -222,7 +222,7 @@ module GraphQL
             validate: false,
           )
         elsif executable.respond_to?(:call)
-          executable.call(location, source, variables, request)
+          executable.call(request, source, variables)
         else
           raise StitchingError, "Missing valid executable for #{location} location."
         end

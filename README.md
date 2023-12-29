@@ -362,11 +362,11 @@ It's perfectly fine to mix and match schemas that implement an `_entities` query
 
 ## Executables
 
-An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(location, source, variables, request)` and returns a raw GraphQL response:
+An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(request, source, variables)` and returns a raw GraphQL response:
 
 ```ruby
 class MyExecutable
-  def call(location, source, variables, request)
+  def call(request, source, variables)
     # process a GraphQL request...
     return {
       "data" => { ... },
@@ -394,7 +394,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
   },
   fourth: {
     schema: FourthSchema,
-    executable: ->(loc, query, vars, req) { ... },
+    executable: ->(req, query, vars) { ... },
   },
 })
 ```

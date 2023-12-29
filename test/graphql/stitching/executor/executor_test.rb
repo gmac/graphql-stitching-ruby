@@ -19,15 +19,15 @@ describe "GraphQL::Stitching::Executor" do
     supergraph = GraphQL::Stitching::Composer.new.perform({
       alpha: {
         schema: GraphQL::Schema.from_definition(alpha),
-        executable: -> (loc, src, vars, ctx) {
-          results << { location: loc, source: src }
+        executable: -> (req, src, vars) {
+          results << { location: "alpha", source: src }
           { "data" => returns.shift }
         },
       },
       bravo: {
         schema: GraphQL::Schema.from_definition(bravo),
-        executable: -> (loc, src, vars, ctx) {
-          results << { location: loc, source: src }
+        executable: -> (req, src, vars) {
+          results << { location: "bravo", source: src }
           { "data" => returns.shift }
         },
       },

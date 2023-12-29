@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+gem 'rack'
+gem 'rackup'
+gem 'foreman'
+gem 'graphql'
+gem 'apollo_upload_server', '2.1'

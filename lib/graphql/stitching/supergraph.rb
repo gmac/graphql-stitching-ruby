@@ -90,7 +90,7 @@ module GraphQL
 
       attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
 
-      def initialize(schema:, fields:, boundaries:, executables:)
+      def initialize(schema:, fields: {}, boundaries: {}, executables: {})
         @schema = schema
         @boundaries = boundaries
         @possible_keys_by_type = {}

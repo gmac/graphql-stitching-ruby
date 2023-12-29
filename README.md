@@ -10,6 +10,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
 - Type merging via arbitrary queries or federation `_entities` protocol.
+- File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
@@ -80,6 +81,7 @@ While the `Client` constructor is an easy quick start, the library also has seve
 - [Request](./docs/request.md) - prepares a requested GraphQL document and variables for stitching.
 - [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
+- [HttpExecutable](./docs/http_executable.md) - proxies requests to remotes with multipart file upload support.
 
 ## Merged types
 
@@ -397,7 +399,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
 })
 ```
 
-The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
+The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post` with [file upload](./docs/http_executable.md#graphql-file-uploads) support. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
 ## Batching
 
@@ -436,6 +438,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 This repo includes working examples of stitched schemas running across small Rack servers. Clone the repo, `cd` into each example and try running it following its README instructions.
 
 - [Merged types](./examples/merged_types)
+- [File uploads](./examples/file_uploads)
 
 ## Tests
 

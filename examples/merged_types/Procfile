@@ -1,0 +1,3 @@
+gateway: bundle exec ruby gateway.rb
+remote1: bundle exec ruby remote1.rb
+remote2: bundle exec ruby remote2.rb

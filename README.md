@@ -431,36 +431,11 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 - [Stitched errors](./docs/mechanics.md#stitched-errors)
 - [Null results](./docs/mechanics.md#null-results)
 
-## Example
+## Examples
 
-This repo includes a working example of several stitched schemas running across small Rack servers. Try running it:
+This repo includes working examples of stitched schemas running across small Rack servers. Clone the repo, `cd` into each example and try running it following its README instructions.
 
-```shell
-bundle install
-foreman start
-```
-
-Then visit the gateway service at `http://localhost:3000` and try this query:
-
-```graphql
-query {
-  storefront(id: "1") {
-    id
-    products {
-      upc
-      name
-      price
-      manufacturer {
-        name
-        address
-        products { upc name }
-      }
-    }
-  }
-}
-```
-
-The above query collects data from all locations, two of which are remote schemas and the third a local schema. The combined graph schema is also stitched in to provide introspection capabilities.
+- [Merged types](./examples/merged_types)
 
 ## Tests
 

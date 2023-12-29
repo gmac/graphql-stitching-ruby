@@ -6,6 +6,7 @@ require 'warning'
 Gem.path.each do |path|
   # ignore warnings from auto-generated GraphQL lib code.
   Warning.ignore(/.*mismatched indentations.*/)
+  Warning.ignore(/.*lib\/graphql\/language\/nodes.rb.*/)
 end
 
 require 'bundler/setup'

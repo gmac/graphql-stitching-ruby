@@ -14,9 +14,7 @@ module GraphQL
       end
 
       def call(request, document, variables)
-        multipart_form = if request.variable_definitions.any? && variables&.any?
-          extract_multipart_form(request, document, variables)
-        end
+        multipart_form = extract_multipart_form(request, document, variables)
 
         response = if multipart_form
           post_multipart(multipart_form)
@@ -51,13 +49,12 @@ module GraphQL
       # extract multipart upload forms
       # spec: https://github.com/jaydenseric/graphql-multipart-request-spec
       def extract_multipart_form(request, document, variables)
-        return unless @upload_types
+        return unless @upload_types && request.variable_definitions.any? && variables&.any?
 
-        path = []
         files_by_path = {}
 
         # extract all upload scalar values mapped by their input path
-        variables.each do |key, value|
+        variables.each_with_object([]) do |(key, value), path|
           ast_node = request.variable_definitions[key]
           path << key
           extract_ast_node(ast_node, value, files_by_path, path, request) if ast_node
@@ -70,14 +67,14 @@ module GraphQL
         files = files_by_path.values.tap(&:uniq!)
         variables_copy = variables.dup
 
-        files_by_path.keys.each do |path|
+        files_by_path.each_key do |path|
           orig = variables
           copy = variables_copy
           path.each_with_index do |key, i|
             if i == path.length - 1
-              map_key = files.index(copy[key]).to_s
-              map[map_key] ||= []
-              map[map_key] << "variables.#{path.join(".")}"
+              file_index = files.index(copy[key]).to_s
+              map[file_index] ||= []
+              map[file_index] << "variables.#{path.join(".")}"
               copy[key] = nil
             elsif orig[key].object_id == copy[key].object_id
               copy[key] = copy[key].dup

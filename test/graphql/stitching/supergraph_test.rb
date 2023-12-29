@@ -114,7 +114,6 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
-      executables: {},
     )
 
     mapping = supergraph.fields_by_type_and_location
@@ -128,7 +127,6 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
-      executables: {},
     )
 
     mapping = supergraph.locations_by_type
@@ -142,7 +140,6 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
-      executables: {},
     )
 
     assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products")
@@ -155,7 +152,6 @@ describe "GraphQL::Stitching::Supergraph" do
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
       boundaries: BOUNDARIES_MAP,
-      executables: {},
     )
 
     ["__Schema", "__Type", "__Field"].each do |introspection_type|

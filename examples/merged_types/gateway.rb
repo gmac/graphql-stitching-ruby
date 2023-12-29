@@ -2,10 +2,9 @@
 
 require 'rackup'
 require 'json'
-require 'byebug'
 require 'graphql'
-require 'graphql/stitching'
-require_relative '../test/schemas/example'
+require_relative '../../lib/graphql/stitching'
+require_relative '../../test/schemas/example'
 
 class StitchedApp
   def initialize
@@ -19,11 +18,11 @@ class StitchedApp
       },
       storefronts: {
         schema: Schemas::Example::Storefronts,
-        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001/graphql"),
+        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
       },
       manufacturers: {
         schema: Schemas::Example::Manufacturers,
-        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002/graphql"),
+        executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
       }
     })
   end

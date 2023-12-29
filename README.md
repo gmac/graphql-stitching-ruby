@@ -10,6 +10,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
 - Type merging via arbitrary queries or federation `_entities` protocol.
+- File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
@@ -80,6 +81,7 @@ While the `Client` constructor is an easy quick start, the library also has seve
 - [Request](./docs/request.md) - prepares a requested GraphQL document and variables for stitching.
 - [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
 - [Executor](./docs/executor.md) - executes a query plan with given request variables.
+- [HttpExecutable](./docs/http_executable.md) - proxies requests to remotes with multipart file upload support.
 
 ## Merged types
 
@@ -360,11 +362,11 @@ It's perfectly fine to mix and match schemas that implement an `_entities` query
 
 ## Executables
 
-An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(location, source, variables, context)` and returns a raw GraphQL response:
+An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(request, source, variables)` and returns a raw GraphQL response:
 
 ```ruby
 class MyExecutable
-  def call(location, source, variables, context)
+  def call(request, source, variables)
     # process a GraphQL request...
     return {
       "data" => { ... },
@@ -392,12 +394,12 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
   },
   fourth: {
     schema: FourthSchema,
-    executable: ->(loc, query, vars, ctx) { ... },
+    executable: ->(req, query, vars) { ... },
   },
 })
 ```
 
-The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post`. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
+The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executable wrapper around `Net::HTTP.post` with [file upload](./docs/http_executable.md#graphql-file-uploads) support. You should build your own executables to leverage your existing libraries and to add instrumentation. Note that you must manually assign all executables to a `Supergraph` when rehydrating it from cache ([see docs](./docs/supergraph.md)).
 
 ## Batching
 
@@ -431,36 +433,12 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 - [Stitched errors](./docs/mechanics.md#stitched-errors)
 - [Null results](./docs/mechanics.md#null-results)
 
-## Example
+## Examples
 
-This repo includes a working example of several stitched schemas running across small Rack servers. Try running it:
+This repo includes working examples of stitched schemas running across small Rack servers. Clone the repo, `cd` into each example and try running it following its README instructions.
 
-```shell
-bundle install
-foreman start
-```
-
-Then visit the gateway service at `http://localhost:3000` and try this query:
-
-```graphql
-query {
-  storefront(id: "1") {
-    id
-    products {
-      upc
-      name
-      price
-      manufacturer {
-        name
-        address
-        products { upc name }
-      }
-    }
-  }
-}
-```
-
-The above query collects data from all locations, two of which are remote schemas and the third a local schema. The combined graph schema is also stitched in to provide introspection capabilities.
+- [Merged types](./examples/merged_types)
+- [File uploads](./examples/file_uploads)
 
 ## Tests
 

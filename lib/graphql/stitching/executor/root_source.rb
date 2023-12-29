@@ -17,7 +17,7 @@ module GraphQL
           @executor.request.operation_directives,
         )
         query_variables = @executor.request.variables.slice(*op.variables.keys)
-        result = @executor.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request.context)
+        result = @executor.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request)
         @executor.query_count += 1
 
         @executor.data.merge!(result["data"]) if result["data"]

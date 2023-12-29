@@ -60,11 +60,11 @@ The client provides cache hooks to enable caching query plans across requests. W
 
 ```ruby
 client.on_cache_read do |request|
-  $redis.get(request.digest) # << 3P code
+  $cache.get(request.digest) # << 3P code
 end
 
 client.on_cache_write do |request, payload|
-  $redis.set(request.digest, payload) # << 3P code
+  $cache.set(request.digest, payload) # << 3P code
 end
 ```
 

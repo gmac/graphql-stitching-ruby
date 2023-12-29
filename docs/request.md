@@ -5,6 +5,7 @@ A `Request` contains a parsed GraphQL document and variables, and handles the lo
 ```ruby
 source = "query FetchMovie($id: ID!) { movie(id:$id) { id genre } }"
 request = GraphQL::Stitching::Request.new(
+  supergraph,
   source,
   variables: { "id" => "1" },
   operation_name: "FetchMovie",
@@ -42,6 +43,7 @@ document = <<~GRAPHQL
 GRAPHQL
 
 request = GraphQL::Stitching::Request.new(
+  supergraph,
   document,
   variables: { "id" => "1" },
   operation_name: "FetchMovie",

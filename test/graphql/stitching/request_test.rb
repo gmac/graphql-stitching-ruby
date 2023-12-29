@@ -1,19 +1,28 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../schemas/example"
 
 describe "GraphQL::Stitching::Request" do
+  def setup
+    @supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: Schemas::Example::Products,
+    )
+  end
 
   def test_builds_with_pre_parsed_ast
     ast = GraphQL.parse("query First { widget { id } }")
-    request = GraphQL::Stitching::Request.new(ast)
+    request = GraphQL::Stitching::Request.new(@supergraph, ast)
 
     assert_equal "query", request.operation.operation_type
     assert_equal "widget", request.operation.selections.first.name
   end
 
   def test_selects_single_operation_by_default
-    request = GraphQL::Stitching::Request.new("query First { widget { id } }")
+    request = GraphQL::Stitching::Request.new(
+      @supergraph,
+      "query First { widget { id } }",
+    )
 
     assert_equal "query", request.operation.operation_type
     assert_equal "widget", request.operation.selections.first.name
@@ -25,9 +34,9 @@ describe "GraphQL::Stitching::Request" do
       query Second { sprocket { id } }
       mutation Third { makeSprocket(id: "1") { id } }
     |
-    request1 = GraphQL::Stitching::Request.new(query, operation_name: "First")
-    request2 = GraphQL::Stitching::Request.new(query, operation_name: "Second")
-    request3 = GraphQL::Stitching::Request.new(query, operation_name: "Third")
+    request1 = GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "First")
+    request2 = GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "Second")
+    request3 = GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "Third")
 
     assert_equal "query", request1.operation.operation_type
     assert_equal "query", request2.operation.operation_type
@@ -41,7 +50,7 @@ describe "GraphQL::Stitching::Request" do
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
     assert_error "An operation name is required", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new(query).operation
+      GraphQL::Stitching::Request.new(@supergraph, query).operation
     end
   end
 
@@ -49,13 +58,13 @@ describe "GraphQL::Stitching::Request" do
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
     assert_error "Invalid root operation", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new(query, operation_name: "Invalid").operation
+      GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "Invalid").operation
     end
   end
 
   def test_operation_errors_for_invalid_operation_types
     assert_error "Invalid root operation", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new("subscription { movie }").operation
+      GraphQL::Stitching::Request.new(@supergraph, "subscription { movie }").operation
     end
   end
 
@@ -65,8 +74,8 @@ describe "GraphQL::Stitching::Request" do
       mutation Second @alpha(a: 1) @bravo(b: true) { makeSprocket(id: "1") { id } }
     |
 
-    request1 = GraphQL::Stitching::Request.new(query, operation_name: "First")
-    request2 = GraphQL::Stitching::Request.new(query, operation_name: "Second")
+    request1 = GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "First")
+    request2 = GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "Second")
 
     assert_equal %|@inContext(lang: "EN")|, request1.operation_directives
     assert_equal %|@alpha(a: 1) @bravo(b: true)|, request2.operation_directives
@@ -78,7 +87,7 @@ describe "GraphQL::Stitching::Request" do
         widget(ids: $ids, ns: $ns) { id name(lang: $lang) }
       }
     |
-    request = GraphQL::Stitching::Request.new(query)
+    request = GraphQL::Stitching::Request.new(@supergraph, query)
     variables = request.variable_definitions.each_with_object({}) do |(name, type), memo|
       memo[name] = GraphQL::Language::Printer.new.print(type)
     end
@@ -98,7 +107,7 @@ describe "GraphQL::Stitching::Request" do
       fragment WidgetAttrs on Widget { widget }
       fragment SprocketAttrs on Sprocket { sprocket }
     |
-    request = GraphQL::Stitching::Request.new(query)
+    request = GraphQL::Stitching::Request.new(@supergraph, query)
 
     assert_equal "widget", request.fragment_definitions["WidgetAttrs"].selections.first.name
     assert_equal "sprocket", request.fragment_definitions["SprocketAttrs"].selections.first.name
@@ -111,15 +120,14 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    document = GraphQL.parse(string)
-    request = GraphQL::Stitching::Request.new(string)
+    request = GraphQL::Stitching::Request.new(@supergraph, string)
     assert_equal string, request.string
     assert_equal GraphQL.parse(string).to_query_string, request.normalized_string
   end
 
   def test_provides_string_and_normalized_string_for_parsed_ast_input
     document = GraphQL.parse("query { things { name } }")
-    request = GraphQL::Stitching::Request.new(document)
+    request = GraphQL::Stitching::Request.new(@supergraph, document)
     expected = document.to_query_string
 
     assert_equal expected, request.string
@@ -133,7 +141,7 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    request = GraphQL::Stitching::Request.new(string)
+    request = GraphQL::Stitching::Request.new(@supergraph, string)
     expected = "ad4b4eb706f67020084a7927ed5bd73b7196e393e0af3535d25ae2d22df33232"
     expected_normalized = "88908d0790f7b20afe4a7508a8bba6343c62f98abb9c5abff17345c64d90c0d0"
 
@@ -148,7 +156,7 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "a" => "yes" })
+    request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: { "a" => "yes" })
     request.prepare!
 
     expected = { "a" => "yes", "b" => "defaultB" }
@@ -163,7 +171,7 @@ describe "GraphQL::Stitching::Request" do
     |
 
     variables = { "a" => true, "b" => false, "c" => false }
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: variables)
+    request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: variables)
     request.prepare!
 
     expected = { "a" => true, "b" => false, "c" => false }
@@ -178,7 +186,7 @@ describe "GraphQL::Stitching::Request" do
     |
 
     variables = {}
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: variables)
+    request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: variables)
     request.prepare!
 
     expected = { "b" => false }
@@ -195,7 +203,7 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query))
+    request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query))
     request.prepare!
 
     assert_equal "query { skipKeep { id } includeKeep { id } }", squish_string(request.document.to_query_string)
@@ -211,10 +219,37 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    request = GraphQL::Stitching::Request.new(GraphQL.parse(query), variables: { "yes" => true, "no" => false })
+    request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: {
+      "yes" => true,
+      "no" => false,
+    })
     request.prepare!
 
     expected = "query($yes: Boolean!, $no: Boolean!) { skipKeep { id } includeKeep { id } }"
     assert_equal expected, squish_string(request.document.to_query_string)
+  end
+
+  def test_validates_the_request
+    request1 = GraphQL::Stitching::Request.new(@supergraph, %|{ product(upc: "1") { upc} }|)
+    assert request1.validate.none?
+
+    request2 = GraphQL::Stitching::Request.new(@supergraph, %|{ invalidSelection }|)
+    assert_equal 1, request2.validate.length
+  end
+
+  def test_assigns_a_plan_for_the_request
+    plan = GraphQL::Stitching::Plan.new(ops: [])
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ widget { id } }")
+
+    request.plan(plan)
+    assert_equal plan.object_id, request.plan.object_id
+  end
+
+  def test_assigning_a_plan_must_be_plan_instance
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ widget { id } }")
+
+    assert_error "Plan must be a `GraphQL::Stitching::Plan`", GraphQL::Stitching::StitchingError do
+      request.plan({})
+    end
   end
 end

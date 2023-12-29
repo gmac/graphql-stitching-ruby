@@ -90,7 +90,7 @@ Location settings have top-level keys that specify arbitrary location names, eac
 
 - **`schema:`** _required_, provides a `GraphQL::Schema` class for the location. This may be a class-based schema that inherits from `GraphQL::Schema`, or built from SDL (Schema Definition Language) string using `GraphQL::Schema.from_definition` and mapped to a remote location. The provided schema is only used for type reference and does not require any real data resolvers (unless it is also used as the location's executable, see below).
 
-- **`executable:`** _optional_, provides an executable resource to be called when delegating a request to this location. Executables are `GraphQL::Schema` classes or any object with a `.call(location, source, variables, context)` method that returns a GraphQL response. Omitting the executable option will use the location's provided `schema` as the executable resource.
+- **`executable:`** _optional_, provides an executable resource to be called when delegating a request to this location. Executables are `GraphQL::Schema` classes or any object with a `.call(request, source, variables)` method that returns a GraphQL response. Omitting the executable option will use the location's provided `schema` as the executable resource.
 
 - **`stitch:`** _optional_, an array of configs used to dynamically apply `@stitch` directives to select root fields prior to composing. This is useful when you can't easily render stitching directives into a location's source schema.
 

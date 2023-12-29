@@ -6,6 +6,7 @@ require 'warning'
 Gem.path.each do |path|
   # ignore warnings from auto-generated GraphQL lib code.
   Warning.ignore(/.*mismatched indentations.*/)
+  Warning.ignore(/.*lib\/graphql\/language\/nodes.rb:.*/)
 end
 
 require 'bundler/setup'
@@ -58,19 +59,14 @@ def supergraph_from_schema(schema, fields: {}, boundaries: {}, executables: {})
 end
 
 def plan_and_execute(supergraph, query, variables={}, raw: false)
-  request = GraphQL::Stitching::Request.new(query, variables: variables)
-
-  plan = GraphQL::Stitching::Planner.new(
-    supergraph: supergraph,
-    request: request,
-  ).perform
-
-  executor = GraphQL::Stitching::Executor.new(
-    supergraph: supergraph,
-    request: request,
-    plan: plan,
+  request = GraphQL::Stitching::Request.new(
+    supergraph,
+    query,
+    variables: variables,
   )
 
+  plan = request.plan
+  executor = GraphQL::Stitching::Executor.new(request)
   result = executor.perform(raw: raw)
 
   yield(plan, executor) if block_given?

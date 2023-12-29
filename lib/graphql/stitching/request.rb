@@ -6,9 +6,10 @@ module GraphQL
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
 
-      attr_reader :document, :variables, :operation_name, :context
+      attr_reader :supergraph, :document, :variables, :operation_name, :context
 
-      def initialize(document, operation_name: nil, variables: nil, context: nil)
+      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil)
+        @supergraph = supergraph
         @string = nil
         @digest = nil
         @normalized_string = nil
@@ -17,6 +18,7 @@ module GraphQL
         @operation_directives = nil
         @variable_definitions = nil
         @fragment_definitions = nil
+        @plan = nil
 
         @document = if document.is_a?(String)
           @string = document
@@ -83,6 +85,10 @@ module GraphQL
         end
       end
 
+      def validate
+        @supergraph.schema.validate(@document, context: @context)
+      end
+
       def prepare!
         operation.variables.each do |v|
           @variables[v.name] = v.default_value if @variables[v.name].nil? && !v.default_value.nil?
@@ -93,11 +99,24 @@ module GraphQL
             @document = modified_ast
             @string = @normalized_string = nil
             @digest = @normalized_digest = nil
-            @operation = @operation_directives = @variable_definitions = nil
+            @operation = @operation_directives = @variable_definitions = @plan = nil
           end
         end
 
         self
+      end
+
+      def plan(new_plan = nil)
+        if new_plan
+          raise StitchingError, "Plan must be a `GraphQL::Stitching::Plan`." unless new_plan.is_a?(Plan)
+          @plan = new_plan
+        else
+          @plan ||= GraphQL::Stitching::Planner.new(self).perform
+        end
+      end
+
+      def execute(raw: false)
+        GraphQL::Stitching::Executor.new(self).perform(raw: raw)
       end
     end
   end

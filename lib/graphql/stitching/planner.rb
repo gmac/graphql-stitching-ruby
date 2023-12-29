@@ -9,9 +9,9 @@ module GraphQL
       MUTATION_OP = "mutation"
       ROOT_INDEX = 0
 
-      def initialize(supergraph:, request:)
-        @supergraph = supergraph
+      def initialize(request)
         @request = request
+        @supergraph = request.supergraph
         @planning_index = ROOT_INDEX
         @steps_by_entrypoint = {}
       end

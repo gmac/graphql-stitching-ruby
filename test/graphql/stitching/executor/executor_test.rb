@@ -19,36 +19,26 @@ describe "GraphQL::Stitching::Executor" do
     supergraph = GraphQL::Stitching::Composer.new.perform({
       alpha: {
         schema: GraphQL::Schema.from_definition(alpha),
-        executable: -> (loc, src, vars, ctx) {
-          results << { location: loc, source: src }
+        executable: -> (req, src, vars) {
+          results << { location: "alpha", source: src }
           { "data" => returns.shift }
         },
       },
       bravo: {
         schema: GraphQL::Schema.from_definition(bravo),
-        executable: -> (loc, src, vars, ctx) {
-          results << { location: loc, source: src }
+        executable: -> (req, src, vars) {
+          results << { location: "bravo", source: src }
           { "data" => returns.shift }
         },
       },
     })
 
-    request = GraphQL::Stitching::Request.new(
+    GraphQL::Stitching::Request.new(
+      supergraph,
       source,
       operation_name: operation_name,
       variables: variables,
-    ).prepare!
-
-    plan = GraphQL::Stitching::Planner.new(
-      supergraph: supergraph,
-      request: request,
-    ).perform
-
-    GraphQL::Stitching::Executor.new(
-      supergraph: supergraph,
-      request: request,
-      plan: plan,
-    ).perform
+    ).prepare!.execute
 
     results
   end

@@ -2,11 +2,13 @@
 
 require_relative "./supergraph/resolver_directive"
 require_relative "./supergraph/source_directive"
+require_relative "./supergraph/visibility"
 
 module GraphQL
   module Stitching
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
+      DEFAULT_GUARD = GraphQL::Stitching::Guard.new
 
       class << self
         def validate_executable!(location, executable)
@@ -15,7 +17,7 @@ module GraphQL
           raise StitchingError, "Invalid executable provided for location `#{location}`."
         end
 
-        def from_definition(schema, executables:)
+        def from_definition(schema, executables:, guard: nil)
           schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
           field_map = {}
           boundary_map = {}
@@ -65,6 +67,7 @@ module GraphQL
 
           new(
             schema: schema,
+            guard: guard,
             fields: field_map,
             boundaries: boundary_map,
             executables: executables,
@@ -80,9 +83,9 @@ module GraphQL
 
       attr_reader :boundaries, :locations_by_type_and_field
 
-      def initialize(schema:, fields: {}, boundaries: {}, executables: {})
-        @schema = schema
-        @schema.use(GraphQL::Schema::AlwaysVisible)
+      def initialize(schema:, guard: nil, fields: {}, boundaries: {}, executables: {})
+        @guard = guard || DEFAULT_GUARD
+        @schema = Visibility.install(schema, enabled: !!@guard)
 
         @boundaries = boundaries
         @fields_by_type_and_location = nil

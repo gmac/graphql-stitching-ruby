@@ -55,12 +55,16 @@ module GraphQL
 
       attr_reader :ops
 
-      def initialize(ops: [])
+      def initialize(ops: [], unauthorized_paths: nil)
         @ops = ops
+        @unauthorized_paths = unauthorized_paths
       end
 
       def as_json
-        { ops: @ops.map(&:as_json) }
+        {
+          ops: @ops.map(&:as_json),
+          unauthorized_paths: @unauthorized_paths,
+        }.tap(&:compact!)
       end
     end
   end

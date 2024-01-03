@@ -5,22 +5,41 @@ module GraphQL
     class Composer
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
-      class ReferenceType < GraphQL::Schema::Object
-        field(:f, String) do
-          argument(:a, String)
+
+      # @api private
+      NO_DEFAULT_VALUE = begin
+        class T < GraphQL::Schema::Object
+          field(:f, String) do
+            argument(:a, String)
+          end
         end
+
+        T.get_field("f").get_argument("a").default_value
       end
 
-      NO_DEFAULT_VALUE = ReferenceType.get_field("f").get_argument("a").default_value
+      # @api private
       BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
+
+      # @api private
       BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
+      # @api private
       VALIDATORS = [
         "ValidateInterfaces",
         "ValidateBoundaries",
       ].freeze
 
-      attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
+      # @return [String] name of the Query type in the composed schema.
+      attr_reader :query_name
+
+      # @return [String] name of the Mutation type in the composed schema.
+      attr_reader :mutation_name
+
+      # @api private
+      attr_reader :candidate_types_by_name_and_location
+
+      # @api private
+      attr_reader :schema_directives
 
       def initialize(
         query_name: "Query",

@@ -7,25 +7,33 @@ require "json"
 module GraphQL
   module Stitching
     class HttpExecutable
-      def initialize(url:, headers:{}, upload_types: nil)
+      # Builds a new executable for proxying subgraph requests via HTTP.
+      # @param url [String] the url of the remote location to proxy.
+      # @param headers [Hash] headers to include in upstream requests.
+      # @param upload_types [Array<String>, nil] a list of scalar names that represent file uploads. These types extract into multipart forms.
+      def initialize(url:, headers: {}, upload_types: nil)
         @url = url
         @headers = { "Content-Type" => "application/json" }.merge!(headers)
         @upload_types = upload_types
       end
 
       def call(request, document, variables)
-        multipart_form = extract_multipart_form(request, document, variables)
+        form_data = extract_multipart_form(request, document, variables)
 
-        response = if multipart_form
-          post_multipart(multipart_form)
+        response = if form_data
+          send_multipart_form(request, form_data)
         else
-          post(document, variables)
+          send(request, document, variables)
         end
 
         JSON.parse(response.body)
       end
 
-      def post(document, variables)
+      # Sends a POST request to the remote location.
+      # @param request [Request] the original supergraph request.
+      # @param document [String] the location-specific subgraph document to send.
+      # @param variables [Hash] a hash of variables specific to the subgraph document.
+      def send(_request, document, variables)
         Net::HTTP.post(
           URI(@url),
           JSON.generate({ "query" => document, "variables" => variables }),
@@ -33,7 +41,10 @@ module GraphQL
         )
       end
 
-      def post_multipart(form_data)
+      # Sends a POST request to the remote location with multipart form data.
+      # @param request [Request] the original supergraph request.
+      # @param form_data [Hash] a rendered multipart form with an "operations", "map", and file sections.
+      def send_multipart_form(_request, form_data)
         uri = URI(@url)
         req = Net::HTTP::Post.new(uri)
         @headers.each_pair do |key, value|
@@ -46,8 +57,11 @@ module GraphQL
         end
       end
 
-      # extract multipart upload forms
-      # spec: https://github.com/jaydenseric/graphql-multipart-request-spec
+      # Extracts multipart upload forms per the spec:
+      # https://github.com/jaydenseric/graphql-multipart-request-spec
+      # @param request [Request] the original supergraph request.
+      # @param document [String] the location-specific subgraph document to send.
+      # @param variables [Hash] a hash of variables specific to the subgraph document.
       def extract_multipart_form(request, document, variables)
         return unless @upload_types && request.variable_definitions.any? && variables&.any?
 

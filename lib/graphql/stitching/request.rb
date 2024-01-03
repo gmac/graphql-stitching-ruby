@@ -6,8 +6,27 @@ module GraphQL
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
 
-      attr_reader :supergraph, :document, :variables, :operation_name, :context
+      # @return [Supergraph] supergraph instance that resolves the request.
+      attr_reader :supergraph
 
+      # @return [GraphQL::Language::Nodes::Document] the parsed GraphQL AST document.
+      attr_reader :document
+
+      # @return [Hash] input variables for the request.
+      attr_reader :variables
+
+      # @return [String] operation name selected for the request.
+      attr_reader :operation_name
+
+      # @return [Hash] contextual object passed through resolver flows.
+      attr_reader :context
+
+      # Creates a new supergraph request.
+      # @param supergraph [Supergraph] supergraph instance that resolves the request.
+      # @param document [String, GraphQL::Language::Nodes::Document] the request string or parsed AST.
+      # @param operation_name [String, nil] operation name selected for the request.
+      # @param variables [Hash, nil] input variables for the request.
+      # @param context [Hash, nil] a contextual object passed through resolver flows.
       def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil)
         @supergraph = supergraph
         @string = nil
@@ -32,22 +51,27 @@ module GraphQL
         @context = context || GraphQL::Stitching::EMPTY_OBJECT
       end
 
+      # @return [String] the original document string, or a print of the parsed AST document.
       def string
         @string || normalized_string
       end
 
+      # @return [String] a print of the parsed AST document with consistent whitespace.
       def normalized_string
         @normalized_string ||= @document.to_query_string
       end
 
+      # @return [String] a digest of the original document string. Generally faster but less consistent.
       def digest
         @digest ||= Digest::SHA2.hexdigest(string)
       end
 
+      # @return [String] a digest of the normalized document string. Slower but more consistent.
       def normalized_digest
         @normalized_digest ||= Digest::SHA2.hexdigest(normalized_string)
       end
 
+      # @return [GraphQL::Language::Nodes::OperationDefinition] The selected root operation for the request.
       def operation
         @operation ||= begin
           operation_defs = @document.definitions.select do |d|
@@ -66,6 +90,7 @@ module GraphQL
         end
       end
 
+      # @return [String] A string of directives applied to the root operation. These are passed through in all subgraph requests.
       def operation_directives
         @operation_directives ||= if operation.directives.any?
           printer = GraphQL::Language::Printer.new
@@ -73,22 +98,26 @@ module GraphQL
         end
       end
 
+      # @return [Hash<String, GraphQL::Language::Nodes::AbstractNode>]
       def variable_definitions
         @variable_definitions ||= operation.variables.each_with_object({}) do |v, memo|
           memo[v.name] = v.type
         end
       end
 
+      # @return [Hash<String, GraphQL::Language::Nodes::FragmentDefinition>]
       def fragment_definitions
         @fragment_definitions ||= @document.definitions.each_with_object({}) do |d, memo|
           memo[d.name] = d if d.is_a?(GraphQL::Language::Nodes::FragmentDefinition)
         end
       end
 
+      # Validates the request using the combined supergraph schema.
       def validate
         @supergraph.schema.validate(@document, context: @context)
       end
 
+      # Prepares the request for stitching by rendering variable defaults and applying @skip/@include conditionals.
       def prepare!
         operation.variables.each do |v|
           @variables[v.name] = v.default_value if @variables[v.name].nil? && !v.default_value.nil?
@@ -106,6 +135,9 @@ module GraphQL
         self
       end
 
+      # Gets and sets the query plan for the request. Assigned query plans may pull from cache.
+      # @param new_plan [Plan, nil] a cached query plan for the request.
+      # @return [Plan] query plan for the request.
       def plan(new_plan = nil)
         if new_plan
           raise StitchingError, "Plan must be a `GraphQL::Stitching::Plan`." unless new_plan.is_a?(Plan)
@@ -115,6 +147,9 @@ module GraphQL
         end
       end
 
+      # Executes the request and returns the rendered response.
+      # @param raw [Boolean] specifies the result should be unshaped without pruning or null bubbling. Useful for debugging.
+      # @return [Hash] the rendered GraphQL response with "data" and "errors" sections.
       def execute(raw: false)
         GraphQL::Stitching::Executor.new(self).perform(raw: raw)
       end

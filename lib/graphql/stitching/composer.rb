@@ -5,22 +5,41 @@ module GraphQL
     class Composer
       class ComposerError < StitchingError; end
       class ValidationError < ComposerError; end
-      class ReferenceType < GraphQL::Schema::Object
-        field(:f, String) do
-          argument(:a, String)
+
+      # @api private
+      NO_DEFAULT_VALUE = begin
+        class T < GraphQL::Schema::Object
+          field(:f, String) do
+            argument(:a, String)
+          end
         end
+
+        T.get_field("f").get_argument("a").default_value
       end
 
-      NO_DEFAULT_VALUE = ReferenceType.get_field("f").get_argument("a").default_value
+      # @api private
       BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
+
+      # @api private
       BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
+      # @api private
       VALIDATORS = [
         "ValidateInterfaces",
         "ValidateBoundaries",
       ].freeze
 
-      attr_reader :query_name, :mutation_name, :candidate_types_by_name_and_location, :schema_directives
+      # @return [String] name of the Query type in the composed schema.
+      attr_reader :query_name
+
+      # @return [String] name of the Mutation type in the composed schema.
+      attr_reader :mutation_name
+
+      # @api private
+      attr_reader :candidate_types_by_name_and_location
+
+      # @api private
+      attr_reader :schema_directives
 
       def initialize(
         query_name: "Query",
@@ -148,6 +167,8 @@ module GraphQL
         supergraph
       end
 
+      # @!scope class
+      # @!visibility private
       def prepare_locations_input(locations_input)
         schemas = {}
         executables = {}
@@ -200,6 +221,8 @@ module GraphQL
         return schemas, executables
       end
 
+      # @!scope class
+      # @!visibility private
       def build_directive(directive_name, directives_by_location)
         builder = self
 
@@ -212,6 +235,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_scalar_type(type_name, types_by_location)
         built_in_type = GraphQL::Schema::BUILT_IN_TYPES[type_name]
         return built_in_type if built_in_type
@@ -225,6 +250,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_enum_type(type_name, types_by_location, enum_usage)
         builder = self
 
@@ -261,6 +288,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_object_type(type_name, types_by_location)
         builder = self
 
@@ -278,6 +307,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_interface_type(type_name, types_by_location)
         builder = self
 
@@ -296,6 +327,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_union_type(type_name, types_by_location)
         builder = self
 
@@ -309,6 +342,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_input_object_type(type_name, types_by_location)
         builder = self
 
@@ -320,10 +355,14 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_type_binding(type_name)
         GraphQL::Schema::LateBoundType.new(@mapped_type_names.fetch(type_name, type_name))
       end
 
+      # @!scope class
+      # @!visibility private
       def build_merged_fields(type_name, types_by_location, owner)
         # "field_name" => "location" => field
         fields_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
@@ -356,6 +395,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_merged_arguments(type_name, members_by_location, owner, field_name: nil, directive_name: nil)
         # "argument_name" => "location" => argument
         args_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
@@ -410,6 +451,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_merged_directives(type_name, members_by_location, owner, field_name: nil, argument_name: nil, enum_value: nil)
         directives_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
           member_candidate.directives.each do |directive|
@@ -451,6 +494,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].tap(&:compact!).join(".")
         alt_structures = type_candidates.map { Util.flatten_type_structure(_1) }
@@ -482,6 +527,8 @@ module GraphQL
         type
       end
 
+      # @!scope class
+      # @!visibility private
       def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.description }
         @description_merger.call(strings_by_location, {
@@ -492,6 +539,8 @@ module GraphQL
         }.tap(&:compact!))
       end
 
+      # @!scope class
+      # @!visibility private
       def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.deprecation_reason }
         @deprecation_merger.call(strings_by_location, {
@@ -502,6 +551,8 @@ module GraphQL
         }.tap(&:compact!))
       end
 
+      # @!scope class
+      # @!visibility private
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
@@ -554,6 +605,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def select_root_field_locations(schema)
         [schema.query, schema.mutation].tap(&:compact!).each do |root_type|
           root_type.fields.each do |root_field_name, root_field|
@@ -572,6 +625,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def expand_abstract_boundaries(schema)
         @boundary_map.keys.each do |type_name|
           boundary_type = schema.types[type_name]
@@ -585,6 +640,8 @@ module GraphQL
         end
       end
 
+      # @!scope class
+      # @!visibility private
       def build_enum_usage_map(schemas)
         reads = []
         writes = []

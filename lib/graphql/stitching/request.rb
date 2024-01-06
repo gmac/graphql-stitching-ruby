@@ -121,7 +121,7 @@ module GraphQL
 
       # Validates the request using the combined supergraph schema.
       def validate
-        result = @supergraph.validator.validate(@query)
+        result = @supergraph.static_validator.validate(@query)
         result[:errors]
       end
 

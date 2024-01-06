@@ -84,15 +84,15 @@ module GraphQL
         @schema = schema
         @schema.use(GraphQL::Schema::AlwaysVisible)
 
-        @validator = nil
         @boundaries = boundaries
-        @possible_keys_by_type = {}
-        @possible_keys_by_type_and_location = {}
-        @memoized_schema_fields = {}
-        @memoized_introspection_types = nil
-        @memoized_schema_types = nil
         @fields_by_type_and_location = nil
         @locations_by_type = nil
+        @memoized_introspection_types = nil
+        @memoized_schema_fields = {}
+        @memoized_schema_types = nil
+        @possible_keys_by_type = {}
+        @possible_keys_by_type_and_location = {}
+        @static_validator = nil
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
@@ -164,9 +164,9 @@ module GraphQL
         @schema.to_definition
       end
 
-      # @return [GraphQL::StaticValidation::Validator] query validator for the supergraph schema.
-      def validator
-        @validator ||= @schema.static_validator
+      # @return [GraphQL::StaticValidation::Validator] static validator for the supergraph schema.
+      def static_validator
+        @static_validator ||= @schema.static_validator
       end
 
       def fields

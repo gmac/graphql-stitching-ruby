@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "./composer/base_validator"
+require_relative "./composer/validate_interfaces"
+require_relative "./composer/validate_boundaries"
+
 module GraphQL
   module Stitching
     class Composer
@@ -693,7 +697,3 @@ module GraphQL
     end
   end
 end
-
-require_relative "./composer/base_validator"
-require_relative "./composer/validate_interfaces"
-require_relative "./composer/validate_boundaries"

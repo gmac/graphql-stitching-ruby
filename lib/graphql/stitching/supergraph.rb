@@ -1,28 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "./supergraph/resolver_directive"
+require_relative "./supergraph/source_directive"
+
 module GraphQL
   module Stitching
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
-
-      class ResolverDirective < GraphQL::Schema::Directive
-        graphql_name "resolver"
-        locations OBJECT, INTERFACE, UNION
-        argument :location, String, required: true
-        argument :key, String, required: true
-        argument :field, String, required: true
-        argument :arg, String, required: true
-        argument :list, Boolean, required: false
-        argument :federation, Boolean, required: false
-        repeatable true
-      end
-
-      class SourceDirective < GraphQL::Schema::Directive
-        graphql_name "source"
-        locations FIELD_DEFINITION
-        argument :location, String, required: true
-        repeatable true
-      end
 
       class << self
         def validate_executable!(location, executable)

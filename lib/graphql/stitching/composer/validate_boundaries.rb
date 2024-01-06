@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
-    class Composer::ValidateBoundaries < Composer::BaseValidator
+module GraphQL::Stitching
+  class Composer
+    class ValidateBoundaries < BaseValidator
 
       def perform(ctx, composer)
         ctx.schema.types.each do |type_name, type|

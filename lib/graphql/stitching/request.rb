@@ -21,6 +21,9 @@ module GraphQL
       # @return [Hash] contextual object passed through resolver flows.
       attr_reader :context
 
+      # @return [GraphQL::Schema::Warden] a visibility warden for this request.
+      attr_reader :warden
+
       # Creates a new supergraph request.
       # @param supergraph [Supergraph] supergraph instance that resolves the request.
       # @param document [String, GraphQL::Language::Nodes::Document] the request string or parsed AST.
@@ -48,7 +51,11 @@ module GraphQL
 
         @operation_name = operation_name
         @variables = variables || {}
-        @context = context || GraphQL::Stitching::EMPTY_OBJECT
+
+        @query = GraphQL::Query.new(@supergraph.schema, document: @document, context: context)
+        @warden = @query.warden
+        @context = @query.context
+        @context[:request] = self
       end
 
       # @return [String] the original document string, or a print of the parsed AST document.
@@ -98,14 +105,14 @@ module GraphQL
         end
       end
 
-      # @return [Hash<String, GraphQL::Language::Nodes::AbstractNode>]
+      # @return [Hash<String, GraphQL::Language::Nodes::AbstractNode>] map of variable names to AST type definitions.
       def variable_definitions
         @variable_definitions ||= operation.variables.each_with_object({}) do |v, memo|
           memo[v.name] = v.type
         end
       end
 
-      # @return [Hash<String, GraphQL::Language::Nodes::FragmentDefinition>]
+      # @return [Hash<String, GraphQL::Language::Nodes::FragmentDefinition>] map of fragment names to their AST definitions.
       def fragment_definitions
         @fragment_definitions ||= @document.definitions.each_with_object({}) do |d, memo|
           memo[d.name] = d if d.is_a?(GraphQL::Language::Nodes::FragmentDefinition)
@@ -114,7 +121,8 @@ module GraphQL
 
       # Validates the request using the combined supergraph schema.
       def validate
-        @supergraph.schema.validate(@document, context: @context)
+        result = @supergraph.static_validator.validate(@query)
+        result[:errors]
       end
 
       # Prepares the request for stitching by rendering variable defaults and applying @skip/@include conditionals.

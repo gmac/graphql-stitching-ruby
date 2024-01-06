@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
-    class Composer::BaseValidator
+module GraphQL::Stitching
+  class Composer
+    class BaseValidator
       def perform(ctx, composer)
         raise "not implemented"
       end

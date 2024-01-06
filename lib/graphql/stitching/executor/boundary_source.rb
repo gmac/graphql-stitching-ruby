@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
-    class Executor::BoundarySource < GraphQL::Dataloader::Source
+module GraphQL::Stitching
+  class Executor
+    class BoundarySource < GraphQL::Dataloader::Source
       def initialize(executor, location)
         @executor = executor
         @location = location
@@ -29,7 +29,7 @@ module GraphQL
             @executor.request.operation_directives,
           )
           variables = @executor.request.variables.slice(*variable_names)
-          raw_result = @executor.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
+          raw_result = @executor.request.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
           @executor.query_count += 1
 
           merge_results!(origin_sets_by_operation, raw_result.dig("data"))

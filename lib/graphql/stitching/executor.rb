@@ -1,17 +1,26 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "./executor/boundary_source"
+require_relative "./executor/root_source"
 
 module GraphQL
   module Stitching
     class Executor
-      attr_reader :supergraph, :request, :plan, :data, :errors
+      # @return [Request] the stitching request to execute.
+      attr_reader :request
+
+      # @return [Hash] an aggregate data payload to return.
+      attr_reader :data
+
+      # @return [Array<Hash>] aggregate GraphQL errors to return.
+      attr_reader :errors
+
+      # @return [Integer] tally of queries performed while executing.
       attr_accessor :query_count
 
       def initialize(request, nonblocking: false)
         @request = request
-        @supergraph = request.supergraph
-        @plan = request.plan
         @data = {}
         @errors = []
         @query_count = 0
@@ -37,13 +46,13 @@ module GraphQL
       private
 
       def exec!(next_steps = [0])
-        if @exec_cycles > @plan.ops.length
+        if @exec_cycles > @request.plan.ops.length
           # sanity check... if we've exceeded queue size, then something went wrong.
           raise StitchingError, "Too many execution requests attempted."
         end
 
         @dataloader.append_job do
-          tasks = @plan
+          tasks = @request.plan
             .ops
             .select { next_steps.include?(_1.after) }
             .group_by { [_1.location, _1.boundary.nil?] }
@@ -66,6 +75,3 @@ module GraphQL
     end
   end
 end
-
-require_relative "./executor/boundary_source"
-require_relative "./executor/root_source"

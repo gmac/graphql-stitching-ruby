@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
-    class Composer::ValidateInterfaces < Composer::BaseValidator
-
+module GraphQL::Stitching
+  class Composer
+    class ValidateInterfaces < BaseValidator
       # For each composed interface, check the interface against each possible type
       # to assure that intersecting fields have compatible types, structures, and nullability.
       # Verifies compatibility of types that inherit interface contracts through merging.

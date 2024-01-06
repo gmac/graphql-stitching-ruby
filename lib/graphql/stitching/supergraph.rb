@@ -72,14 +72,22 @@ module GraphQL
         end
       end
 
-      attr_reader :schema, :boundaries, :locations_by_type_and_field, :executables
+      # @return [GraphQL::Schema] the composed schema for the supergraph.
+      attr_reader :schema
+
+      # @return [Hash<String, Executable>] a map of executable resources by location.
+      attr_reader :executables
+
+      attr_reader :boundaries, :locations_by_type_and_field
 
       def initialize(schema:, fields: {}, boundaries: {}, executables: {})
         @schema = schema
+        @schema.use(GraphQL::Schema::AlwaysVisible)
+
+        @validator = nil
         @boundaries = boundaries
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
-        @memoized_schema_possible_types = {}
         @memoized_schema_fields = {}
         @memoized_introspection_types = nil
         @memoized_schema_types = nil
@@ -156,6 +164,11 @@ module GraphQL
         @schema.to_definition
       end
 
+      # @return [GraphQL::StaticValidation::Validator] query validator for the supergraph schema.
+      def validator
+        @validator ||= @schema.static_validator
+      end
+
       def fields
         @locations_by_type_and_field.reject { |k, _v| memoized_introspection_types[k] }
       end
@@ -170,10 +183,6 @@ module GraphQL
 
       def memoized_schema_types
         @memoized_schema_types ||= @schema.types
-      end
-
-      def memoized_schema_possible_types(type_name)
-        @memoized_schema_possible_types[type_name] ||= @schema.possible_types(memoized_schema_types[type_name])
       end
 
       def memoized_schema_fields(type_name)

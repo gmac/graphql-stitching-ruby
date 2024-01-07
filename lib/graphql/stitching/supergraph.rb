@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "./supergraph/guard"
 require_relative "./supergraph/resolver_directive"
 require_relative "./supergraph/source_directive"
 require_relative "./supergraph/visibility"
@@ -8,7 +9,6 @@ module GraphQL
   module Stitching
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
-      DEFAULT_GUARD = GraphQL::Stitching::Guard.new
 
       class << self
         def validate_executable!(location, executable)
@@ -17,7 +17,7 @@ module GraphQL
           raise StitchingError, "Invalid executable provided for location `#{location}`."
         end
 
-        def from_definition(schema, executables:, guard: nil)
+        def from_definition(schema, executables:)
           schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
           field_map = {}
           boundary_map = {}
@@ -67,7 +67,6 @@ module GraphQL
 
           new(
             schema: schema,
-            guard: guard,
             fields: field_map,
             boundaries: boundary_map,
             executables: executables,
@@ -83,10 +82,8 @@ module GraphQL
 
       attr_reader :boundaries, :locations_by_type_and_field
 
-      def initialize(schema:, guard: nil, fields: {}, boundaries: {}, executables: {})
-        @guard = guard || DEFAULT_GUARD
-        @schema = Visibility.install(schema, enabled: !!@guard)
-
+      def initialize(schema:, fields: {}, boundaries: {}, executables: {}, visibility: true)
+        @schema = Visibility.install(schema, enabled: visibility)
         @boundaries = boundaries
         @fields_by_type_and_location = nil
         @locations_by_type = nil
@@ -170,6 +167,14 @@ module GraphQL
       # @return [GraphQL::StaticValidation::Validator] static validator for the supergraph schema.
       def static_validator
         @static_validator ||= @schema.static_validator
+      end
+
+      def visibility_guard
+        @visibility_guard ||= Guard.new(scope: Guard::VISIBILITY)
+      end
+
+      def access_guard
+        @access_guard ||= Guard.new(scope: Guard::ACCESS)
       end
 
       def fields

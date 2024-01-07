@@ -23,7 +23,6 @@ module GraphQL
   end
 end
 
-require_relative "stitching/guard"
 require_relative "stitching/supergraph"
 require_relative "stitching/boundary"
 require_relative "stitching/client"

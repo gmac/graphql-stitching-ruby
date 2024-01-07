@@ -15,7 +15,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     request = GraphQL::Stitching::Request.new(
       @supergraph,
       %|{ fruits(ids: ["1", "3"]) { id color price } }|,
-      claims: ["read:coconut", "read:color", "read:price"],
+      visibility_claims: ["read:price"],
+      access_claims: ["read:coconut", "read:color"],
     )
 
     puts request.validate

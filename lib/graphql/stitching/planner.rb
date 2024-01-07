@@ -194,7 +194,7 @@ module GraphQL
         locale_variables,
         locale_selections = []
       )
-        unless @supergraph.guard.authorizes?(@request, parent_type)
+        unless @supergraph.access_guard.authorizes?(@request, parent_type)
           @unauthorized_paths ||= []
           @unauthorized_paths << path.dup
           return []
@@ -226,7 +226,7 @@ module GraphQL
             end
 
             field_def = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name]
-            unless @supergraph.guard.authorizes?(@request, field_def)
+            unless @supergraph.access_guard.authorizes?(@request, field_def)
               @unauthorized_paths ||= []
               @unauthorized_paths << path.dup
               @unauthorized_paths.last.push(node.alias || node.name)

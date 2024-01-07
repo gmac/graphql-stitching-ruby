@@ -24,8 +24,11 @@ module GraphQL
       # @return [GraphQL::Schema::Warden] a visibility warden for this request.
       attr_reader :warden
 
-      # @return [Array<String>] an array of authorization claims granted to the request.
-      attr_reader :claims
+      # @return [Array<String>, nil] an array of visibility claims granted to the request.
+      attr_reader :visibility_claims
+
+      # @return [Array<String>, nil] an array of authorization claims granted to the request.
+      attr_reader :access_claims
 
       # Creates a new supergraph request.
       # @param supergraph [Supergraph] supergraph instance that resolves the request.
@@ -33,8 +36,9 @@ module GraphQL
       # @param operation_name [String, nil] operation name selected for the request.
       # @param variables [Hash, nil] input variables for the request.
       # @param context [Hash, nil] a contextual object passed through resolver flows.
-      # @param claims [Array<String>, nil] an array of authorization claims granted to the request.
-      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil, claims: nil)
+      # @param visibility_claims [Array<String>, nil] an array of visibility claims granted to the request.
+      # @param access_claims [Array<String>, nil] an array of authorization claims granted to the request.
+      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil, visibility_claims: nil, access_claims: nil)
         @supergraph = supergraph
         @string = nil
         @digest = nil
@@ -55,12 +59,14 @@ module GraphQL
 
         @operation_name = operation_name
         @variables = variables || {}
-        @claims = claims || GraphQL::Stitching::EMPTY_ARRAY
 
         @query = GraphQL::Query.new(@supergraph.schema, document: @document, context: context)
         @warden = @query.warden
         @context = @query.context
         @context[:request] = self
+
+        @visibility_claims = visibility_claims
+        @access_claims = access_claims
       end
 
       # @return [String] the original document string, or a print of the parsed AST document.

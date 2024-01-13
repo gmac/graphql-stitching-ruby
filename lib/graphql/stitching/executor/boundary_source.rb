@@ -183,9 +183,7 @@ module GraphQL::Stitching
           end
 
         elsif forward_path.any?
-          current_path << index
           repath_errors!(pathed_errors_by_object_id, forward_path, current_path, scope)
-          current_path.pop
 
         elsif scope.is_a?(Array)
           scope.each_with_index do |element, index|

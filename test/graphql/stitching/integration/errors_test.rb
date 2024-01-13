@@ -9,22 +9,18 @@ describe 'GraphQL::Stitching, errors' do
       "a" => Schemas::Errors::ElementsA,
       "b" => Schemas::Errors::ElementsB,
     })
+  end
 
-    @query = %|
-      query($ids: [ID!]!) {
-        elementsA(ids: $ids) {
+  def test_repaths_root_errors
+    result = plan_and_execute(@supergraph, %|
+      query {
+        elementsA(ids: ["10", "18", "36"]) {
           name
           code
           year
         }
       }
-    |
-  end
-
-  def test_queries_merged_interfaces
-    result = plan_and_execute(@supergraph, @query, {
-      "ids" => ["10", "18", "36"]
-    })
+    |)
 
     expected_data = {
       "elementsA" => [
@@ -45,6 +41,81 @@ describe 'GraphQL::Stitching, errors' do
     expected_errors = [
       { "message" => "Not found", "path" => ["elementsA", 1] },
       { "message" => "Not found", "path" => ["elementsA", 2] },
+    ]
+
+    assert_equal expected_data, result["data"]
+    assert_equal expected_errors, result["errors"]
+  end
+
+  def test_repaths_nested_errors_onto_list_source
+    result = plan_and_execute(@supergraph, %|
+      query {
+        elementsA(ids: ["10", "36"]) {
+          name
+          isotopes {
+            name
+            halflife
+          }
+          isotope {
+            name
+            halflife
+          }
+        }
+      }
+    |)
+
+    expected_data = {
+      "elementsA" => [
+        {
+          "name" => "neon",
+          "isotope" => nil,
+          "isotopes" => [nil],
+        },
+        {
+          "name" => "krypton",
+          "isotope" => { "name" => "Kr79", "halflife" => "35d" },
+          "isotopes" => [{ "name" => "Kr79", "halflife" => "35d" }],
+        },
+      ],
+    }
+
+    expected_errors = [
+      { "message" => "Not found", "path" => ["elementsA", 0, "isotopes", 0] },
+      { "message" => "Not found", "path" => ["elementsA", 0, "isotope"] },
+    ]
+
+    assert_equal expected_data, result["data"]
+    assert_equal expected_errors, result["errors"]
+  end
+
+  def test_repaths_nested_errors_onto_object_source
+    result = plan_and_execute(@supergraph, %|
+      query {
+        elementA(id: "10") {
+          name
+          isotopes {
+            name
+            halflife
+          }
+          isotope {
+            name
+            halflife
+          }
+        }
+      }
+    |)
+
+    expected_data = {
+      "elementA" => {
+        "name" => "neon",
+        "isotope" => nil,
+        "isotopes" => [nil],
+      },
+    }
+
+    expected_errors = [
+      { "message" => "Not found", "path" => ["elementA", "isotopes", 0] },
+      { "message" => "Not found", "path" => ["elementA", "isotope"] },
     ]
 
     assert_equal expected_data, result["data"]

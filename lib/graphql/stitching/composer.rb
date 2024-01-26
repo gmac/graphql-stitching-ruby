@@ -3,6 +3,7 @@
 require_relative "./composer/base_validator"
 require_relative "./composer/validate_interfaces"
 require_relative "./composer/validate_boundaries"
+require_relative "./composer/permissions_merger"
 
 module GraphQL
   module Stitching
@@ -48,6 +49,9 @@ module GraphQL
       def initialize(
         query_name: "Query",
         mutation_name: "Mutation",
+        stitch_directive_name: GraphQL::Stitching.stitch_directive,
+        access_directive_name: GraphQL::Stitching.access_directive,
+        visibility_directive_name: GraphQL::Stitching.visibility_directive,
         description_merger: nil,
         deprecation_merger: nil,
         default_value_merger: nil,
@@ -56,6 +60,9 @@ module GraphQL
       )
         @query_name = query_name
         @mutation_name = mutation_name
+        @stitch_directive_name = stitch_directive_name
+        @access_directive_name = access_directive_name
+        @visibility_directive_name = visibility_directive_name
         @description_merger = description_merger || BASIC_VALUE_MERGER
         @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
@@ -76,7 +83,7 @@ module GraphQL
 
         # "directive_name" => "location" => candidate_directive
         @candidate_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
+          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.composition_only_directive_names).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
           end
@@ -479,8 +486,15 @@ module GraphQL
             end
           end
 
+          kwarg_merger = case directive_class.graphql_name
+          when @access_directive_name, @visibility_directive_name
+            PermissionsMerger
+          else
+            @directive_kwarg_merger
+          end
+
           kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
-            memo[kwarg_name.to_sym] = @directive_kwarg_merger.call(kwarg_values_by_location, {
+            memo[kwarg_name.to_sym] = kwarg_merger.call(kwarg_values_by_location, {
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
@@ -561,7 +575,7 @@ module GraphQL
             boundary_kwargs = @stitch_directives["#{location}.#{field_name}"] || []
 
             field_candidate.directives.each do |directive|
-              next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
+              next unless directive.graphql_name == @stitch_directive_name
               boundary_kwargs << directive.arguments.keyword_arguments
             end
 

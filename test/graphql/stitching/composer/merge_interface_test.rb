@@ -16,17 +16,17 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
   end
 
   def test_merges_interface_directives
-    a = <<~GRAPHQL
+    a = %|
       directive @fizzbuzz(arg: String!) on INTERFACE
       interface Test @fizzbuzz(arg: "a") { field: String }
       type Query { test:Test }
-    GRAPHQL
+    |
 
-    b = <<~GRAPHQL
+    b = %|
       directive @fizzbuzz(arg: String!) on INTERFACE
       interface Test @fizzbuzz(arg: "b") { field: String }
       type Query { test:Test }
-    GRAPHQL
+    |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
@@ -76,9 +76,4 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
     assert_equal ["code", "id", "name"], supergraph.schema.types["I"].fields.keys.sort
     assert_equal ["code", "id", "name"], supergraph.schema.types["T"].fields.keys.sort
   end
-
-  # def test_validates_merged_interface_fields_match_implementation_fields
-  #   # is this really a problem...? Implementing objects have to have matching fields across services.
-  #   # possibly applies to nullability concerns.
-  # end
 end

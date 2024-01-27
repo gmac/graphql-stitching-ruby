@@ -577,12 +577,13 @@ module GraphQL
               argument_name = key_selections[0].alias
               argument_name ||= if field_candidate.arguments.size == 1
                 field_candidate.arguments.keys.first
+              elsif field_candidate.arguments[key]
+                key
               end
 
               argument = field_candidate.arguments[argument_name]
               unless argument
-                # contextualize this... "boundaries with multiple args need mapping aliases."
-                raise ComposerError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
+                raise ComposerError, "No boundary argument matched for #{type_name}.#{field_name}.#{argument_name}. Specify a key alias."
               end
 
               argument_structure = Util.flatten_type_structure(argument.type)

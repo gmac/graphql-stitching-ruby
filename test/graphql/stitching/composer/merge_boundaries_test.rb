@@ -120,6 +120,40 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     assert_boundary(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
   end
 
+  def test_builds_union_boundaries_for_select_typenames
+    a = %|
+      type Apple { id:ID! name:String }
+      type Banana { id:ID! name:String }
+      type Coconut { id:ID! name:String }
+      union Fruit = Apple \| Banana \| Coconut
+      type Query {
+        fruitA(id:ID!):Fruit
+          @stitch(key: "id", __typename: "Apple")
+          @stitch(key: "id", __typename: "Banana", federation: true)
+        coconut(id: ID!): Coconut
+          @stitch(key: "id")
+      }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Banana { id:ID! color:String }
+      type Coconut { id:ID! color:String }
+      union Fruit = Apple \| Banana \| Coconut
+      type Query {
+        fruitB(id:ID!):Fruit @stitch(key: "id")
+      }
+    |
+
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_equal ["fruitA", "fruitB"], supergraph.boundaries["Apple"].map(&:field).sort
+    assert_equal ["fruitA", "fruitB"], supergraph.boundaries["Banana"].map(&:field).sort
+    assert_equal ["coconut", "fruitB"], supergraph.boundaries["Coconut"].map(&:field).sort
+    assert_equal ["fruitB"], supergraph.boundaries["Fruit"].map(&:field).sort
+
+    assert_equal false, supergraph.boundaries["Apple"].find { _1.location == "a" }.federation
+    assert_equal true, supergraph.boundaries["Banana"].find { _1.location == "a" }.federation
+  end
+
   private
 
   def assert_boundary(supergraph, type_name, location:, key: nil, field: nil, arg: nil)

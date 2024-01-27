@@ -556,18 +556,26 @@ module GraphQL
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
-            boundary_type_name = field_candidate.type.unwrap.graphql_name
+            boundary_type = field_candidate.type.unwrap
             boundary_structure = Util.flatten_type_structure(field_candidate.type)
             boundary_kwargs = @stitch_directives["#{location}.#{field_name}"] || []
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              boundary_kwargs << directive.arguments.keyword_arguments
+              boundary_kwargs << directive.arguments.keyword_arguments.dup
+
+              if boundary_kwargs.last[:__typename]
+                if boundary_type.kind.abstract?
+                  boundary_kwargs.last[:type_name] = boundary_kwargs.last[:__typename]
+                else
+                  raise ComposerError, "The @stitch directive only accepts a __typename for abstract resolvers."
+                end
+              end
             end
 
             boundary_kwargs.each do |kwargs|
               key = kwargs.fetch(:key)
-              impl_type_name = kwargs.fetch(:type_name, boundary_type_name)
+              impl_type_name = kwargs.fetch(:type_name, boundary_type.graphql_name)
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1

@@ -182,7 +182,7 @@ See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
 
 #### Abstract queries
 
-It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types. For interfaces, the key selection should match a field within the interface. For unions, all possible types must implement the key selection individually.
+It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types by default, each of which must implement the named key selection.
 
 ```graphql
 interface Node {
@@ -194,6 +194,21 @@ type Product implements Node {
 }
 type Query {
   nodes(ids: [ID!]!): [Node]! @stitch(key: "id")
+}
+```
+
+To customize which types a query provides (useful for unions), you may extend the `@stitch` directive with a `__typename` argument and then declare keys for a limited set of types.
+
+```graphql
+directive @stitch(key: String!, __typename: String) repeatable on FIELD_DEFINITION
+
+type Product { upc: ID! }
+type Order { id: ID! }
+type Discount { code: ID! }
+union Entity = Product | Order | Discount
+
+type Query {
+  entity(key: ID!): Entity @stitch(key: "upc", __typename: "Product") @stitch(key: "id", __typename: "Order")
 }
 ```
 

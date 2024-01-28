@@ -44,7 +44,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     |
     b = %|
       type T { id:ID! upc:ID! }
-      type Query { b(id: ID, upc:ID):T @stitch(key: "id:id") @stitch(key: "upc:upc") }
+      type Query { b(id: ID, code:ID):T @stitch(key: "id") @stitch(key: "code:upc") }
     |
     c = %|
       type T { id:ID! }
@@ -54,7 +54,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
     assert_boundary(supergraph, "T", location: "a", key: "upc", field: "a", arg: "upc")
-    assert_boundary(supergraph, "T", location: "b", key: "upc", field: "b", arg: "upc")
+    assert_boundary(supergraph, "T", location: "b", key: "upc", field: "b", arg: "code")
     assert_boundary(supergraph, "T", location: "b", key: "id", field: "b", arg: "id")
     assert_boundary(supergraph, "T", location: "c", key: "id", field: "c", arg: "id")
   end

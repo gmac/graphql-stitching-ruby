@@ -154,6 +154,30 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     assert_equal true, supergraph.boundaries["Banana"].find { _1.location == "a" }.federation
   end
 
+  def test_raises_when_given_typename_is_not_a_possible_type
+    a = %|
+      type Apple { id:ID! name:String }
+      type Banana { id:ID! name:String }
+      union Fruit = Apple
+      type Query {
+        apple(id: ID!): Apple @stitch(key: "id")
+        fruitA(id:ID!):Fruit @stitch(key: "id", __typename: "Banana")
+      }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Banana { id:ID! color:String }
+      union Fruit = Apple \| Banana
+      type Query {
+        fruitB(id:ID!):Fruit @stitch(key: "id")
+      }
+    |
+
+    assert_error "`Banana` is not a possible type" do
+      compose_definitions({ "a" => a, "b" => b })
+    end
+  end
+
   private
 
   def assert_boundary(supergraph, type_name, location:, key: nil, field: nil, arg: nil)

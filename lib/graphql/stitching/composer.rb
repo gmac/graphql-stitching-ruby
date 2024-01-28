@@ -562,15 +562,22 @@ module GraphQL
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              boundary_kwargs << directive.arguments.keyword_arguments.dup
+              kwargs = directive.arguments.keyword_arguments
+              type_constraint = kwargs[:__typename]
 
-              if boundary_kwargs.last[:__typename]
+              if type_constraint
                 if boundary_type.kind.abstract?
-                  boundary_kwargs.last[:type_name] = boundary_kwargs.last[:__typename]
+                  if boundary_type.possible_types.find { _1.graphql_name == type_constraint }
+                    kwargs = { type_name: type_constraint }.merge!(kwargs)
+                  else
+                    raise ComposerError, "Type `#{type_constraint}` is not a possible type for query `#{field_name}`."
+                  end
                 else
                   raise ComposerError, "The @stitch directive only accepts a __typename for abstract resolvers."
                 end
               end
+
+              boundary_kwargs << kwargs
             end
 
             boundary_kwargs.each do |kwargs|

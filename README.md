@@ -197,18 +197,17 @@ type Query {
 }
 ```
 
-To customize which types a query provides (useful for unions), you may extend the `@stitch` directive with a `__typename` argument and then declare keys for a limited set of types.
+To customize which types a query provides, you may extend the `@stitch` directive with a `__typename` argument and then declare keys for select types.
 
 ```graphql
 directive @stitch(key: String!, __typename: String) repeatable on FIELD_DEFINITION
 
-type Product { upc: ID! }
+type Product { id: ID! }
 type Order { id: ID! }
-type Discount { code: ID! }
-union Entity = Product | Order | Discount
+union Entity = Product | Order
 
 type Query {
-  entity(key: ID!): Entity @stitch(key: "upc", __typename: "Product") @stitch(key: "id", __typename: "Order")
+  entity(key: ID!): Entity @stitch(key: "id", __typename: "Product")
 }
 ```
 

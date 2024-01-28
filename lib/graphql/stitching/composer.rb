@@ -263,7 +263,6 @@ module GraphQL
         enum_values_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
           type_candidate.enum_values.each do |enum_value_candidate|
             memo[enum_value_candidate.graphql_name] ||= {}
-            memo[enum_value_candidate.graphql_name][location] ||= {}
             memo[enum_value_candidate.graphql_name][location] = enum_value_candidate
           end
         end
@@ -376,7 +375,6 @@ module GraphQL
             @field_map[type_name][field_candidate.name] << location
 
             memo[field_name] ||= {}
-            memo[field_name][location] ||= {}
             memo[field_name][location] = field_candidate
           end
         end
@@ -406,7 +404,6 @@ module GraphQL
         args_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
           member_candidate.arguments.each do |argument_name, argument|
             memo[argument_name] ||= {}
-            memo[argument_name][location] ||= {}
             memo[argument_name][location] = argument
           end
         end
@@ -461,7 +458,6 @@ module GraphQL
         directives_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
           member_candidate.directives.each do |directive|
             memo[directive.graphql_name] ||= {}
-            memo[directive.graphql_name][location] ||= {}
             memo[directive.graphql_name][location] = directive
           end
         end
@@ -652,22 +648,22 @@ module GraphQL
 
         schemas.each do |schema|
           introspection_types = schema.introspection_system.types.keys
-          schema.types.values.each do |type|
+          schema.types.each_value do |type|
             next if introspection_types.include?(type.graphql_name)
 
             if type.kind.object? || type.kind.interface?
-              type.fields.values.each do |field|
+              type.fields.each_value do |field|
                 field_type = field.type.unwrap
                 reads << field_type.graphql_name if field_type.kind.enum?
 
-                field.arguments.values.each do |argument|
+                field.arguments.each_value do |argument|
                   argument_type = argument.type.unwrap
                   writes << argument_type.graphql_name if argument_type.kind.enum?
                 end
               end
 
             elsif type.kind.input_object?
-              type.arguments.values.each do |argument|
+              type.arguments.each_value do |argument|
                 argument_type = argument.type.unwrap
                 writes << argument_type.graphql_name if argument_type.kind.enum?
               end

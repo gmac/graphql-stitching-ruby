@@ -155,7 +155,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
 
-Each location that provides a unique variant of a type must provide at least one stitching query. The exception to this requirement are types that contain only a single key field:
+Each location that provides a unique variant of a type must provide at least one stitching query. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
 
 ```graphql
 type Product {
@@ -163,7 +163,7 @@ type Product {
 }
 ```
 
-The above representation of a `Product` type provides no unique data beyond a key that is available in other locations. Thus, this representation will never require an inbound request to fetch it, and its stitching query may be omitted. This pattern of providing key-only types is very common in stitching: it allows a foreign key to be represented as an object stub that may be enriched by data collected from other locations.
+The above representation of a `Product` type provides no unique data beyond a key that is available in other locations. Thus, this representation will never require an inbound request to fetch it, and its stitching query may be omitted.
 
 #### List queries
 
@@ -427,6 +427,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 ## Additional topics
 
+- [Modeling foreign keys for stitching](./docs/mechanics.md##modeling-foreign-keys-for-stitching)
 - [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
 - [Field selection routing](./docs/mechanics.md#field-selection-routing)
 - [Root selection routing](./docs/mechanics.md#root-selection-routing)

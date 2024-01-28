@@ -54,7 +54,7 @@ module GraphQL
           return parent_type.possible_types if parent_type.kind.union?
 
           result = []
-          schema.types.values.each do |type|
+          schema.types.each_value do |type|
             next unless type <= GraphQL::Schema::Interface && type != parent_type
             next unless type.interfaces.include?(parent_type)
             result << type

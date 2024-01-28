@@ -1,5 +1,47 @@
 ## Schema Stitching, mechanics
 
+### Modeling foreign keys for stitching
+
+Foreign keys in a GraphQL schema typically look like the `Product.imageId` field here:
+
+```graphql
+# -- Products schema:
+
+type Product {
+  id: ID!
+  imageId: ID!
+}
+
+# -- Images schema:
+
+type Image {
+  id: ID!
+  url: String!
+}
+```
+
+However, this design does not lend itself to stitching where types need to _merge_ across locations. A simple schema refactor makes this foreign key more expressive as an entity type, and turns the key into an _object_ that will merge with analogous object types in other locations:
+
+```graphql
+# -- Products schema:
+
+type Product {
+  id: ID!
+  image: Image!
+}
+
+type Image {
+  id: ID!
+}
+
+# -- Images schema:
+
+type Image {
+  id: ID!
+  url: String!
+}
+```
+
 ### Deploying a stitched schema
 
 Among the simplest and most effective ways to manage a stitched schema is to compose it locally, write the composed SDL as a `.graphql` file in your repo, and then load the composed schema into a stitching client at runtime. For example, setup a `rake` task that loads/fetches subgraph schemas, composes them, and then writes the composed schema definition as a file committed to the repo:

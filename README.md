@@ -78,9 +78,7 @@ While the `Client` constructor is an easy quick start, the library also has seve
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
-- [Request](./docs/request.md) - prepares a requested GraphQL document and variables for stitching.
-- [Planner](./docs/planner.md) - builds a cacheable query plan for a request document.
-- [Executor](./docs/executor.md) - executes a query plan with given request variables.
+- [Request](./docs/request.md) - manages the lifecycle of a stitched GraphQL request.
 - [HttpExecutable](./docs/http_executable.md) - proxies requests to remotes with multipart file upload support.
 
 ## Merged types

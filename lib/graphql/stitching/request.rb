@@ -120,12 +120,13 @@ module GraphQL
       end
 
       # Validates the request using the combined supergraph schema.
+      # @return [Array<GraphQL::ExecutionError>] an array of static validation errors
       def validate
         result = @supergraph.static_validator.validate(@query)
         result[:errors]
       end
 
-      # Prepares the request for stitching by rendering variable defaults and applying @skip/@include conditionals.
+      # Prepares the request for stitching by inserting variable defaults and applying @skip/@include conditionals.
       def prepare!
         operation.variables.each do |v|
           @variables[v.name] = v.default_value if @variables[v.name].nil? && !v.default_value.nil?
@@ -143,7 +144,17 @@ module GraphQL
         self
       end
 
-      # Gets and sets the query plan for the request. Assigned query plans may pull from cache.
+      # Gets and sets the query plan for the request. Assigned query plans may pull from a cache,
+      # which is useful for redundant GraphQL documents (commonly sent by frontend clients).
+      # ```ruby
+      # if cached_plan = $cache.get(request.digest)
+      #   plan = GraphQL::Stitching::Plan.from_json(JSON.parse(cached_plan))
+      #   request.plan(plan)
+      # else
+      #   plan = request.plan
+      #   $cache.set(request.digest, JSON.generate(plan.as_json))
+      # end
+      # ```
       # @param new_plan [Plan, nil] a cached query plan for the request.
       # @return [Plan] query plan for the request.
       def plan(new_plan = nil)

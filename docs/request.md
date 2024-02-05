@@ -25,37 +25,12 @@ A `Request` provides the following information:
 - `req.variable_definitions`: a mapping of variable names to their type definitions
 - `req.fragment_definitions`: a mapping of fragment names to their fragment definitions
 
-### Preparing requests
+### Request lifecycle
 
-A request should be prepared for stitching using the `prepare!` method _after_ validations have been run:
+A request manages the flow of stitching behaviors. These are sequenced by the `Client`
+component, or you may invoke them manually:
 
-```ruby
-document = <<~GRAPHQL
-  query FetchMovie($id: ID!, $lang: String = "en", $withShowtimes: Boolean = true) {
-    movie(id:$id) {
-      id
-      title(lang: $lang)
-      showtimes @include(if: $withShowtimes) {
-        time
-      }
-    }
-  }
-GRAPHQL
-
-request = GraphQL::Stitching::Request.new(
-  supergraph,
-  document,
-  variables: { "id" => "1" },
-  operation_name: "FetchMovie",
-)
-
-errors = MySchema.validate(request.document)
-# return early with any static validation errors...
-
-request.prepare!
-```
-
-Preparing a request will apply several destructive transformations:
-
-- Default values from variable definitions will be added to request variables.
-- The document will be pre-shaped based on `@skip` and `@include` directives.
+1. `request.validate`: runs static validations on the request using the combined schema.
+2. `request.prepare!`: inserts variable defaults and pre-renders skip/include conditional shaping.
+3. `request.plan`: builds a plan for the request. May act as a setting for plans pulled from cache.
+4. `request.execute`: executes the request, and returns the resulting data.

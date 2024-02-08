@@ -2,6 +2,8 @@
 
 module GraphQL::Stitching
   class Composer
+    # Merges multi-dimensional permissions arrays
+    # into combined permission sets.
     class PermissionsMerger
       class << self
         def call(values_by_location, _info = nil)

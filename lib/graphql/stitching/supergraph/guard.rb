@@ -3,48 +3,53 @@
 module GraphQL::Stitching
   class Supergraph
     class Guard
-      VISIBILITY = "visibility"
-      ACCESS = "access"
-
       def initialize(scope:)
         @scope = scope
         @policies = nil
       end
 
       def authorizes?(request, member)
-        access_directive = member.directives.find { _1.graphql_name == @scope }
-        return true unless access_directive
+        auth_directive = member.directives.find { _1.graphql_name == @scope }
+        return true unless auth_directive
 
-        access = true
-        kwargs = access_directive.arguments.keyword_arguments
+        authorized = true
+        kwargs = auth_directive.arguments.keyword_arguments
 
-        access_scopes = kwargs[:scopes]
-        if access_scopes
-          claims = case @scope
-          when VISIBILITY
+        auth_scopes = kwargs[:scopes]
+        if auth_scopes
+          claims = if @scope == GraphQL::Stitching.visibility_directive
             request.visibility_claims
-          when ACCESS
-            request.access_claims
           end
 
           claims ||= GraphQL::Stitching::EMPTY_ARRAY
-          access &&= access_scopes.any? do |scopes|
-            scopes.all? { |scope| claims.include?(scope) }
+          authorized &&= fulfills?(auth_scopes) { |scope| claims.include?(scope) }
+        end
+
+        auth_policies = kwargs[:policy]
+        if auth_policies
+          authorized &&= fulfills?(auth_policies) do |scope|
+            if fn = @policies[scope]
+              fn.call(request, member)
+            else
+              false
+            end
           end
         end
 
-        access_policy = kwargs[:policy]
-        if access_policy
-          fn = @policies ? @policies[policy_name] : nil
-          access &&= (fn ? fn.call(request, member) : false)
-        end
-
-        access
+        authorized
       end
 
       def policy(name, &block)
         @policies ||= {}
         @policies[name] = block
+      end
+
+      private
+
+      def fulfills?(or_scopes)
+        or_scopes.any? do |and_scopes|
+          and_scopes.all? { |scope| yield(scope) }
+        end
       end
     end
   end

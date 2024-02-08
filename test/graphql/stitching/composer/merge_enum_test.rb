@@ -89,7 +89,6 @@ describe 'GraphQL::Stitching::Composer, merging enums' do
   end
 
   def test_merges_class_based_enums_with_value_mappings
-    byebug
     supergraph = compose_definitions({ "a" => SchemaAlpha, "b" => SchemaBravo })
 
     assert_equal ["OFF", "ON"], supergraph.schema.types["Toggle"].values.keys.sort

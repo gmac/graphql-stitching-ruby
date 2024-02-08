@@ -132,7 +132,7 @@ client = GraphQL::Stitching::Client.new(locations: {
     executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
   },
   catalog: {
-    schema: GraphQL::Schema.from_definition(shipping_schema),
+    schema: GraphQL::Schema.from_definition(catalog_schema),
     executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
   },
 })
@@ -153,7 +153,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
 
-Each location that provides a unique variant of a type must provide at least one stitching query. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
+Each location that provides a unique variant of a type must provide at least one stitching query for the type. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
 
 ```graphql
 type Product {

@@ -10,12 +10,6 @@ module GraphQL
     class StitchingError < StandardError; end
 
     class << self
-      def access_directive
-        @access_directive ||= "access"
-      end
-
-      attr_writer :access_directive
-
       def visibility_directive
         @visibility_directive ||= "visibility"
       end

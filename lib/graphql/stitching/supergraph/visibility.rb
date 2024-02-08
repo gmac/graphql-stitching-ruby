@@ -2,11 +2,14 @@
 
 module GraphQL::Stitching
   class Supergraph
+    # Adds visibility controls to supergraph schema members.
     module Visibility
       class << self
         # @param schema [GraphQL::Schema] the schema to extend with visibility controls.
         def install(schema, enabled: false)
-          if enabled
+          defines_visibility = schema.directives.key?(GraphQL::Stitching.visibility_directive)
+
+          if defines_visibility
             introspection_types = schema.introspection_system.types.values
             schema.types.each_value do |type|
               next if introspection_types.include?(type)

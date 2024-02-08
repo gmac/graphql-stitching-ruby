@@ -50,7 +50,6 @@ module GraphQL
         query_name: "Query",
         mutation_name: "Mutation",
         stitch_directive_name: GraphQL::Stitching.stitch_directive,
-        access_directive_name: GraphQL::Stitching.access_directive,
         visibility_directive_name: GraphQL::Stitching.visibility_directive,
         description_merger: nil,
         deprecation_merger: nil,
@@ -61,7 +60,6 @@ module GraphQL
         @query_name = query_name
         @mutation_name = mutation_name
         @stitch_directive_name = stitch_directive_name
-        @access_directive_name = access_directive_name
         @visibility_directive_name = visibility_directive_name
         @description_merger = description_merger || BASIC_VALUE_MERGER
         @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
@@ -486,8 +484,7 @@ module GraphQL
             end
           end
 
-          kwarg_merger = case directive_class.graphql_name
-          when @access_directive_name, @visibility_directive_name
+          kwarg_merger = if directive_class.graphql_name == @visibility_directive_name
             PermissionsMerger
           else
             @directive_kwarg_merger

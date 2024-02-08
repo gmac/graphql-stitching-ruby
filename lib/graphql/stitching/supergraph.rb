@@ -82,8 +82,8 @@ module GraphQL
 
       attr_reader :boundaries, :locations_by_type_and_field
 
-      def initialize(schema:, fields: {}, boundaries: {}, executables: {}, visibility: true)
-        @schema = Visibility.install(schema, enabled: visibility)
+      def initialize(schema:, fields: {}, boundaries: {}, executables: {})
+        @schema = Visibility.install(schema)
         @boundaries = boundaries
         @fields_by_type_and_location = nil
         @locations_by_type = nil
@@ -93,6 +93,7 @@ module GraphQL
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
         @static_validator = nil
+        @visibility_guard = nil
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
@@ -170,11 +171,7 @@ module GraphQL
       end
 
       def visibility_guard
-        @visibility_guard ||= Guard.new(scope: Guard::VISIBILITY)
-      end
-
-      def access_guard
-        @access_guard ||= Guard.new(scope: Guard::ACCESS)
+        @visibility_guard ||= Guard.new(scope: GraphQL::Stitching.visibility_directive)
       end
 
       def fields

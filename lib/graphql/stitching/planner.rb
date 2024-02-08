@@ -14,22 +14,16 @@ module GraphQL
         @supergraph = request.supergraph
         @planning_index = ROOT_INDEX
         @steps_by_entrypoint = {}
-        @unauthorized_paths = nil
       end
 
       def perform
         build_root_entrypoints
         expand_abstract_boundaries
-        Plan.new(
-          ops: steps.map(&:to_plan_op),
-          unauthorized_paths: @unauthorized_paths,
-        )
+        Plan.new(ops: steps.map(&:to_plan_op))
       end
 
       def steps
-        @steps_by_entrypoint.values.sort_by!(&:index).tap do |steps|
-          steps.select! { _1.selections.any? }
-        end
+        @steps_by_entrypoint.values.sort_by!(&:index)
       end
 
       private
@@ -194,12 +188,6 @@ module GraphQL
         locale_variables,
         locale_selections = []
       )
-        unless @supergraph.access_guard.authorizes?(@request, parent_type)
-          @unauthorized_paths ||= []
-          @unauthorized_paths << path.dup
-          return []
-        end
-
         # B.1) Expand selections on interface types that do not belong to this location.
         input_selections = expand_interface_selections(current_location, parent_type, input_selections)
 
@@ -225,17 +213,9 @@ module GraphQL
               next
             end
 
-            field_def = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name]
-            unless @supergraph.access_guard.authorizes?(@request, field_def)
-              @unauthorized_paths ||= []
-              @unauthorized_paths << path.dup
-              @unauthorized_paths.last.push(node.alias || node.name)
-              next
-            end
-
             # B.3) Collect all variable definitions used within the filtered selection.
             extract_node_variables(node, locale_variables)
-            field_type = field_def.type.unwrap
+            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
 
             if Util.is_leaf_type?(field_type)
               locale_selections << node

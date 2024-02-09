@@ -11,7 +11,7 @@ module Schemas
 
     class Visibility < GraphQL::Schema::Directive
       graphql_name "visibility"
-      locations FIELD_DEFINITION
+      locations FIELD_DEFINITION, ARGUMENT_DEFINITION, ENUM_VALUE, OBJECT
       argument :scopes, [[String]]
     end
 
@@ -27,6 +27,19 @@ module Schemas
         end
       end
 
+      class Widget < GraphQL::Schema::Object
+        directive(Visibility, scopes: [["a"]])
+        field :id, ID, null: false
+      end
+
+      class Toggle < GraphQL::Schema::Enum
+        value "YES"
+        value "NO"
+        value "MAYBE" do |v|
+          v.directive(Visibility, scopes: [["a"]])
+        end
+      end
+
       class Query < GraphQL::Schema::Object
         field :thing_a, Thing, null: false do
           directive Boundary, key: "id"
@@ -35,6 +48,23 @@ module Schemas
 
         def thing_a(id:)
           { id: id, color: "red", size: 2 }
+        end
+
+        field :widget_a, Widget, null: false
+
+        def widget_a
+          { id: 1 }
+        end
+
+        field :args, String, null: false do
+          argument :id, ID, required: false do
+            directive(Visibility, scopes: [["a"]])
+          end
+          argument :enum, Toggle, required: false
+        end
+
+        def args(id:, enum:)
+          id.to_s
         end
       end
 
@@ -53,6 +83,19 @@ module Schemas
         end
       end
 
+      class Widget < GraphQL::Schema::Object
+        directive(Visibility, scopes: [["b"]])
+        field :id, ID, null: false
+      end
+
+      class Toggle < GraphQL::Schema::Enum
+        value "YES"
+        value "NO"
+        value "MAYBE" do |v|
+          v.directive(Visibility, scopes: [["b"]])
+        end
+      end
+
       class Query < GraphQL::Schema::Object
         field :thing_b, Thing, null: false do
           directive Boundary, key: "id"
@@ -61,6 +104,23 @@ module Schemas
 
         def thing_b(id:)
           { id: id, color: "red", weight: 3 }
+        end
+
+        field :widget_b, Widget, null: false
+
+        def widget_b
+          { id: 1 }
+        end
+
+        field :args, String, null: false do
+          argument :id, ID, required: false do
+            directive(Visibility, scopes: [["b"]])
+          end
+          argument :enum, Toggle, required: false
+        end
+
+        def args(id:, enum:)
+          id.to_s
         end
       end
 

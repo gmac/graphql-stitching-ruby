@@ -245,7 +245,11 @@ module GraphQL
       # ("Type") => ["id", ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
-          @boundaries[type_name].map(&:key).tap(&:uniq!)
+          if type_name == @schema.query.graphql_name
+            GraphQL::Stitching::EMPTY_ARRAY
+          else
+            @boundaries[type_name].map(&:key).tap(&:uniq!)
+          end
         end
       end
 
@@ -262,16 +266,25 @@ module GraphQL
       # For a given type, route from one origin location to one or more remote locations
       # used to connect a partial type across locations via boundary queries
       def route_type_to_locations(type_name, start_location, goal_locations)
-        if possible_keys_for_type(type_name).length > 1
-          # multiple keys use an A* search to traverse intermediary locations
-          return route_type_to_locations_via_search(type_name, start_location, goal_locations)
-        end
+        key_count = possible_keys_for_type(type_name).length
 
-        # types with a single key attribute must all be within a single hop of each other,
-        # so can use a simple match to collect boundaries for the goal locations.
-        @boundaries[type_name].each_with_object({}) do |boundary, memo|
-          if goal_locations.include?(boundary.location)
-            memo[boundary.location] = [boundary]
+        if key_count.zero?
+          # nested root scopes have no boundary keys and just return a location
+          goal_locations.each_with_object({}) do |goal_location, memo|
+            memo[goal_location] = [Boundary.new(location: goal_location)]
+          end
+
+        elsif key_count > 1
+          # multiple keys use an A* search to traverse intermediary locations
+          route_type_to_locations_via_search(type_name, start_location, goal_locations)
+
+        else
+          # types with a single key attribute must all be within a single hop of each other,
+          # so can use a simple match to collect boundaries for the goal locations.
+          @boundaries[type_name].each_with_object({}) do |boundary, memo|
+            if goal_locations.include?(boundary.location)
+              memo[boundary.location] = [boundary]
+            end
           end
         end
       end

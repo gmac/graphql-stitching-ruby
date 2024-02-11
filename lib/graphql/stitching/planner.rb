@@ -276,18 +276,20 @@ module GraphQL
           routes.each_value do |route|
             route.reduce(locale_selections) do |parent_selections, boundary|
               # E.1) Add the key of each boundary query into the prior location's selection set.
-              foreign_key = ExportSelection.key(boundary.key)
-              has_key = false
-              has_typename = false
+              if boundary.key
+                foreign_key = ExportSelection.key(boundary.key)
+                has_key = false
+                has_typename = false
 
-              parent_selections.each do |node|
-                next unless node.is_a?(GraphQL::Language::Nodes::Field)
-                has_key ||= node.alias == foreign_key
-                has_typename ||= node.alias == ExportSelection.typename_node.alias
+                parent_selections.each do |node|
+                  next unless node.is_a?(GraphQL::Language::Nodes::Field)
+                  has_key ||= node.alias == foreign_key
+                  has_typename ||= node.alias == ExportSelection.typename_node.alias
+                end
+
+                parent_selections << ExportSelection.key_node(boundary.key) unless has_key
+                parent_selections << ExportSelection.typename_node unless has_typename
               end
-
-              parent_selections << ExportSelection.key_node(boundary.key) unless has_key
-              parent_selections << ExportSelection.typename_node unless has_typename
 
               # E.2) Add a planner step for each new entrypoint location.
               add_step(
@@ -296,7 +298,7 @@ module GraphQL
                 parent_type: parent_type,
                 selections: remote_selections_by_location[boundary.location] || [],
                 path: path.dup,
-                boundary: boundary,
+                boundary: boundary.key ? boundary : nil,
               ).selections
             end
           end

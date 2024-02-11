@@ -20,10 +20,22 @@ module GraphQL::Stitching
         result = @executor.request.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request)
         @executor.query_count += 1
 
-        @executor.data.merge!(result["data"]) if result["data"]
+        if result["data"]
+          if op.path.any?
+            # Nested root scopes must expand their pathed origin set
+            origin_set = op.path.reduce([@executor.data]) do |set, ns|
+              set.flat_map { |obj| obj && obj[ns] }.tap(&:compact!)
+            end
+
+            origin_set.each { _1.merge!(result["data"]) }
+          else
+            # Actual root scopes merge directly into results data
+            @executor.data.merge!(result["data"])
+          end
+        end
+
         if result["errors"]&.any?
-          result["errors"].each { _1.delete("locations") }
-          @executor.errors.concat(result["errors"])
+          @executor.errors.concat(format_errors!(result["errors"], op.path))
         end
 
         ops.map(&:step)
@@ -50,6 +62,16 @@ module GraphQL::Stitching
 
         doc << op.selections
         doc
+      end
+
+      # Format response errors without a document location (because it won't match the request doc),
+      # and prepend any insertion path for the scope into error paths.
+      def format_errors!(errors, path)
+        errors.each do |err|
+          err.delete("locations")
+          err["path"].unshift(*path) if err["path"] && path.any?
+        end
+        errors
       end
     end
   end

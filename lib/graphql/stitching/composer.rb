@@ -556,18 +556,33 @@ module GraphQL
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
-            boundary_type_name = field_candidate.type.unwrap.graphql_name
+            boundary_type = field_candidate.type.unwrap
             boundary_structure = Util.flatten_type_structure(field_candidate.type)
             boundary_kwargs = @stitch_directives["#{location}.#{field_name}"] || []
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              boundary_kwargs << directive.arguments.keyword_arguments
+              kwargs = directive.arguments.keyword_arguments
+              type_constraint = kwargs[:__typename]
+
+              if type_constraint
+                if boundary_type.kind.abstract?
+                  if boundary_type.possible_types.find { _1.graphql_name == type_constraint }
+                    kwargs = { type_name: type_constraint }.merge!(kwargs)
+                  else
+                    raise ComposerError, "Type `#{type_constraint}` is not a possible type for query `#{field_name}`."
+                  end
+                else
+                  raise ComposerError, "The @stitch directive only accepts a __typename for abstract resolvers."
+                end
+              end
+
+              boundary_kwargs << kwargs
             end
 
             boundary_kwargs.each do |kwargs|
               key = kwargs.fetch(:key)
-              impl_type_name = kwargs.fetch(:type_name, boundary_type_name)
+              impl_type_name = kwargs.fetch(:type_name, boundary_type.graphql_name)
               key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
 
               if key_selections.length != 1
@@ -577,12 +592,13 @@ module GraphQL
               argument_name = key_selections[0].alias
               argument_name ||= if field_candidate.arguments.size == 1
                 field_candidate.arguments.keys.first
+              elsif field_candidate.arguments[key]
+                key
               end
 
               argument = field_candidate.arguments[argument_name]
               unless argument
-                # contextualize this... "boundaries with multiple args need mapping aliases."
-                raise ComposerError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
+                raise ComposerError, "No boundary argument matched for #{type_name}.#{field_name}.#{argument_name}. Specify a key alias."
               end
 
               argument_structure = Util.flatten_type_structure(argument.type)

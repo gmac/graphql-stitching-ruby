@@ -180,7 +180,7 @@ See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
 
 #### Abstract queries
 
-It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types. For interfaces, the key selection should match a field within the interface. For unions, all possible types must implement the key selection individually.
+It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types by default, each of which must implement the named key selection.
 
 ```graphql
 interface Node {
@@ -195,15 +195,31 @@ type Query {
 }
 ```
 
+To customize which types an abstract query provides, you may extend the `@stitch` directive with a `__typename` argument to target a specific type. This can be repeated to target multiple types.
+
+```graphql
+directive @stitch(key: String!, __typename: String) repeatable on FIELD_DEFINITION
+
+type Product { id: ID! }
+type Order { id: ID! }
+union Entity = Product | Order
+
+type Query {
+  entity(key: ID!): Entity @stitch(key: "id", __typename: "Product")
+}
+```
+
 #### Multiple query arguments
 
-Stitching infers which argument to use for queries with a single argument. For queries that accept multiple arguments, the key must provide an argument mapping specified as `"<arg>:<key>"`. Note the `"id:id"` key:
+Stitching infers which argument to use for queries with a single argument. For queries that accept multiple arguments, the key may provide an argument mapping specified as `"<arg>:<key>"`. Note the `"id:id"` key:
 
 ```graphql
 type Query {
   product(id: ID, upc: ID): Product @stitch(key: "id:id")
 }
 ```
+
+This argument mapping is optional when the key name matches its intended argument.
 
 #### Multiple type keys
 
@@ -236,7 +252,7 @@ type Product {
   upc: ID!
 }
 type Query {
-  product(id: ID, upc: ID): Product @stitch(key: "id:id") @stitch(key: "upc:upc")
+  product(id: ID, upc: ID): Product @stitch(key: "id") @stitch(key: "upc")
 }
 ```
 

@@ -50,8 +50,6 @@ module GraphQL
       def initialize(
         query_name: "Query",
         mutation_name: "Mutation",
-        stitch_directive_name: GraphQL::Stitching.stitch_directive,
-        visibility_directive_name: GraphQL::Stitching.visibility_directive,
         description_merger: nil,
         deprecation_merger: nil,
         default_value_merger: nil,
@@ -60,8 +58,6 @@ module GraphQL
       )
         @query_name = query_name
         @mutation_name = mutation_name
-        @stitch_directive_name = stitch_directive_name
-        @visibility_directive_name = visibility_directive_name
         @description_merger = description_merger || BASIC_VALUE_MERGER
         @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
@@ -457,7 +453,7 @@ module GraphQL
             end
           end
 
-          kwarg_merger = if directive_class.graphql_name == @visibility_directive_name
+          kwarg_merger = if directive_class.graphql_name == GraphQL::Stitching.visibility_directive
             PermissionsMerger
           else
             @directive_kwarg_merger
@@ -545,7 +541,7 @@ module GraphQL
             boundary_configs = @boundary_configs.fetch("#{location}.#{field_name}",  [])
 
             field_candidate.directives.each do |directive|
-              next unless directive.graphql_name == @stitch_directive_name
+              next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
               boundary_configs << BoundaryConfig.from_kwargs(directive.arguments.keyword_arguments)
             end
 

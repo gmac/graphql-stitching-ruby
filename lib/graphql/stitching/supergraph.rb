@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "./supergraph/guard"
 require_relative "./supergraph/resolver_directive"
 require_relative "./supergraph/source_directive"
+require_relative "./supergraph/visibility"
 
 module GraphQL
   module Stitching
@@ -81,9 +83,7 @@ module GraphQL
       attr_reader :boundaries, :locations_by_type_and_field
 
       def initialize(schema:, fields: {}, boundaries: {}, executables: {})
-        @schema = schema
-        @schema.use(GraphQL::Schema::AlwaysVisible)
-
+        @schema = Visibility.install(schema)
         @boundaries = boundaries
         @fields_by_type_and_location = nil
         @locations_by_type = nil
@@ -93,6 +93,7 @@ module GraphQL
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
         @static_validator = nil
+        @visibility_guard = nil
 
         # add introspection types into the fields mapping
         @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
@@ -167,6 +168,10 @@ module GraphQL
       # @return [GraphQL::StaticValidation::Validator] static validator for the supergraph schema.
       def static_validator
         @static_validator ||= @schema.static_validator
+      end
+
+      def visibility_guard
+        @visibility_guard ||= Guard.new(scope: GraphQL::Stitching.visibility_directive)
       end
 
       def fields

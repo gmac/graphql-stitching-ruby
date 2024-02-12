@@ -24,13 +24,17 @@ module GraphQL
       # @return [GraphQL::Schema::Warden] a visibility warden for this request.
       attr_reader :warden
 
+      # @return [Array<String>, nil] an array of visibility claims granted to the request.
+      attr_reader :visibility_claims
+
       # Creates a new supergraph request.
       # @param supergraph [Supergraph] supergraph instance that resolves the request.
       # @param document [String, GraphQL::Language::Nodes::Document] the request string or parsed AST.
       # @param operation_name [String, nil] operation name selected for the request.
       # @param variables [Hash, nil] input variables for the request.
       # @param context [Hash, nil] a contextual object passed through resolver flows.
-      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil)
+      # @param visibility_claims [Array<String>, nil] an array of visibility claims granted to the request.π
+      def initialize(supergraph, document, operation_name: nil, variables: nil, context: nil, visibility_claims: nil)
         @supergraph = supergraph
         @string = nil
         @digest = nil
@@ -56,6 +60,8 @@ module GraphQL
         @warden = @query.warden
         @context = @query.context
         @context[:request] = self
+
+        @visibility_claims = visibility_claims
       end
 
       # @return [String] the original document string, or a print of the parsed AST document.

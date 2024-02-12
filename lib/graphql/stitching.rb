@@ -10,13 +10,19 @@ module GraphQL
     class StitchingError < StandardError; end
 
     class << self
+      def visibility_directive
+        @visibility_directive ||= "visibility"
+      end
+
+      attr_writer :visibility_directive
+
       def stitch_directive
         @stitch_directive ||= "stitch"
       end
 
       attr_writer :stitch_directive
 
-      def stitching_directive_names
+      def composition_only_directive_names
         [stitch_directive]
       end
     end

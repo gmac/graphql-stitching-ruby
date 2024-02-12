@@ -51,19 +51,6 @@ describe 'GraphQL::Stitching::Composer, merging permissions' do
     assert_equal expected, result
   end
 
-  def test_merges_access_directive_scopes
-    dir = "directive @access(scopes: [[String!]!], policies: [[String!]!]) on FIELD_DEFINITION"
-
-    supergraph = compose_definitions({
-      "a" => dir + %| type Query { test: String @access(scopes: [["a", "b"], ["c"]], policies: [["a", "b"]]) }|,
-      "b" => dir + %| type Query { test: String @access(scopes: [["x"], ["y"]], policies: [["b", "c"]]) }|,
-    })
-
-    args = supergraph.schema.query.get_field("test").directives.first.arguments.keyword_arguments
-    assert_equal [["a", "b", "x"], ["a", "b", "y"], ["c", "x"], ["c", "y"]], args[:scopes]
-    assert_equal [["a", "b", "c"]], args[:policies]
-  end
-
   def test_merges_visibility_directive_scopes
     dir = "directive @visibility(scopes: [[String!]!], policies: [[String!]!]) on FIELD_DEFINITION"
 

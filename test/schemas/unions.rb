@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module TestSchema
+module Schemas
   module Unions
     class Boundary < GraphQL::Schema::Directive
       graphql_name "stitch"

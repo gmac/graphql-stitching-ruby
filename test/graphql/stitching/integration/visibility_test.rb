@@ -11,76 +11,76 @@ describe 'GraphQL::Stitching, visibility' do
     })
   end
 
-  # def test_grants_field_visibility_by_single_schema_permission
-  #   query = %|{ thingA(id: "1") { id size } }|
+  def test_grants_field_visibility_by_single_schema_permission
+    query = %|{ thingA(id: "1") { id size } }|
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
-  #   assert_no_validation_errors(request)
-  # end
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
+    assert_no_validation_errors(request)
+  end
 
-  # def test_grants_field_visibility_by_joint_schema_permission
-  #   query = %|{ thingA(id: "1") { id color } }|
+  def test_grants_field_visibility_by_joint_schema_permission
+    query = %|{ thingA(id: "1") { id color } }|
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
-  #   assert_no_validation_errors(request)
-  # end
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
+    assert_no_validation_errors(request)
+  end
 
-  # def test_grants_field_visibility_by_alternate_schema_permissions
-  #   query = %|{ thingA(id: "1") { id color } }|
+  def test_grants_field_visibility_by_alternate_schema_permissions
+    query = %|{ thingA(id: "1") { id color } }|
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
-  #   assert_no_validation_errors(request)
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
+    assert_no_validation_errors(request)
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["c"])
-  #   assert_no_validation_errors(request)
-  # end
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["c"])
+    assert_no_validation_errors(request)
+  end
 
-  # def test_grants_type_visibility_joint_schema_permissions
-  #   query = %|{ widgetA{ id } }|
+  def test_grants_type_visibility_joint_schema_permissions
+    query = %|{ widgetA{ id } }|
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
-  #   assert_validation_error(request, "undefinedField")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
+    assert_validation_error(request, "undefinedField")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
-  #   assert_no_validation_errors(request)
-  # end
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
+    assert_no_validation_errors(request)
+  end
 
-  # def test_grants_argument_visibility_joint_schema_permissions
-  #   query = %|{ args(id: "123") }|
+  def test_grants_argument_visibility_joint_schema_permissions
+    query = %|{ args(id: "123") }|
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
-  #   assert_validation_error(request, "argumentNotAccepted")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
+    assert_validation_error(request, "argumentNotAccepted")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
-  #   assert_validation_error(request, "argumentNotAccepted")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a"])
+    assert_validation_error(request, "argumentNotAccepted")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
-  #   assert_validation_error(request, "argumentNotAccepted")
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["b"])
+    assert_validation_error(request, "argumentNotAccepted")
 
-  #   request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
-  #   assert_no_validation_errors(request)
-  # end
+    request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
+    assert_no_validation_errors(request)
+  end
 
   def test_grants_enum_value_visibility_joint_schema_permissions
-    query = %|{ args(enum: "MAYBE") }|
+    query = %|{ args(enum: MAYBE) }|
 
     request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: [])
     assert_validation_error(request, "argumentLiteralsIncompatible")
@@ -92,7 +92,6 @@ describe 'GraphQL::Stitching, visibility' do
     assert_validation_error(request, "argumentLiteralsIncompatible")
 
     request = GraphQL::Stitching::Request.new(@supergraph, query, visibility_claims: ["a", "b"])
-    puts request.validate.first.message
     assert_no_validation_errors(request)
   end
 

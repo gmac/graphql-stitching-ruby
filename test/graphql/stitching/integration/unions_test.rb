@@ -6,9 +6,9 @@ require_relative "../../../schemas/unions"
 describe 'GraphQL::Stitching, unions' do
   def setup
     @supergraph = compose_definitions({
-      "a" => TestSchema::Unions::SchemaA,
-      "b" => TestSchema::Unions::SchemaB,
-      "c" => TestSchema::Unions::SchemaC,
+      "a" => Schemas::Unions::SchemaA,
+      "b" => Schemas::Unions::SchemaB,
+      "c" => Schemas::Unions::SchemaC,
     })
   end
 

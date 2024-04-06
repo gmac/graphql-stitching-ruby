@@ -3,7 +3,7 @@
 require_relative "./composer/base_validator"
 require_relative "./composer/validate_interfaces"
 require_relative "./composer/validate_boundaries"
-require_relative "./composer/static_config"
+require_relative "./composer/boundary_config"
 
 module GraphQL
   module Stitching
@@ -62,7 +62,7 @@ module GraphQL
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
         @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
-        @stitch_directives = {}
+        @boundary_configs = {}
 
         @field_map = nil
         @boundary_map = nil
@@ -188,13 +188,8 @@ module GraphQL
             raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
-          if config = StaticConfig.extract_directive_assignments(schema, location, input[:stitch])
-            @stitch_directives.merge!(config)
-          end
-
-          if config = StaticConfig.extract_federation_entities(schema, location)
-            @stitch_directives.merge!(config)
-          end
+          @boundary_configs.merge!(BoundaryConfig.extract_directive_assignments(schema, location, input[:stitch]))
+          @boundary_configs.merge!(BoundaryConfig.extract_federation_entities(schema, location))
 
           schemas[location.to_s] = schema
           executables[location.to_s] = input[:executable] || schema
@@ -534,19 +529,17 @@ module GraphQL
       def extract_boundaries(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
-            boundary_type_name = field_candidate.type.unwrap.graphql_name
+            boundary_type = field_candidate.type.unwrap
             boundary_structure = Util.flatten_type_structure(field_candidate.type)
-            boundary_kwargs = @stitch_directives["#{location}.#{field_name}"] || []
+            boundary_configs = @boundary_configs.fetch("#{location}.#{field_name}",  [])
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              boundary_kwargs << directive.arguments.keyword_arguments
+              boundary_configs << BoundaryConfig.from_kwargs(directive.arguments.keyword_arguments)
             end
 
-            boundary_kwargs.each do |kwargs|
-              key = kwargs.fetch(:key)
-              impl_type_name = kwargs.fetch(:type_name, boundary_type_name)
-              key_selections = GraphQL.parse("{ #{key} }").definitions[0].selections
+            boundary_configs.each do |config|
+              key_selections = GraphQL.parse("{ #{config.key} }").definitions[0].selections
 
               if key_selections.length != 1
                 raise ComposerError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
@@ -555,6 +548,8 @@ module GraphQL
               argument_name = key_selections[0].alias
               argument_name ||= if field_candidate.arguments.size == 1
                 field_candidate.arguments.keys.first
+              elsif field_candidate.arguments[config.key]
+                config.key
               end
 
               argument = field_candidate.arguments[argument_name]
@@ -568,15 +563,26 @@ module GraphQL
                 raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
               end
 
-              @boundary_map[impl_type_name] ||= []
-              @boundary_map[impl_type_name] << Boundary.new(
+              boundary_type_name = if config.type_name
+                if !boundary_type.kind.abstract?
+                  raise ComposerError, "Resolver config may only specify a type name for abstract resolvers."
+                elsif !boundary_type.possible_types.find { _1.graphql_name == config.type_name }
+                  raise ComposerError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
+                end
+                config.type_name
+              else
+                boundary_type.graphql_name
+              end
+
+              @boundary_map[boundary_type_name] ||= []
+              @boundary_map[boundary_type_name] << Boundary.new(
                 location: location,
-                type_name: impl_type_name,
+                type_name: boundary_type_name,
                 key: key_selections[0].name,
                 field: field_candidate.name,
                 arg: argument_name,
                 list: boundary_structure.first.list?,
-                federation: kwargs[:federation] || false,
+                federation: config.federation,
               )
             end
           end

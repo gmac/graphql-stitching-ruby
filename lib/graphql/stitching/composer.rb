@@ -145,7 +145,8 @@ module GraphQL
 
         builder = self
         schema = Class.new(GraphQL::Schema) do
-          orphan_types schema_types.values
+          add_type_and_traverse(schema_types.values, root: false)
+          orphan_types(schema_types.values.select { |t| t.respond_to?(:kind) && t.kind.object? })
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
           directives builder.schema_directives.values

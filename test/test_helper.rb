@@ -58,11 +58,12 @@ def supergraph_from_schema(schema, fields: {}, boundaries: {}, executables: {})
   )
 end
 
-def plan_and_execute(supergraph, query, variables={}, raw: false)
+def plan_and_execute(supergraph, query, variables={}, visibility_claims: nil, raw: false)
   request = GraphQL::Stitching::Request.new(
     supergraph,
     query,
     variables: variables,
+    visibility_claims: visibility_claims,
   )
 
   plan = request.plan

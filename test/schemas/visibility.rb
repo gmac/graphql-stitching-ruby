@@ -16,6 +16,24 @@ module Schemas
     end
 
     class Alpha < GraphQL::Schema
+      module Node
+        include GraphQL::Schema::Interface
+        field :id, ID, null: false
+        field :color, String, null: false
+      end
+
+      class Apple < GraphQL::Schema::Object
+        implements Node
+        field :id, ID, null: false
+        field :color, String, null: false
+      end
+
+      class Banana < GraphQL::Schema::Object
+        implements Node
+        field :id, ID, null: false
+        field :color, String, null: false
+      end
+
       class Thing < GraphQL::Schema::Object
         field :id, ID, null: false
         field :color, String, null: false do |f|
@@ -41,7 +59,16 @@ module Schemas
       end
 
       class Query < GraphQL::Schema::Object
-        field :thing_a, Thing, null: false do
+        field :node_a, Node, null: true do
+          directive Boundary, key: "id"
+          argument :id, ID, required: true
+        end
+
+        def node_a(id:)
+          { id: id, color: "red" }
+        end
+
+        field :thing_a, Thing, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
@@ -68,10 +95,31 @@ module Schemas
         end
       end
 
+      def self.resolve_type(_type, _obj, _ctx)
+        Apple
+      end
+
       query Query
     end
 
     class Bravo < GraphQL::Schema
+      module Node
+        include GraphQL::Schema::Interface
+        field :id, ID, null: false
+      end
+
+      class Apple < GraphQL::Schema::Object
+        implements Node
+        field :id, ID, null: false
+        field :color, String, null: false
+      end
+
+      class Banana < GraphQL::Schema::Object
+        implements Node
+        field :id, ID, null: false
+        field :color, String, null: false
+      end
+
       class Thing < GraphQL::Schema::Object
         field :id, ID, null: false
         field :color, String, null: false do |f|
@@ -97,7 +145,16 @@ module Schemas
       end
 
       class Query < GraphQL::Schema::Object
-        field :thing_b, Thing, null: false do
+        field :node_b, Node, null: true do
+          directive Boundary, key: "id"
+          argument :id, ID, required: true
+        end
+
+        def node_b(id:)
+          { id: id, color: "yellow" }
+        end
+
+        field :thing_b, Thing, null: true do
           directive Boundary, key: "id"
           argument :id, ID, required: true
         end
@@ -122,6 +179,10 @@ module Schemas
         def args(id:, enum:)
           id.to_s
         end
+      end
+
+      def self.resolve_type(_type, _obj, _ctx)
+        Apple
       end
 
       query Query

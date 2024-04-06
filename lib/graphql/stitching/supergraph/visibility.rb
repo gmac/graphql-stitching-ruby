@@ -38,7 +38,9 @@ module GraphQL::Stitching
 
       def visible?(context)
         if request = context[:request]
-          request.supergraph.visibility_guard.authorizes?(request, self)
+          result = request.supergraph.visibility_guard.authorizes?(request, self)
+          puts self.graphql_name + " / #{result}"
+          result
         else
           true
         end

@@ -9,14 +9,13 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Multiple keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
-- Type merging via arbitrary queries or federation `_entities` protocol.
 - File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
 - Subscriptions, defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. While Ruby is not the fastest language for a purely high-throughput API gateway, the opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language.
+This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput API gateway, consider not using Ruby.
 
 ## Getting started
 
@@ -34,7 +33,7 @@ require "graphql/stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided [`Client`](./docs/client.md) component that wraps a stitched graph in an executable workflow with [caching hooks](./docs/client.md#cache-hooks):
+The quickest way to start is to use the provided [`Client`](./docs/client.md) component that wraps a stitched graph in an executable workflow (with optional query plan caching hooks):
 
 ```ruby
 movies_schema = <<~GRAPHQL
@@ -72,7 +71,7 @@ result = client.execute(
 )
 ```
 
-Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations. See [composer docs](./docs/composer.md#merge-patterns) for more information on how schemas get merged.
+Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations via [executables](#executables).
 
 While the `Client` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
 
@@ -87,11 +86,11 @@ While the `Client` constructor is an easy quick start, the library also has seve
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location. This can be done using [arbitrary queries](#merged-types-via-arbitrary-queries) or [federation entities](#merged-types-via-federation-entities).
+To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
 
-### Merged types via arbitrary queries
+### Merged type resolver queries
 
-Types can merge through arbitrary queries using the `@stitch` directive:
+Types merge through resolver queries identified by a `@stitch` directive:
 
 ```graphql
 directive @stitch(key: String!) repeatable on FIELD_DEFINITION
@@ -299,65 +298,6 @@ The library is configured to use a `@stitch` directive by default. You may custo
 GraphQL::Stitching.stitch_directive = "merge"
 ```
 
-### Merged types via Federation entities
-
-The [Apollo Federation specification](https://www.apollographql.com/docs/federation/subgraph-spec/) defines a standard interface for accessing merged type variants across locations. Stitching can utilize a _subset_ of this interface to facilitate basic type merging. The following spec is supported:
-
-- `@key(fields: "id")` (repeatable) specifies a key field for an object type. The key `fields` argument may only contain one field selection.
-- `_Entity` is a union type that must contain all types that implement a `@key`.
-- `_Any` is a scalar that recieves raw JSON objects; each object representation contains a `__typename` and the type's key field.
-- `_entities(representations: [_Any!]!): [_Entity]!` is a root query for local entity types.
-
-The composer will automatcially detect and stitch schemas with an `_entities` query, for example:
-
-```ruby
-products_schema = <<~GRAPHQL
-  directive @key(fields: String!) repeatable on OBJECT
-
-  type Product @key(fields: "id") {
-    id: ID!
-    name: String!
-  }
-
-  union _Entity = Product
-  scalar _Any
-
-  type Query {
-    user(id: ID!): User
-    _entities(representations: [_Any!]!): [_Entity]!
-  }
-GRAPHQL
-
-catalog_schema = <<~GRAPHQL
-  directive @key(fields: String!) repeatable on OBJECT
-
-  type Product @key(fields: "id") {
-    id: ID!
-    price: Float!
-  }
-
-  union _Entity = Product
-  scalar _Any
-
-  type Query {
-    _entities(representations: [_Any!]!): [_Entity]!
-  }
-GRAPHQL
-
-client = GraphQL::Stitching::Client.new(locations: {
-  products: {
-    schema: GraphQL::Schema.from_definition(products_schema),
-    executable: ...,
-  },
-  catalog: {
-    schema: GraphQL::Schema.from_definition(catalog_schema),
-    executable: ...,
-  },
-})
-```
-
-It's perfectly fine to mix and match schemas that implement an `_entities` query with schemas that implement `@stitch` directives; the protocols achieve the same result. Note that stitching is much simpler than Apollo Federation by design, and that Federation's advanced routing features (such as the `@requires` and `@external` directives) will not work with stitching.
-
 ## Executables
 
 An executable resource performs location-specific GraphQL requests. Executables may be `GraphQL::Schema` classes, or any object that responds to `.call(request, source, variables)` and returns a raw GraphQL response:
@@ -427,6 +367,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 - [Modeling foreign keys for stitching](./docs/mechanics.md##modeling-foreign-keys-for-stitching)
 - [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
+- [Schema composition merge patterns](./docs/composer.md#merge-patterns)
 - [Field selection routing](./docs/mechanics.md#field-selection-routing)
 - [Root selection routing](./docs/mechanics.md#root-selection-routing)
 - [Stitched errors](./docs/mechanics.md#stitched-errors)

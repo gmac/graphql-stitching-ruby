@@ -3,6 +3,7 @@
 require_relative "./composer/base_validator"
 require_relative "./composer/validate_interfaces"
 require_relative "./composer/validate_boundaries"
+require_relative "./composer/static_config"
 
 module GraphQL
   module Stitching
@@ -187,36 +188,12 @@ module GraphQL
             raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
-          input.fetch(:stitch, GraphQL::Stitching::EMPTY_ARRAY).each do |dir|
-            type = dir[:parent_type_name] ? schema.types[dir[:parent_type_name]] : schema.query
-            raise ComposerError, "Invalid stitch directive type `#{dir[:parent_type_name]}`" unless type
-
-            field = type.fields[dir[:field_name]]
-            raise ComposerError, "Invalid stitch directive field `#{dir[:field_name]}`" unless field
-
-            field_path = "#{location}.#{field.name}"
-            @stitch_directives[field_path] ||= []
-            @stitch_directives[field_path] << dir.slice(:key, :type_name)
+          if config = StaticConfig.extract_directive_assignments(schema, location, input[:stitch])
+            @stitch_directives.merge!(config)
           end
 
-          federation_entity_type = schema.types["_Entity"]
-          if federation_entity_type && federation_entity_type.kind.union? && schema.query.fields["_entities"]&.type&.unwrap == federation_entity_type
-            schema.possible_types(federation_entity_type).each do |entity_type|
-              entity_type.directives.each do |directive|
-                next unless directive.graphql_name == "key"
-
-                key = directive.arguments.keyword_arguments.fetch(:fields).strip
-                raise ComposerError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
-
-                field_path = "#{location}._entities"
-                @stitch_directives[field_path] ||= []
-                @stitch_directives[field_path] << {
-                  key: key,
-                  type_name: entity_type.graphql_name,
-                  federation: true,
-                }
-              end
-            end
+          if config = StaticConfig.extract_federation_entities(schema, location)
+            @stitch_directives.merge!(config)
           end
 
           schemas[location.to_s] = schema

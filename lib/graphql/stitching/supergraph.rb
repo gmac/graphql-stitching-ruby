@@ -31,7 +31,7 @@ module GraphQL
               kwargs = directive.arguments.keyword_arguments
               boundary_map[type_name] ||= []
               boundary_map[type_name] << Boundary.new(
-                type_name: type_name,
+                type_name: kwargs.fetch(:type_name, type_name),
                 location: kwargs[:location],
                 key: kwargs[:key],
                 field: kwargs[:field],
@@ -134,6 +134,7 @@ module GraphQL
               end
 
               type.directive(ResolverDirective, **{
+                type_name: (boundary.type_name if boundary.type_name != type_name),
                 location: boundary.location,
                 key: boundary.key,
                 field: boundary.field,

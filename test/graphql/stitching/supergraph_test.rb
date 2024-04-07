@@ -314,8 +314,9 @@ describe "GraphQL::Stitching::Supergraph" do
   describe "#to_definition / #from_definition" do
     def setup
       alpha = %|
-        type T { id:ID! a:String }
-        type Query { a(id:ID!):T @stitch(key: "id") }
+        type T implements A { id:ID! a:String }
+        interface A { id:ID! }
+        type Query { a(id:ID!):A @stitch(key: "id") }
       |
       bravo = %|
         type T { id:ID! b:String }
@@ -331,13 +332,16 @@ describe "GraphQL::Stitching::Supergraph" do
       assert @schema_sdl.include?("directive @resolver")
       assert @schema_sdl.include?("directive @source")
       assert @schema_sdl.include?(squish_string(%|
-        type T @resolver(location: "alpha", key: "id", field: "a", arg: "id")
-               @resolver(location: "bravo", key: "id", field: "b", arg: "id") {
+        interface A @resolver(location: "alpha", key: "id", field: "a", arg: "id") {
+      |))
+      assert @schema_sdl.include?(squish_string(%|
+        type T implements A @resolver(location: "bravo", key: "id", field: "b", arg: "id")
+                            @resolver(typeName: "A", location: "alpha", key: "id", field: "a", arg: "id") {
       |))
       assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
       assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)
       assert @schema_sdl.include?(%|b: String @source(location: "bravo")|)
-      assert @schema_sdl.include?(%|a(id: ID!): T @source(location: "alpha")|)
+      assert @schema_sdl.include?(%|a(id: ID!): A @source(location: "alpha")|)
       assert @schema_sdl.include?(%|b(id: ID!): T @source(location: "bravo")|)
     end
 

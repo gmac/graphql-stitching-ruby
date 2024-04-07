@@ -5,6 +5,7 @@ module GraphQL::Stitching
     class ResolverDirective < GraphQL::Schema::Directive
       graphql_name "resolver"
       locations OBJECT, INTERFACE, UNION
+      argument :type_name, String, required: false
       argument :location, String, required: true
       argument :key, String, required: true
       argument :field, String, required: true

@@ -10,12 +10,13 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
 - File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
+- Tested with all minor versions of `graphql-ruby`.
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
 - Subscriptions, defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput API gateway, consider not using Ruby.
+This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-performance API gateway, consider not using Ruby.
 
 ## Getting started
 
@@ -179,7 +180,7 @@ See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
 
 #### Abstract queries
 
-It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types. For interfaces, the key selection should match a field within the interface. For unions, all possible types must implement the key selection individually.
+It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types by default, each of which must implement the key.
 
 ```graphql
 interface Node {
@@ -194,13 +195,33 @@ type Query {
 }
 ```
 
-#### Multiple query arguments
-
-Stitching infers which argument to use for queries with a single argument. For queries that accept multiple arguments, the key must provide an argument mapping specified as `"<arg>:<key>"`. Note the `"id:id"` key:
+To customize which types an abstract query provides and their respective keys, you may extend the `@stitch` directive with a `typeName` constraint. This can be repeated to select multiple types.
 
 ```graphql
+directive @stitch(key: String!, typeName: String) repeatable on FIELD_DEFINITION
+
+type Product { sku: ID! }
+type Order { id: ID! }
+type Customer { id: ID! } # << not stitched
+union Entity = Product | Order | Customer
+
 type Query {
-  product(id: ID, upc: ID): Product @stitch(key: "id:id")
+  entity(key: ID!): Entity
+    @stitch(key: "sku", typeName: "Product")
+    @stitch(key: "id", typeName: "Order")
+}
+```
+
+#### Multiple query arguments
+
+Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key may provide an argument mapping specified as `"<arg>:<key>"`.
+
+```graphql
+type Product {
+  id: ID!
+}
+type Query {
+  product(by_id: ID, by_sku: ID): Product @stitch(key: "by_id:id")
 }
 ```
 
@@ -210,8 +231,8 @@ A type may exist in multiple locations across the graph using different keys, fo
 
 ```graphql
 type Product { id:ID! }          # storefronts location
-type Product { id:ID! upc:ID! }  # products location
-type Product { upc:ID! }         # catelog location
+type Product { id:ID! sku:ID! }  # products location
+type Product { sku:ID! }         # catelog location
 ```
 
 In the above graph, the `storefronts` and `catelog` locations have different keys that join through an intermediary. This pattern is perfectly valid and resolvable as long as the intermediary provides stitching queries for each possible key:
@@ -219,11 +240,11 @@ In the above graph, the `storefronts` and `catelog` locations have different key
 ```graphql
 type Product {
   id: ID!
-  upc: ID!
+  sku: ID!
 }
 type Query {
   productById(id: ID!): Product @stitch(key: "id")
-  productByUpc(upc: ID!): Product @stitch(key: "upc")
+  productByUpc(sku: ID!): Product @stitch(key: "sku")
 }
 ```
 
@@ -232,10 +253,10 @@ The `@stitch` directive is also repeatable, allowing a single query to associate
 ```graphql
 type Product {
   id: ID!
-  upc: ID!
+  sku: ID!
 }
 type Query {
-  product(id: ID, upc: ID): Product @stitch(key: "id:id") @stitch(key: "upc:upc")
+  product(id: ID, sku: ID): Product @stitch(key: "id") @stitch(key: "sku")
 }
 ```
 
@@ -269,11 +290,11 @@ A clean SDL string may also have stitching directives applied via static configu
 sdl_string = <<~GRAPHQL
   type Product {
     id: ID!
-    upc: ID!
+    sku: ID!
   }
   type Query {
     productById(id: ID!): Product
-    productByUpc(upc: ID!): Product
+    productByUpc(sku: ID!): Product
   }
 GRAPHQL
 
@@ -283,7 +304,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
     executable: ->() { ... },
     stitch: [
       { field_name: "productById", key: "id" },
-      { field_name: "productByUpc", key: "upc" },
+      { field_name: "productByUpc", key: "sku" },
     ]
   },
   # ...

@@ -16,7 +16,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`).
 - Subscriptions, defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput API gateway, consider not using Ruby.
+This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-performance API gateway, consider not using Ruby.
 
 ## Getting started
 
@@ -195,7 +195,7 @@ type Query {
 }
 ```
 
-To customize which types an abstract query provides and their respective keys, you may extend the `@stitch` directive with a `typeName` argument. This can be repeated to target multiple types.
+To customize which types an abstract query provides and their respective keys, you may extend the `@stitch` directive with a `typeName` constraint. This can be repeated to select multiple types.
 
 ```graphql
 directive @stitch(key: String!, typeName: String) repeatable on FIELD_DEFINITION

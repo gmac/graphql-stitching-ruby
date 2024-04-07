@@ -314,9 +314,9 @@ describe "GraphQL::Stitching::Supergraph" do
   describe "#to_definition / #from_definition" do
     def setup
       alpha = %|
-        type T implements A { id:ID! a:String }
-        interface A { id:ID! }
-        type Query { a(id:ID!):A @stitch(key: "id") }
+        interface I { id:ID! }
+        type T implements I { id:ID! a:String }
+        type Query { a(id:ID!):I @stitch(key: "id") }
       |
       bravo = %|
         type T { id:ID! b:String }
@@ -332,16 +332,16 @@ describe "GraphQL::Stitching::Supergraph" do
       assert @schema_sdl.include?("directive @resolver")
       assert @schema_sdl.include?("directive @source")
       assert @schema_sdl.include?(squish_string(%|
-        interface A @resolver(location: "alpha", key: "id", field: "a", arg: "id") {
+        interface I @resolver(location: "alpha", key: "id", field: "a", arg: "id") {
       |))
       assert @schema_sdl.include?(squish_string(%|
-        type T implements A @resolver(location: "bravo", key: "id", field: "b", arg: "id")
-                            @resolver(typeName: "A", location: "alpha", key: "id", field: "a", arg: "id") {
+        type T implements I @resolver(location: "bravo", key: "id", field: "b", arg: "id")
+                            @resolver(typeName: "I", location: "alpha", key: "id", field: "a", arg: "id") {
       |))
       assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
       assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)
       assert @schema_sdl.include?(%|b: String @source(location: "bravo")|)
-      assert @schema_sdl.include?(%|a(id: ID!): A @source(location: "alpha")|)
+      assert @schema_sdl.include?(%|a(id: ID!): I @source(location: "alpha")|)
       assert @schema_sdl.include?(%|b(id: ID!): T @source(location: "bravo")|)
     end
 
@@ -365,6 +365,7 @@ describe "GraphQL::Stitching::Supergraph" do
       assert_equal @supergraph.boundaries, supergraph_import.boundaries
       assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
       assert_equal @supergraph.schema.types.keys.sort, supergraph_import.schema.types.keys.sort
+      assert_equal @supergraph.boundaries, supergraph_import.boundaries
     end
 
     def test_normalizes_executable_location_names

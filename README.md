@@ -214,14 +214,14 @@ type Query {
 
 #### Multiple query arguments
 
-Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key should provide an argument mapping specified as `"<arg>:<key>"`.
+Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key should provide an argument alias specified as `"<arg>:<key>"`.
 
 ```graphql
 type Product {
   id: ID!
 }
 type Query {
-  product(by_id: ID, by_sku: ID): Product @stitch(key: "by_id:id")
+  product(byId: ID, bySku: ID): Product @stitch(key: "byId:id")
 }
 ```
 
@@ -294,7 +294,7 @@ sdl_string = <<~GRAPHQL
   }
   type Query {
     productById(id: ID!): Product
-    productByUpc(sku: ID!): Product
+    productBySku(sku: ID!): Product
   }
 GRAPHQL
 
@@ -304,7 +304,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
     executable: ->() { ... },
     stitch: [
       { field_name: "productById", key: "id" },
-      { field_name: "productByUpc", key: "sku" },
+      { field_name: "productBySku", key: "sku" },
     ]
   },
   # ...

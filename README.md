@@ -16,7 +16,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`).
 - Subscriptions, defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-performance API gateway, consider not using Ruby.
+This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput federated reverse proxy, consider not using Ruby.
 
 ## Getting started
 
@@ -153,7 +153,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
 
-Each location that provides a unique variant of a type must provide at least one stitching query for the type. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
+Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
 
 ```graphql
 type Product {
@@ -161,11 +161,11 @@ type Product {
 }
 ```
 
-The above representation of a `Product` type provides no unique data beyond a key that is available in other locations. Thus, this representation will never require an inbound request to fetch it, and its stitching query may be omitted.
+The above representation of a `Product` type provides no unique data beyond a key that is available in other locations. Thus, this representation will never require an inbound request to fetch it, and its resolver query may be omitted.
 
 #### List queries
 
-It's okay ([even preferable](#batching) in most circumstances) to provide a list accessor as a stitching query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
+It's okay ([even preferable](#batching) in most circumstances) to provide a list accessor as a resolver query. The only requirement is that both the field argument and return type must be lists, and the query results are expected to be a mapped set with `null` holding the position of missing results.
 
 ```graphql
 type Query {
@@ -180,7 +180,7 @@ See [error handling](./docs/mechanics.md#stitched-errors) tips for list queries.
 
 #### Abstract queries
 
-It's okay for stitching queries to be implemented through abstract types. An abstract query will provide access to all of its possible types by default, each of which must implement the key.
+It's okay for resolver queries to be implemented through abstract types. An abstract query will provide access to all of its possible types by default, each of which must implement the key.
 
 ```graphql
 interface Node {
@@ -214,7 +214,7 @@ type Query {
 
 #### Multiple query arguments
 
-Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key may provide an argument mapping specified as `"<arg>:<key>"`.
+Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key should provide an argument mapping specified as `"<arg>:<key>"`.
 
 ```graphql
 type Product {
@@ -235,7 +235,7 @@ type Product { id:ID! sku:ID! }  # products location
 type Product { sku:ID! }         # catelog location
 ```
 
-In the above graph, the `storefronts` and `catelog` locations have different keys that join through an intermediary. This pattern is perfectly valid and resolvable as long as the intermediary provides stitching queries for each possible key:
+In the above graph, the `storefronts` and `catelog` locations have different keys that join through an intermediary. This pattern is perfectly valid and resolvable as long as the intermediary provides resolver queries for each possible key:
 
 ```graphql
 type Product {
@@ -244,7 +244,7 @@ type Product {
 }
 type Query {
   productById(id: ID!): Product @stitch(key: "id")
-  productByUpc(sku: ID!): Product @stitch(key: "sku")
+  productBySku(sku: ID!): Product @stitch(key: "sku")
 }
 ```
 

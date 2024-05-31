@@ -41,14 +41,22 @@ module GraphQL::Stitching
           memo[boundary.location][boundary.key] = boundary
         end
 
-        # All non-key fields must be available in at least one boundary location
-        boundary_keys = boundaries.map(&:key).tap(&:uniq!)
+        boundary_keys = boundaries.map(&:key).to_set
+
+        # All non-key fields must be resolvable in at least one boundary location
         supergraph.locations_by_type_and_field[type.graphql_name].each do |field_name, locations|
           next if boundary_keys.include?(field_name)
 
           if locations.none? { boundaries_by_location_and_key[_1] }
             where = locations.length > 1 ? "one of #{locations.join(", ")} locations" : locations.first
             raise Composer::ValidationError, "A boundary query is required for `#{type.graphql_name}` in #{where} to resolve field `#{field_name}`."
+          end
+        end
+
+        # All locations of a boundary type must include at least one key field
+        supergraph.fields_by_type_and_location[type.graphql_name].each do |location, field_names|
+          if field_names.none? { boundary_keys.include?(_1) }
+            raise Composer::ValidationError, "A boundary key is required for `#{type.graphql_name}` in #{location} to join with other locations."
           end
         end
 

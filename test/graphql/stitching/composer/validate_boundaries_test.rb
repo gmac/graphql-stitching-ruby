@@ -40,13 +40,31 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     assert compose_definitions({ "a" => a, "b" => b, "c" => c })
   end
 
-  def test_validates_at_least_one_boundary_per_type_location
+  def test_validates_boundary_present_when_providing_unique_fields
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { id:ID! size:Float } type Query { b:T }}
 
     assert_error("A boundary query is required for `T` in b", ValidationError) do
       compose_definitions({ "a" => a, "b" => b })
     end
+  end
+
+  def test_validates_boundary_present_in_multiple_locations_when_providing_unique_fields
+    a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
+    b = %{type T { id:ID! size:Float } type Query { b:T }}
+    c = %{type T { id:ID! size:Float } type Query { c:T }}
+
+    assert_error("A boundary query is required for `T` in one of b, c locations", ValidationError) do
+      compose_definitions({ "a" => a, "b" => b, "c" => c })
+    end
+  end
+
+  def test_permits_no_boundary_query_for_types_that_can_be_fully_resolved_elsewhere
+    a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
+    b = %{type T { id:ID! size:Float } type Query { b(id: ID!):T @stitch(key: "id") }}
+    c = %{type T { id:ID! size:Float name:String } type Query { c:T }}
+
+    assert compose_definitions({ "a" => a, "b" => b, "c" => c })
   end
 
   def test_permits_no_boundary_query_for_key_only_types

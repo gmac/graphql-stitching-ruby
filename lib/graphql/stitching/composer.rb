@@ -68,6 +68,7 @@ module GraphQL
         @boundary_map = nil
         @mapped_type_names = nil
         @candidate_directives_by_name_and_location = nil
+        @candidate_types_by_name_and_location = nil
         @schema_directives = nil
       end
 

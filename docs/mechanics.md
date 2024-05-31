@@ -303,3 +303,45 @@ And produces this result:
 ```
 
 Location B is allowed to return `null` here because its one unique field, `rating`, is nullable (the `id` field can be provided by Location A). If `rating` were non-null, then null bubbling would invalidate the response data.
+
+### Outbound-only merged types
+
+Merged types do not always require a resolver query. For example:
+
+```graphql
+# -- Location A
+
+type Widget {
+  id: ID!
+  name: String
+}
+
+type Query {
+  widgetA(id: ID!): Widget @stitch(key: "id")
+}
+
+# -- Location B
+
+type Widget {
+  id: ID!
+  size: Float
+}
+
+type Query {
+  widgetB(id: ID!): Widget @stitch(key: "id")
+}
+
+# -- Location C
+
+type Widget {
+  id: ID!
+  name: String
+  size: Float
+}
+
+type Query {
+  featuredWidget: Widget
+}
+```
+
+In this graph, `Widget` is a merged type without a resolver query in location C. This works because all of its fields are resolvable in other locations; that means location C can provide outbound representations of this type without ever needing to resolve inbound requests for it. Outbound types do still require a key field (such as `id` above) that allow them to join with data in other resolver locations.

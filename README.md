@@ -153,7 +153,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
 
-Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain only a single key field:
+Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) and/or [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain no exclusive data:
 
 ```graphql
 type Product {
@@ -161,7 +161,7 @@ type Product {
 }
 ```
 
-The above representation of a `Product` type provides no unique data beyond a key that is available in other locations. Thus, this representation will never require an inbound request to fetch it, and its resolver query may be omitted.
+The above representation of a `Product` type contains nothing but a key that is available in other locations. Therefore, this representation will never require an inbound request to fetch it, and its resolver query may be omitted.
 
 #### List queries
 

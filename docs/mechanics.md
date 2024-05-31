@@ -314,6 +314,7 @@ Merged types do not always require a resolver query. For example:
 type Widget {
   id: ID!
   name: String
+  price: Float
 }
 
 type Query {
@@ -344,4 +345,4 @@ type Query {
 }
 ```
 
-In this graph, `Widget` is a merged type without a resolver query in location C. This works because all of its fields are resolvable in other locations; that means location C can provide outbound representations of this type without ever needing to resolve inbound requests for it. Outbound types do still require a key field (such as `id` above) that allow them to join with data in other resolver locations.
+In this graph, `Widget` is a merged type without a resolver query in location C. This works because all of its fields are resolvable in other locations; that means location C can provide outbound representations of this type without ever needing to resolve inbound requests for it. Outbound types do still require a key field (such as `id` above) that allow them to join with data in other resolver locations (such as `price` above).

@@ -290,27 +290,6 @@ describe "GraphQL::Stitching::Supergraph" do
     assert routes.none? { |_key, path| path.any? { _1["location"] == "e" } }
   end
 
-  # def test_route_type_to_locations_returns_nil_for_unreachable_locations
-  #   a = %|
-  #     type T { upc:ID! }
-  #     type Query { a(upc:ID!):T @stitch(key: "upc") }
-  #   |
-  #   b = %|
-  #     type T { id:ID! }
-  #     type Query { b(id:ID!):T @stitch(key: "id") }
-  #   |
-  #   c = %|
-  #     type T { id:ID! }
-  #     type Query { c(id:ID!):T @stitch(key: "id") }
-  #   |
-
-  #   supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
-
-  #   routes = supergraph.route_type_to_locations("T", "b", ["a", "c"])
-  #   assert_equal ["c"], routes["c"].map { _1["location"] }
-  #   assert_nil routes["a"]
-  # end
-
   describe "#to_definition / #from_definition" do
     def setup
       alpha = %|

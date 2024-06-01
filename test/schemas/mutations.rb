@@ -2,7 +2,7 @@
 
 module Schemas
   module Mutations
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -34,7 +34,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :recordA, Record, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -68,7 +68,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :recordB, Record, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 

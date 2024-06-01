@@ -2,7 +2,7 @@
 
 module Schemas
   module Errors
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -43,7 +43,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :elements_a, [Element, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -62,7 +62,7 @@ module Schemas
         end
 
         field :isotope_a, Isotope, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -88,7 +88,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :elements_b, [Element, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -99,7 +99,7 @@ module Schemas
         end
 
         field :isotope_b, Isotope, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 

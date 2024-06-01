@@ -9,7 +9,7 @@ module GraphQL
       GRAPHQL_PRINTER = GraphQL::Language::Printer.new
 
       attr_reader :index, :location, :parent_type, :operation_type, :path
-      attr_accessor :after, :selections, :variables, :boundary
+      attr_accessor :after, :selections, :variables, :resolver
 
       def initialize(
         location:,
@@ -20,7 +20,7 @@ module GraphQL
         selections: [],
         variables: {},
         path: [],
-        boundary: nil
+        resolver: nil
       )
         @location = location
         @parent_type = parent_type
@@ -30,7 +30,7 @@ module GraphQL
         @selections = selections
         @variables = variables
         @path = path
-        @boundary = boundary
+        @resolver = resolver
       end
 
       def to_plan_op
@@ -43,17 +43,17 @@ module GraphQL
           variables: rendered_variables,
           path: @path,
           if_type: type_condition,
-          boundary: @boundary,
+          resolver: @resolver,
         )
       end
 
       private
 
-      # Concrete types going to a boundary report themselves as a type condition.
+      # Concrete types going to a resolver report themselves as a type condition.
       # This is used by the executor to evalute which planned fragment selections
       # actually apply to the resolved object types.
       def type_condition
-        @parent_type.graphql_name if @boundary && !parent_type.kind.abstract?
+        @parent_type.graphql_name if @resolver && !parent_type.kind.abstract?
       end
 
       def rendered_selections

@@ -12,7 +12,7 @@ describe 'GraphQL::Stitching, unions' do
     })
   end
 
-  def test_plan_abstract_merged_via_concrete_boundaries
+  def test_plan_abstract_merged_via_concrete_resolvers
     query = %|
       {
         fruitsA(ids: ["1", "3"]) {
@@ -34,7 +34,7 @@ describe 'GraphQL::Stitching, unions' do
     assert_equal expected, result["data"]
   end
 
-  def test_plan_abstract_merged_types_via_abstract_boundary
+  def test_plan_abstract_merged_types_via_abstract_resolver
     query = %|
       {
         fruitsC(ids: ["1", "4"]) {

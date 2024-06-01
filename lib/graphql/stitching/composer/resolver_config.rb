@@ -2,7 +2,7 @@
 
 module GraphQL::Stitching
   class Composer
-    class BoundaryConfig
+    class ResolverConfig
       ENTITY_TYPENAME = "_Entity"
       ENTITIES_QUERY = "_entities"
 

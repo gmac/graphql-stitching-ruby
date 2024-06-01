@@ -2,7 +2,7 @@
 
 module GraphQL::Stitching
   class Executor
-    class BoundarySource < GraphQL::Dataloader::Source
+    class ResolverSource < GraphQL::Dataloader::Source
       def initialize(executor, location)
         @executor = executor
         @location = location
@@ -41,36 +41,36 @@ module GraphQL::Stitching
         ops.map { origin_sets_by_operation[_1] ? _1.step : nil }
       end
 
-      # Builds batched boundary queries
+      # Builds batched resolver queries
       # "query MyOperation_2_3($var:VarType) {
-      #   _0_result: list(keys:["a","b","c"]) { boundarySelections... }
-      #   _1_0_result: item(key:"x") { boundarySelections... }
-      #   _1_1_result: item(key:"y") { boundarySelections... }
-      #   _1_2_result: item(key:"z") { boundarySelections... }
+      #   _0_result: list(keys:["a","b","c"]) { resolverSelections... }
+      #   _1_0_result: item(key:"x") { resolverSelections... }
+      #   _1_1_result: item(key:"y") { resolverSelections... }
+      #   _1_2_result: item(key:"z") { resolverSelections... }
       # }"
       def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
         query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
-          boundary = op.boundary
+          resolver = op.resolver
 
-          if boundary.list
+          if resolver.list?
             input = origin_set.each_with_index.reduce(String.new) do |memo, (origin_obj, index)|
               memo << "," if index > 0
-              memo << build_key(boundary.key, origin_obj, federation: boundary.federation)
+              memo << build_key(resolver.key, origin_obj, federation: resolver.federation)
               memo
             end
 
-            "_#{batch_index}_result: #{boundary.field}(#{boundary.arg}:[#{input}]) #{op.selections}"
+            "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:[#{input}]) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              input = build_key(boundary.key, origin_obj, federation: boundary.federation)
-              "_#{batch_index}_#{index}_result: #{boundary.field}(#{boundary.arg}:#{input}) #{op.selections}"
+              input = build_key(resolver.key, origin_obj, federation: resolver.federation?)
+              "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:#{input}) #{op.selections}"
             end
           end
         end
 
-        doc = String.new("query") # << boundary fulfillment always uses query
+        doc = String.new("query") # << resolver fulfillment always uses query
 
         if operation_name
           doc << " #{operation_name}"
@@ -106,7 +106,7 @@ module GraphQL::Stitching
         return unless raw_result
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-          results = if op.dig("boundary", "list")
+          results = if op.dig("resolver", "list")
             raw_result["_#{batch_index}_result"]
           else
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }

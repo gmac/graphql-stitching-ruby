@@ -18,7 +18,7 @@ module GraphQL
 
       def perform
         build_root_entrypoints
-        expand_abstract_boundaries
+        expand_abstract_resolvers
         Plan.new(ops: steps.map(&:to_plan_op))
       end
 
@@ -50,16 +50,16 @@ module GraphQL
       # C.2) Distribute non-unique fields among locations that were added during C.1.
       # C.3) Distribute remaining fields among locations weighted by greatest availability.
       #
-      # D) Create paths routing to new entrypoint locations via boundary queries.
+      # D) Create paths routing to new entrypoint locations via resolver queries.
       # D.1) Types joining through multiple keys route using A* search.
       # D.2) Types joining through a single key route via quick location match.
       # (D.2 is an optional optimization of D.1)
       #
-      # E) Translate boundary pathways into new entrypoints.
-      # E.1) Add the key of each boundary query into the prior location's selection set.
+      # E) Translate resolver pathways into new entrypoints.
+      # E.1) Add the key of each resolver query into the prior location's selection set.
       # E.2) Add a planner step for each new entrypoint location, then extract it (B).
       #
-      # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
+      # F) Wrap concrete selections targeting abstract resolvers in typed fragments.
       # **
 
       # adds a planning step for fetching and inserting data into the aggregate result.
@@ -71,10 +71,10 @@ module GraphQL
         variables: {},
         path: [],
         operation_type: QUERY_OP,
-        boundary: nil
+        resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{boundary&.key}")
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key}")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -94,7 +94,7 @@ module GraphQL
             selections: selections,
             variables: variables,
             path: path,
-            boundary: boundary,
+            resolver: resolver,
           )
         else
           step.selections.concat(selections)
@@ -269,15 +269,15 @@ module GraphQL
           # C) Delegate adjoining selections to new entrypoint locations.
           remote_selections_by_location = delegate_remote_selections(parent_type, remote_selections)
 
-          # D) Create paths routing to new entrypoint locations via boundary queries.
+          # D) Create paths routing to new entrypoint locations via resolver queries.
           routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.keys)
 
-          # E) Translate boundary pathways into new entrypoints.
+          # E) Translate resolver pathways into new entrypoints.
           routes.each_value do |route|
-            route.reduce(locale_selections) do |parent_selections, boundary|
-              # E.1) Add the key of each boundary query into the prior location's selection set.
-              if boundary.key
-                foreign_key = ExportSelection.key(boundary.key)
+            route.reduce(locale_selections) do |parent_selections, resolver|
+              # E.1) Add the key of each resolver query into the prior location's selection set.
+              if resolver.key
+                foreign_key = ExportSelection.key(resolver.key)
                 has_key = false
                 has_typename = false
 
@@ -287,18 +287,18 @@ module GraphQL
                   has_typename ||= node.alias == ExportSelection.typename_node.alias
                 end
 
-                parent_selections << ExportSelection.key_node(boundary.key) unless has_key
+                parent_selections << ExportSelection.key_node(resolver.key) unless has_key
                 parent_selections << ExportSelection.typename_node unless has_typename
               end
 
               # E.2) Add a planner step for each new entrypoint location.
               add_step(
-                location: boundary.location,
+                location: resolver.location,
                 parent_index: parent_index,
                 parent_type: parent_type,
-                selections: remote_selections_by_location[boundary.location] || [],
+                selections: remote_selections_by_location[resolver.location] || [],
                 path: path.dup,
-                boundary: boundary.key ? boundary : nil,
+                resolver: resolver.key ? resolver : nil,
               ).selections
             end
           end
@@ -414,14 +414,14 @@ module GraphQL
         selections_by_location
       end
 
-      # F) Wrap concrete selections targeting abstract boundaries in typed fragments.
-      def expand_abstract_boundaries
+      # F) Wrap concrete selections targeting abstract resolvers in typed fragments.
+      def expand_abstract_resolvers
         @steps_by_entrypoint.each_value do |step|
-          next unless step.boundary
+          next unless step.resolver
 
-          boundary_type = @supergraph.memoized_schema_types[step.boundary.type_name]
-          next unless boundary_type.kind.abstract?
-          next if boundary_type == step.parent_type
+          resolver_type = @supergraph.memoized_schema_types[step.resolver.type_name]
+          next unless resolver_type.kind.abstract?
+          next if resolver_type == step.parent_type
 
           expanded_selections = nil
           step.selections.reject! do |node|

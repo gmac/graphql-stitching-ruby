@@ -2,7 +2,7 @@
 
 module Schemas
   module MultipleKeys
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -23,7 +23,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :storefronts_product_by_id, Product, null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -46,7 +46,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :products_product_by_id, Product, null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -55,7 +55,7 @@ module Schemas
         end
 
         field :products_product_by_upc, Product, null: false do
-          directive Boundary, key: "upc"
+          directive Resolver, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -77,7 +77,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :catalogs_product_by_upc, Product, null: false do
-          directive Boundary, key: "upc"
+          directive Resolver, key: "upc"
           argument :upc, ID, required: true
         end
 

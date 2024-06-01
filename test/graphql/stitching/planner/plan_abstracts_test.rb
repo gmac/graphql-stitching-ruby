@@ -68,7 +68,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: squish_string(expected_root_selection),
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -77,7 +77,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ name price }",
       path: ["buyable"],
       if_type: "Product",
-      boundary: {
+      resolver: {
         field: "products",
         key: "id",
       },
@@ -179,7 +179,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       location: "a",
       selections: %|{ products(ids: ["1"]) { id name price } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
   end
 
@@ -253,7 +253,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       location: "a",
       selections: squish_string(expected_root_selection),
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -262,7 +262,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Apple",
-      boundary: {
+      resolver: {
         location: "b",
         key: "id",
       },
@@ -274,7 +274,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ c }",
       path: ["fruit"],
       if_type: "Apple",
-      boundary: {
+      resolver: {
         location: "c",
         key: "id",
       },
@@ -286,7 +286,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Banana",
-      boundary: {
+      resolver: {
         location: "b",
         key: "id",
       },

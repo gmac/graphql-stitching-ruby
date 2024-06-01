@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "./executor/boundary_source"
+require_relative "./executor/resolver_source"
 require_relative "./executor/root_source"
 
 module GraphQL
@@ -55,9 +55,9 @@ module GraphQL
           tasks = @request.plan
             .ops
             .select { next_steps.include?(_1.after) }
-            .group_by { [_1.location, _1.boundary.nil?] }
+            .group_by { [_1.location, _1.resolver.nil?] }
             .map do |(location, root_source), ops|
-              source_type = root_source ? RootSource : BoundarySource
+              source_type = root_source ? RootSource : ResolverSource
               @dataloader.with(source_type, self, location).request_all(ops)
             end
 

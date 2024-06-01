@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Composer, validate boundaries' do
+describe 'GraphQL::Stitching::Composer, validate resolvers' do
 
-  def test_validates_only_one_boundary_query_per_type_location_key
+  def test_validates_only_one_resolver_query_per_type_location_key
     a = %{
       interface I { id:ID! }
       type T implements I { id:ID! name:String }
@@ -15,12 +15,12 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     }
     b = %{type T { id:ID! size:Float } type Query { b:T }}
 
-    assert_error("Multiple boundary queries for `T.id` found in a", ValidationError) do
+    assert_error("Multiple resolver queries for `T.id` found in a", ValidationError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
 
-  def test_permits_multiple_boundary_query_keys_per_type_location
+  def test_permits_multiple_resolver_query_keys_per_type_location
     a = %{
       type T { upc:ID! name:String }
       type Query { a(upc:ID!):T @stitch(key: "upc") }
@@ -40,26 +40,26 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     assert compose_definitions({ "a" => a, "b" => b, "c" => c })
   end
 
-  def test_validates_boundary_present_when_providing_unique_fields
+  def test_validates_resolver_present_when_providing_unique_fields
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { id:ID! size:Float } type Query { b:T }}
 
-    assert_error("A boundary query is required for `T` in b", ValidationError) do
+    assert_error("A resolver query is required for `T` in b", ValidationError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
 
-  def test_validates_boundary_present_in_multiple_locations_when_providing_unique_fields
+  def test_validates_resolver_present_in_multiple_locations_when_providing_unique_fields
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { id:ID! size:Float } type Query { b:T }}
     c = %{type T { id:ID! size:Float } type Query { c:T }}
 
-    assert_error("A boundary query is required for `T` in one of b, c locations", ValidationError) do
+    assert_error("A resolver query is required for `T` in one of b, c locations", ValidationError) do
       compose_definitions({ "a" => a, "b" => b, "c" => c })
     end
   end
 
-  def test_permits_no_boundary_query_for_types_that_can_be_fully_resolved_elsewhere
+  def test_permits_no_resolver_query_for_types_that_can_be_fully_resolved_elsewhere
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { id:ID! size:Float } type Query { b(id: ID!):T @stitch(key: "id") }}
     c = %{type T { id:ID! size:Float name:String } type Query { c:T }}
@@ -67,7 +67,7 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     assert compose_definitions({ "a" => a, "b" => b, "c" => c })
   end
 
-  def test_permits_no_boundary_query_for_key_only_types
+  def test_permits_no_resolver_query_for_key_only_types
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { id:ID! } type Query { b:T }}
 
@@ -78,7 +78,7 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
     a = %{type T { id:ID! name:String } type Query { a(id: ID!):T @stitch(key: "id") }}
     b = %{type T { name:String } type Query { b:T }}
 
-    assert_error("A boundary key is required for `T` in b", ValidationError) do
+    assert_error("A resolver key is required for `T` in b", ValidationError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -97,7 +97,7 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
       type Query { c(id:ID!):T @stitch(key: "id") }
     }
 
-    assert_error("Cannot route `T` boundaries in a", ValidationError) do
+    assert_error("Cannot route `T` resolvers in a", ValidationError) do
       compose_definitions({ "a" => a, "b" => b, "c" => c })
     end
   end
@@ -116,7 +116,7 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
       type Query { c(id:ID!):T @stitch(key: "id") }
     |
 
-    assert_error("Cannot route `T` boundaries in a", ValidationError) do
+    assert_error("Cannot route `T` resolvers in a", ValidationError) do
       compose_definitions({ "a" => a, "b" => b, "c" => c })
     end
   end
@@ -135,7 +135,7 @@ describe 'GraphQL::Stitching::Composer, validate boundaries' do
       type Query { c(id:ID!):T @stitch(key: "id") }
     }
 
-    assert_error("Cannot route `T` boundaries in a", ValidationError) do
+    assert_error("Cannot route `T` resolvers in a", ValidationError) do
       compose_definitions({ "a" => a, "b" => b, "c" => c })
     end
   end

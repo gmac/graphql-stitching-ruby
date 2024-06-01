@@ -4,7 +4,7 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Plan" do
   def setup
-    @boundary = GraphQL::Stitching::Boundary.new(
+    @resolver = GraphQL::Stitching::Resolver.new(
       location: "products",
       field: "storefronts",
       arg: "ids",
@@ -22,7 +22,7 @@ describe "GraphQL::Stitching::Plan" do
       if_type: "Storefront",
       selections: "{ name(lang:$lang) }",
       variables: { "lang" => "String!" },
-      boundary: @boundary,
+      resolver: @resolver,
     )
 
     @plan = GraphQL::Stitching::Plan.new(ops: [@op])
@@ -37,7 +37,7 @@ describe "GraphQL::Stitching::Plan" do
         "variables" => {"lang" => "String!"},
         "path" => ["storefronts"],
         "if_type" => "Storefront",
-        "boundary" => {
+        "resolver" => {
           "location" => "products",
           "type_name" => "Storefront",
           "key" => "id",
@@ -56,6 +56,6 @@ describe "GraphQL::Stitching::Plan" do
   def test_from_json_deserialized_a_plan
     plan = GraphQL::Stitching::Plan.from_json(@serialized)
     assert_equal [@op], plan.ops
-    assert_equal @boundary, plan.ops.first.boundary
+    assert_equal @resolver, plan.ops.first.resolver
   end
 end

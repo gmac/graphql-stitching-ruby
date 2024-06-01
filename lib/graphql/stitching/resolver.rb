@@ -2,8 +2,8 @@
 
 module GraphQL
   module Stitching
-    # Defines a boundary query that provides direct access to an entity type.
-    Boundary = Struct.new(
+    # Defines a root resolver query that provides direct access to an entity type.
+    Resolver = Struct.new(
       :location,
       :type_name,
       :key,
@@ -13,6 +13,9 @@ module GraphQL
       :federation,
       keyword_init: true
     ) do
+      alias_method :list?, :list
+      alias_method :federation?, :federation
+
       def as_json
         {
           location: location,

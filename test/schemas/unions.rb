@@ -2,7 +2,7 @@
 
 module Schemas
   module Unions
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -49,7 +49,7 @@ module Schemas
         end
 
         field :apple_a, Apple, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -58,7 +58,7 @@ module Schemas
         end
 
         field :banana_b, Banana, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -97,7 +97,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :apple_b, Apple, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -106,7 +106,7 @@ module Schemas
         end
 
         field :banana_b, Banana, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -115,7 +115,7 @@ module Schemas
         end
 
         field :coconut_b, Coconut, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -152,7 +152,7 @@ module Schemas
         end
 
         field :fruits_c, [Fruit, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 

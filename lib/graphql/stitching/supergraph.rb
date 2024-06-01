@@ -18,7 +18,7 @@ module GraphQL
         def from_definition(schema, executables:)
           schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
           field_map = {}
-          boundary_map = {}
+          resolver_map = {}
           possible_locations = {}
           introspection_types = schema.introspection_system.types.keys
 
@@ -29,8 +29,8 @@ module GraphQL
               next unless directive.graphql_name == ResolverDirective.graphql_name
 
               kwargs = directive.arguments.keyword_arguments
-              boundary_map[type_name] ||= []
-              boundary_map[type_name] << Boundary.new(
+              resolver_map[type_name] ||= []
+              resolver_map[type_name] << Resolver.new(
                 type_name: kwargs.fetch(:type_name, type_name),
                 location: kwargs[:location],
                 key: kwargs[:key],
@@ -66,7 +66,7 @@ module GraphQL
           new(
             schema: schema,
             fields: field_map,
-            boundaries: boundary_map,
+            resolvers: resolver_map,
             executables: executables,
           )
         end
@@ -78,13 +78,13 @@ module GraphQL
       # @return [Hash<String, Executable>] a map of executable resources by location.
       attr_reader :executables
 
-      attr_reader :boundaries, :locations_by_type_and_field
+      attr_reader :resolvers, :locations_by_type_and_field
 
-      def initialize(schema:, fields: {}, boundaries: {}, executables: {})
+      def initialize(schema:, fields: {}, resolvers: {}, executables: {})
         @schema = schema
         @schema.use(GraphQL::Schema::AlwaysVisible)
 
-        @boundaries = boundaries
+        @resolvers = resolvers
         @fields_by_type_and_location = nil
         @locations_by_type = nil
         @memoized_introspection_types = nil
@@ -120,27 +120,27 @@ module GraphQL
         end
 
         @schema.types.each do |type_name, type|
-          if boundaries_for_type = @boundaries.dig(type_name)
-            boundaries_for_type.each do |boundary|
+          if resolvers_for_type = @resolvers.dig(type_name)
+            resolvers_for_type.each do |resolver|
               existing = type.directives.find do |d|
                 kwargs = d.arguments.keyword_arguments
                 d.graphql_name == ResolverDirective.graphql_name &&
-                  kwargs[:location] == boundary.location &&
-                  kwargs[:key] == boundary.key &&
-                  kwargs[:field] == boundary.field &&
-                  kwargs[:arg] == boundary.arg &&
-                  kwargs.fetch(:list, false) == boundary.list &&
-                  kwargs.fetch(:federation, false) == boundary.federation
+                  kwargs[:location] == resolver.location &&
+                  kwargs[:key] == resolver.key &&
+                  kwargs[:field] == resolver.field &&
+                  kwargs[:arg] == resolver.arg &&
+                  kwargs.fetch(:list, false) == resolver.list &&
+                  kwargs.fetch(:federation, false) == resolver.federation
               end
 
               type.directive(ResolverDirective, **{
-                type_name: (boundary.type_name if boundary.type_name != type_name),
-                location: boundary.location,
-                key: boundary.key,
-                field: boundary.field,
-                arg: boundary.arg,
-                list: boundary.list || nil,
-                federation: boundary.federation || nil,
+                type_name: (resolver.type_name if resolver.type_name != type_name),
+                location: resolver.location,
+                key: resolver.key,
+                field: resolver.field,
+                arg: resolver.arg,
+                list: resolver.list || nil,
+                federation: resolver.federation || nil,
               }.tap(&:compact!)) if existing.nil?
             end
           end
@@ -242,19 +242,19 @@ module GraphQL
         end
       end
 
-      # collects all possible boundary keys for a given type
+      # collects all possible resolver keys for a given type
       # ("Type") => ["id", ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
           if type_name == @schema.query.graphql_name
             GraphQL::Stitching::EMPTY_ARRAY
           else
-            @boundaries[type_name].map(&:key).tap(&:uniq!)
+            @resolvers[type_name].map(&:key).tap(&:uniq!)
           end
         end
       end
 
-      # collects possible boundary keys for a given type and location
+      # collects possible resolver keys for a given type and location
       # ("Type", "location") => ["id", ...]
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
@@ -265,14 +265,14 @@ module GraphQL
       end
 
       # For a given type, route from one origin location to one or more remote locations
-      # used to connect a partial type across locations via boundary queries
+      # used to connect a partial type across locations via resolver queries
       def route_type_to_locations(type_name, start_location, goal_locations)
         key_count = possible_keys_for_type(type_name).length
 
         if key_count.zero?
-          # nested root scopes have no boundary keys and just return a location
+          # nested root scopes have no resolver keys and just return a location
           goal_locations.each_with_object({}) do |goal_location, memo|
-            memo[goal_location] = [Boundary.new(location: goal_location)]
+            memo[goal_location] = [Resolver.new(location: goal_location)]
           end
 
         elsif key_count > 1
@@ -281,10 +281,10 @@ module GraphQL
 
         else
           # types with a single key attribute must all be within a single hop of each other,
-          # so can use a simple match to collect boundaries for the goal locations.
-          @boundaries[type_name].each_with_object({}) do |boundary, memo|
-            if goal_locations.include?(boundary.location)
-              memo[boundary.location] = [boundary]
+          # so can use a simple match to collect resolvers for the goal locations.
+          @resolvers[type_name].each_with_object({}) do |resolver, memo|
+            if goal_locations.include?(resolver.location)
+              memo[resolver.location] = [resolver]
             end
           end
         end
@@ -292,7 +292,7 @@ module GraphQL
 
       private
 
-      PathNode = Struct.new(:location, :key, :cost, :boundary, keyword_init: true)
+      PathNode = Struct.new(:location, :key, :cost, :resolver, keyword_init: true)
 
       # tunes A* search to favor paths with fewest joining locations, ie:
       # favor longer paths through target locations over shorter paths with additional locations.
@@ -310,9 +310,9 @@ module GraphQL
           current_key = path.last.key
           current_cost = path.last.cost
 
-          @boundaries[type_name].each do |boundary|
-            forward_location = boundary.location
-            next if current_key != boundary.key
+          @resolvers[type_name].each do |resolver|
+            forward_location = resolver.location
+            next if current_key != resolver.key
             next if path.any? { _1.location == forward_location }
 
             best_cost = costs[forward_location] || Float::INFINITY
@@ -323,13 +323,13 @@ module GraphQL
               location: current_location,
               key: current_key,
               cost: current_cost,
-              boundary: boundary,
+              resolver: resolver,
             )
 
             if goal_locations.include?(forward_location)
               current_result = results[forward_location]
               if current_result.nil? || current_cost < best_cost || (current_cost == best_cost && path.length < current_result.length)
-                results[forward_location] = path.map(&:boundary)
+                results[forward_location] = path.map(&:resolver)
               end
             else
               path.last.cost += 1

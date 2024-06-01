@@ -14,7 +14,7 @@ module GraphQL
         :variables,
         :path,
         :if_type,
-        :boundary,
+        :resolver,
         keyword_init: true
       ) do
         def as_json
@@ -27,7 +27,7 @@ module GraphQL
             variables: variables,
             path: path,
             if_type: if_type,
-            boundary: boundary&.as_json
+            resolver: resolver&.as_json
           }.tap(&:compact!)
         end
       end
@@ -36,7 +36,7 @@ module GraphQL
         def from_json(json)
           ops = json["ops"]
           ops = ops.map do |op|
-            boundary = op["boundary"]
+            resolver = op["resolver"]
             Op.new(
               step: op["step"],
               after: op["after"],
@@ -46,7 +46,7 @@ module GraphQL
               variables: op["variables"],
               path: op["path"],
               if_type: op["if_type"],
-              boundary: boundary ? GraphQL::Stitching::Boundary.new(**boundary) : nil,
+              resolver: resolver ? GraphQL::Stitching::Resolver.new(**resolver) : nil,
             )
           end
           new(ops: ops)

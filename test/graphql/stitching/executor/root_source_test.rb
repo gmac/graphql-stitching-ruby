@@ -13,7 +13,7 @@ describe "GraphQL::Stitching::Executor, RootSource" do
       if_type: "Storefront",
       selections: "{ storefront(id:$id) { products { _export_id: id } } }",
       variables: { "id" => "ID!" },
-      boundary: nil
+      resolver: nil
     )
 
     @source = GraphQL::Stitching::Executor::RootSource.new({}, "a")

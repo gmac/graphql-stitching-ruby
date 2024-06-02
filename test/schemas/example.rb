@@ -2,7 +2,7 @@
 
 module Schemas
   module Example
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -56,7 +56,7 @@ module Schemas
 
       class RootQuery < GraphQL::Schema::Object
         field :product, Product, null: false do
-          directive Boundary, key: "upc"
+          directive Resolver, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -65,7 +65,7 @@ module Schemas
         end
 
         field :manufacturer, Manufacturer, null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -122,7 +122,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :manufacturer, Manufacturer, null: true do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 

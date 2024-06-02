@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Planner, boundaries" do
+describe "GraphQL::Stitching::Planner, resolvers" do
   def build_sample_graph
     @storefronts_sdl = %|
       type Storefront {
@@ -54,7 +54,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
     })
   end
 
-  def test_collects_unique_fields_across_boundary_locations
+  def test_collects_unique_fields_across_resolver_locations
     document = %|
       query {
         storefront(id: "1") {
@@ -82,7 +82,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ storefront(id: "1") { name products { _export_upc: upc _export___typename: __typename } } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -91,7 +91,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ name manufacturer { products { name } _export_id: id _export___typename: __typename } }|,
       path: ["storefront", "products"],
-      boundary: {
+      resolver: {
         field: "product",
         key: "upc",
       },
@@ -103,7 +103,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ address }|,
       path: ["storefront", "products", "manufacturer"],
-      boundary: {
+      resolver: {
         field: "manufacturer",
         key: "id",
       },
@@ -127,7 +127,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ manufacturer(id: "1") { name _export_id: id _export___typename: __typename } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan1.ops[1].as_json, {
@@ -136,7 +136,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ products { name } }|,
       path: ["manufacturer"],
-      boundary: {
+      resolver: {
         field: "productsManufacturer",
         key: "id",
       },
@@ -148,7 +148,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ productsManufacturer(id: "1") { name products { name } } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
   end
 
@@ -180,7 +180,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ apple(id: "1") { id name _export_id: id _export___typename: __typename } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -189,7 +189,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["apple"],
-      boundary: {
+      resolver: {
         field: "node",
         key: "id",
       },
@@ -224,7 +224,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ apple(id: "1") { id name _export_id: id _export___typename: __typename } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -233,7 +233,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["apple"],
-      boundary: {
+      resolver: {
         field: "node",
         key: "id",
       },
@@ -269,7 +269,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ node(id: "1") { id ... on Apple { name _export_id: id _export___typename: __typename } _export___typename: __typename } }|,
       path: [],
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -278,7 +278,7 @@ describe "GraphQL::Stitching::Planner, boundaries" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["node"],
-      boundary: {
+      resolver: {
         field: "fruit",
         key: "id",
       },

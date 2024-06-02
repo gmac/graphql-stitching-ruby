@@ -2,7 +2,7 @@
 
 module Schemas
   module Interfaces
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -66,7 +66,7 @@ module Schemas
         end
 
         field :products_buyables, [Buyable, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -75,7 +75,7 @@ module Schemas
         end
 
         field :products_split, [Split, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -149,7 +149,7 @@ module Schemas
         end
 
         field :bundles_buyables, [Buyable, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -158,7 +158,7 @@ module Schemas
         end
 
         field :bundles_split, [Split, null: true], null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :ids, [ID], required: true
         end
 

@@ -44,7 +44,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       selections: %|{ a: widget { id } c: widget { id } }|,
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -54,7 +54,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       selections: %|{ b: sprocket { id } d: sprocket { id } }|,
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
   end
 
@@ -80,7 +80,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       selections: %|{ a: makeWidget { id } }|,
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[1].as_json, {
@@ -90,7 +90,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       selections: %|{ b: makeSprocket { id } c: makeSprocket { id } }|,
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
 
     assert_keys plan.ops[2].as_json, {
@@ -100,7 +100,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       selections: %|{ d: makeWidget { id } e: makeWidget { id } }|,
       path: [],
       if_type: nil,
-      boundary: nil,
+      resolver: nil,
     }
   end
 

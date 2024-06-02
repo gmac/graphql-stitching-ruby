@@ -82,9 +82,9 @@ describe "GraphQL::Stitching::Supergraph" do
     },
   }
 
-  BOUNDARIES_MAP = {
+  RESOLVERS_MAP = {
     "Manufacturer" => [
-      GraphQL::Stitching::Boundary.new(
+      GraphQL::Stitching::Resolver.new(
         location: "manufacturers",
         field: "manufacturer",
         arg: "id",
@@ -92,7 +92,7 @@ describe "GraphQL::Stitching::Supergraph" do
       ),
     ],
     "Product" => [
-      GraphQL::Stitching::Boundary.new(
+      GraphQL::Stitching::Resolver.new(
         location: "products",
         field: "products",
         arg: "upc",
@@ -100,7 +100,7 @@ describe "GraphQL::Stitching::Supergraph" do
       ),
     ],
     "Storefront" => [
-      GraphQL::Stitching::Boundary.new(
+      GraphQL::Stitching::Resolver.new(
         location: "storefronts",
         field: "storefronts",
         arg: "id",
@@ -113,7 +113,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
     )
 
     mapping = supergraph.fields_by_type_and_location
@@ -126,7 +126,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
     )
 
     mapping = supergraph.locations_by_type
@@ -139,7 +139,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
     )
 
     assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products")
@@ -151,7 +151,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
     )
 
     ["__Schema", "__Type", "__Field"].each do |introspection_type|
@@ -168,7 +168,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
       executables: {
         "products" => executable1,
         "storefronts" => executable2,
@@ -190,7 +190,7 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = GraphQL::Stitching::Supergraph.new(
       schema: ComposedSchema,
       fields: FIELDS_MAP.dup,
-      boundaries: BOUNDARIES_MAP,
+      resolvers: RESOLVERS_MAP,
       executables: {
         products: executable1,
         storefronts: executable2,
@@ -209,7 +209,7 @@ describe "GraphQL::Stitching::Supergraph" do
       GraphQL::Stitching::Supergraph.new(
         schema: ComposedSchema,
         fields: FIELDS_MAP.dup,
-        boundaries: BOUNDARIES_MAP,
+        resolvers: RESOLVERS_MAP,
         executables: {
           products: "nope",
         },
@@ -341,10 +341,10 @@ describe "GraphQL::Stitching::Supergraph" do
       })
 
       assert_equal @supergraph.fields, supergraph_import.fields
-      assert_equal @supergraph.boundaries, supergraph_import.boundaries
+      assert_equal @supergraph.resolvers, supergraph_import.resolvers
       assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
       assert_equal @supergraph.schema.types.keys.sort, supergraph_import.schema.types.keys.sort
-      assert_equal @supergraph.boundaries, supergraph_import.boundaries
+      assert_equal @supergraph.resolvers, supergraph_import.resolvers
     end
 
     def test_normalizes_executable_location_names

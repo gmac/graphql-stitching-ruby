@@ -2,8 +2,8 @@
 
 require_relative "./composer/base_validator"
 require_relative "./composer/validate_interfaces"
-require_relative "./composer/validate_boundaries"
-require_relative "./composer/boundary_config"
+require_relative "./composer/validate_resolvers"
+require_relative "./composer/resolver_config"
 
 module GraphQL
   module Stitching
@@ -31,7 +31,7 @@ module GraphQL
       # @api private
       VALIDATORS = [
         "ValidateInterfaces",
-        "ValidateBoundaries",
+        "ValidateResolvers",
       ].freeze
 
       # @return [String] name of the Query type in the composed schema.
@@ -62,10 +62,10 @@ module GraphQL
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
         @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
-        @boundary_configs = {}
+        @resolver_configs = {}
 
         @field_map = nil
-        @boundary_map = nil
+        @resolver_map = nil
         @mapped_type_names = nil
         @candidate_directives_by_name_and_location = nil
         @candidate_types_by_name_and_location = nil
@@ -125,7 +125,7 @@ module GraphQL
             raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
-          extract_boundaries(type_name, types_by_location) if type_name == @query_name
+          extract_resolvers(type_name, types_by_location) if type_name == @query_name
 
           memo[type_name] = case kinds.first
           when "SCALAR"
@@ -157,12 +157,12 @@ module GraphQL
         end
 
         select_root_field_locations(schema)
-        expand_abstract_boundaries(schema)
+        expand_abstract_resolvers(schema)
 
         supergraph = Supergraph.new(
           schema: schema,
           fields: @field_map,
-          boundaries: @boundary_map,
+          resolvers: @resolver_map,
           executables: executables,
         )
 
@@ -189,8 +189,8 @@ module GraphQL
             raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
-          @boundary_configs.merge!(BoundaryConfig.extract_directive_assignments(schema, location, input[:stitch]))
-          @boundary_configs.merge!(BoundaryConfig.extract_federation_entities(schema, location))
+          @resolver_configs.merge!(ResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
+          @resolver_configs.merge!(ResolverConfig.extract_federation_entities(schema, location))
 
           schemas[location.to_s] = schema
           executables[location.to_s] = input[:executable] || schema
@@ -527,23 +527,23 @@ module GraphQL
 
       # @!scope class
       # @!visibility private
-      def extract_boundaries(type_name, types_by_location)
+      def extract_resolvers(type_name, types_by_location)
         types_by_location.each do |location, type_candidate|
           type_candidate.fields.each do |field_name, field_candidate|
-            boundary_type = field_candidate.type.unwrap
-            boundary_structure = Util.flatten_type_structure(field_candidate.type)
-            boundary_configs = @boundary_configs.fetch("#{location}.#{field_name}",  [])
+            resolver_type = field_candidate.type.unwrap
+            resolver_structure = Util.flatten_type_structure(field_candidate.type)
+            resolver_configs = @resolver_configs.fetch("#{location}.#{field_name}",  [])
 
             field_candidate.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              boundary_configs << BoundaryConfig.from_kwargs(directive.arguments.keyword_arguments)
+              resolver_configs << ResolverConfig.from_kwargs(directive.arguments.keyword_arguments)
             end
 
-            boundary_configs.each do |config|
+            resolver_configs.each do |config|
               key_selections = GraphQL.parse("{ #{config.key} }").definitions[0].selections
 
               if key_selections.length != 1
-                raise ComposerError, "Boundary key at #{type_name}.#{field_name} must specify exactly one key."
+                raise ComposerError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
               argument_name = key_selections[0].alias
@@ -555,34 +555,35 @@ module GraphQL
 
               argument = field_candidate.arguments[argument_name]
               unless argument
-                # contextualize this... "boundaries with multiple args need mapping aliases."
-                raise ComposerError, "Invalid boundary argument `#{argument_name}` for #{type_name}.#{field_name}."
+                raise ComposerError, "No resolver argument matched for #{type_name}.#{field_name}. " \
+                  "Add an alias to the key that specifies its intended argument, ex: `arg:key`"
               end
 
               argument_structure = Util.flatten_type_structure(argument.type)
-              if argument_structure.length != boundary_structure.length
-                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} boundary. Arguments must map directly to results."
+              if argument_structure.length != resolver_structure.length
+                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} resolver. " \
+                  "Arguments must map directly to results."
               end
 
-              boundary_type_name = if config.type_name
-                if !boundary_type.kind.abstract?
+              resolver_type_name = if config.type_name
+                if !resolver_type.kind.abstract?
                   raise ComposerError, "Resolver config may only specify a type name for abstract resolvers."
-                elsif !boundary_type.possible_types.find { _1.graphql_name == config.type_name }
+                elsif !resolver_type.possible_types.find { _1.graphql_name == config.type_name }
                   raise ComposerError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
                 end
                 config.type_name
               else
-                boundary_type.graphql_name
+                resolver_type.graphql_name
               end
 
-              @boundary_map[boundary_type_name] ||= []
-              @boundary_map[boundary_type_name] << Boundary.new(
+              @resolver_map[resolver_type_name] ||= []
+              @resolver_map[resolver_type_name] << Resolver.new(
                 location: location,
-                type_name: boundary_type_name,
+                type_name: resolver_type_name,
                 key: key_selections[0].name,
                 field: field_candidate.name,
                 arg: argument_name,
-                list: boundary_structure.first.list?,
+                list: resolver_structure.first.list?,
                 federation: config.federation,
               )
             end
@@ -612,15 +613,15 @@ module GraphQL
 
       # @!scope class
       # @!visibility private
-      def expand_abstract_boundaries(schema)
-        @boundary_map.keys.each do |type_name|
-          boundary_type = schema.types[type_name]
-          next unless boundary_type.kind.abstract?
+      def expand_abstract_resolvers(schema)
+        @resolver_map.keys.each do |type_name|
+          resolver_type = schema.types[type_name]
+          next unless resolver_type.kind.abstract?
 
-          expanded_types = Util.expand_abstract_type(schema, boundary_type)
+          expanded_types = Util.expand_abstract_type(schema, resolver_type)
           expanded_types.select { @candidate_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
-            @boundary_map[expanded_type.graphql_name] ||= []
-            @boundary_map[expanded_type.graphql_name].push(*@boundary_map[type_name])
+            @resolver_map[expanded_type.graphql_name] ||= []
+            @resolver_map[expanded_type.graphql_name].push(*@resolver_map[type_name])
           end
         end
       end
@@ -670,7 +671,7 @@ module GraphQL
 
       def reset!
         @field_map = {}
-        @boundary_map = {}
+        @resolver_map = {}
         @mapped_type_names = {}
         @candidate_directives_by_name_and_location = nil
         @schema_directives = nil

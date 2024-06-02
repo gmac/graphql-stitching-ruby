@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Executor, BoundarySource" do
+describe "GraphQL::Stitching::Executor, ResolverSource" do
   def setup
     @op1 = GraphQL::Stitching::Plan::Op.new(
       step: 2,
@@ -13,7 +13,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       if_type: "Storefront",
       selections: "{ name(lang:$lang) }",
       variables: { "lang" => "String!" },
-      boundary: GraphQL::Stitching::Boundary.new(
+      resolver: GraphQL::Stitching::Resolver.new(
         location: "products",
         field: "storefronts",
         arg: "ids",
@@ -31,7 +31,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       if_type: "Product",
       selections: "{ price(currency:$currency) }",
       variables: { "currency" => "Currency!" },
-      boundary: GraphQL::Stitching::Boundary.new(
+      resolver: GraphQL::Stitching::Resolver.new(
         location: "products",
         field: "product",
         arg: "upc",
@@ -41,7 +41,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
       )
     )
 
-    @source = GraphQL::Stitching::Executor::BoundarySource.new({}, "products")
+    @source = GraphQL::Stitching::Executor::ResolverSource.new({}, "products")
     @origin_sets_by_operation = {
       @op1 => [{ "_export_id" => "7" }, { "_export_id" => "8" }],
       @op2 => [{ "_export_upc" => "abc" }, { "_export_upc" => "xyz" }],
@@ -164,7 +164,7 @@ describe "GraphQL::Stitching::Executor, BoundarySource" do
     mock = GraphQL::Stitching::Executor.new(mock)
     mock.instance_variable_set(:@data, data)
 
-    source = GraphQL::Stitching::Executor::BoundarySource.new(mock, "products")
+    source = GraphQL::Stitching::Executor::ResolverSource.new(mock, "products")
     origin_sets_by_operation = {
       @op1 => data["storefronts"],
       @op2 => data["storefronts"].map { _1["product"] },

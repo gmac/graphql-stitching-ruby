@@ -16,7 +16,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
     assert_equal executable, supergraph.executables["storefronts"]
   end
 
-  def test_perform_with_static_boundary_config
+  def test_perform_with_static_resolver_config
     alpha = %|
       type Product { id: ID! name: String! }
       type Query { productA(id: ID!): Product }
@@ -42,9 +42,9 @@ describe 'GraphQL::Stitching::Composer, configuration' do
       }
     })
 
-    expected_boundaries = {
+    expected_resolvers = {
       "Product" => [
-        GraphQL::Stitching::Boundary.new(
+        GraphQL::Stitching::Resolver.new(
           location: "alpha",
           type_name: "Product",
           field: "productA",
@@ -53,7 +53,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           list: false,
           federation: false,
         ),
-        GraphQL::Stitching::Boundary.new(
+        GraphQL::Stitching::Resolver.new(
           location: "bravo",
           type_name: "Product",
           field: "productB",
@@ -65,6 +65,6 @@ describe 'GraphQL::Stitching::Composer, configuration' do
       ]
     }
 
-    assert_equal expected_boundaries, supergraph.boundaries
+    assert_equal expected_resolvers, supergraph.resolvers
   end
 end

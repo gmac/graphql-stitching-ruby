@@ -2,15 +2,15 @@
 
 require "test_helper"
 
-describe 'GraphQL::Stitching::Composer, merging boundary queries' do
-  def test_creates_boundary_map
+describe 'GraphQL::Stitching::Composer, merging resolver queries' do
+  def test_creates_resolver_map
     a = %|type Test { id: ID!, a: String } type Query { a(id: ID!):Test @stitch(key: "id") }|
     b = %|type Test { id: ID!, b: String } type Query { b(ids: [ID!]!):[Test]! @stitch(key: "id") }|
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    expected_boundaries_map = {
+    expected_resolvers_map = {
       "Test" => [
-        GraphQL::Stitching::Boundary.new(
+        GraphQL::Stitching::Resolver.new(
           location: "a",
           key: "id",
           field: "a",
@@ -19,7 +19,7 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
           federation: false,
           type_name: "Test"
         ),
-        GraphQL::Stitching::Boundary.new(
+        GraphQL::Stitching::Resolver.new(
           location: "b",
           key: "id",
           field: "b",
@@ -31,10 +31,10 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
       ],
     }
 
-    assert_equal expected_boundaries_map, supergraph.boundaries
+    assert_equal expected_resolvers_map, supergraph.resolvers
   end
 
-  def test_merges_boundaries_with_multiple_keys
+  def test_merges_resolvers_with_multiple_keys
     # repeatable directives don't work before v2.0.15
     skip unless minimum_graphql_version?("2.0.15")
 
@@ -53,13 +53,13 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    assert_boundary(supergraph, "T", location: "a", key: "upc", field: "a", arg: "upc")
-    assert_boundary(supergraph, "T", location: "b", key: "upc", field: "b", arg: "code")
-    assert_boundary(supergraph, "T", location: "b", key: "id", field: "b", arg: "id")
-    assert_boundary(supergraph, "T", location: "c", key: "id", field: "c", arg: "id")
+    assert_resolver(supergraph, "T", location: "a", key: "upc", field: "a", arg: "upc")
+    assert_resolver(supergraph, "T", location: "b", key: "upc", field: "b", arg: "code")
+    assert_resolver(supergraph, "T", location: "b", key: "id", field: "b", arg: "id")
+    assert_resolver(supergraph, "T", location: "c", key: "id", field: "c", arg: "id")
   end
 
-  def test_expands_interface_boundary_accessors_to_relevant_types
+  def test_expands_interface_resolver_accessors_to_relevant_types
     a = %|
       interface Fruit { id:ID! }
       type Apple implements Fruit { id:ID! name:String }
@@ -78,19 +78,19 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    assert_equal 1, supergraph.boundaries["Fruit"].length
-    assert_equal 2, supergraph.boundaries["Apple"].length
-    assert_equal 2, supergraph.boundaries["Banana"].length
-    assert_nil supergraph.boundaries["Coconut"]
+    assert_equal 1, supergraph.resolvers["Fruit"].length
+    assert_equal 2, supergraph.resolvers["Apple"].length
+    assert_equal 2, supergraph.resolvers["Banana"].length
+    assert_nil supergraph.resolvers["Coconut"]
 
-    assert_boundary(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Banana", location: "a", key: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
-    assert_boundary(supergraph, "Banana", location: "b", key: "id", field: "b", arg: "id")
+    assert_resolver(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_resolver(supergraph, "Banana", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
+    assert_resolver(supergraph, "Banana", location: "b", key: "id", field: "b", arg: "id")
   end
 
-  def test_expands_union_boundary_accessors_to_relevant_types
+  def test_expands_union_resolver_accessors_to_relevant_types
     a = %|
       type Apple { id:ID! name:String }
       type Banana { id:ID! name:String }
@@ -110,18 +110,18 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal 1, supergraph.boundaries["Fruit"].length
-    assert_equal 2, supergraph.boundaries["Apple"].length
-    assert_nil supergraph.boundaries["Banana"]
-    assert_nil supergraph.boundaries["Coconut"]
+    assert_equal 1, supergraph.resolvers["Fruit"].length
+    assert_equal 2, supergraph.resolvers["Apple"].length
+    assert_nil supergraph.resolvers["Banana"]
+    assert_nil supergraph.resolvers["Coconut"]
 
-    assert_boundary(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
-    assert_boundary(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
+    assert_resolver(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
   end
 
 
-  def test_builds_union_boundaries_for_select_typenames
+  def test_builds_union_resolvers_for_select_typenames
     a = %|
       type Apple { id:ID! name:String }
       type Banana { id:ID! name:String }
@@ -146,13 +146,13 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
-    assert_equal ["fruitA", "fruitB"], supergraph.boundaries["Apple"].map(&:field).sort
-    assert_equal ["fruitA", "fruitB"], supergraph.boundaries["Banana"].map(&:field).sort
-    assert_equal ["coconut", "fruitB"], supergraph.boundaries["Coconut"].map(&:field).sort
-    assert_equal ["fruitB"], supergraph.boundaries["Fruit"].map(&:field).sort
+    assert_equal ["fruitA", "fruitB"], supergraph.resolvers["Apple"].map(&:field).sort
+    assert_equal ["fruitA", "fruitB"], supergraph.resolvers["Banana"].map(&:field).sort
+    assert_equal ["coconut", "fruitB"], supergraph.resolvers["Coconut"].map(&:field).sort
+    assert_equal ["fruitB"], supergraph.resolvers["Fruit"].map(&:field).sort
 
-    assert_equal false, supergraph.boundaries["Apple"].find { _1.location == "a" }.federation
-    assert_equal true, supergraph.boundaries["Banana"].find { _1.location == "a" }.federation
+    assert_equal false, supergraph.resolvers["Apple"].find { _1.location == "a" }.federation
+    assert_equal true, supergraph.resolvers["Banana"].find { _1.location == "a" }.federation
   end
 
   def test_raises_when_given_typename_is_not_a_possible_type
@@ -181,8 +181,8 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
 
   private
 
-  def assert_boundary(supergraph, type_name, location:, key: nil, field: nil, arg: nil)
-    boundary = supergraph.boundaries[type_name].find do |b|
+  def assert_resolver(supergraph, type_name, location:, key: nil, field: nil, arg: nil)
+    resolver = supergraph.resolvers[type_name].find do |b|
       conditions = []
       conditions << (b.location == location)
       conditions << (b.field == field) if field
@@ -190,6 +190,6 @@ describe 'GraphQL::Stitching::Composer, merging boundary queries' do
       conditions << (b.key == key) if key
       conditions.all?
     end
-    assert boundary, "No boundary found for #{[location, type_name, key, field, arg].join(".")}"
+    assert resolver, "No resolver found for #{[location, type_name, key, field, arg].join(".")}"
   end
 end

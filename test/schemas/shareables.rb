@@ -2,7 +2,7 @@
 
 module Schemas
   module Shareables
-    class Boundary < GraphQL::Schema::Directive
+    class Resolver < GraphQL::Schema::Directive
       graphql_name "stitch"
       locations FIELD_DEFINITION
       argument :key, String
@@ -31,7 +31,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :gadget_a, Gadget, null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 
@@ -65,7 +65,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :gadget_b, Gadget, null: false do
-          directive Boundary, key: "id"
+          directive Resolver, key: "id"
           argument :id, ID, required: true
         end
 

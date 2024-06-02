@@ -4,17 +4,30 @@ module GraphQL
   module Stitching
     # Defines a root resolver query that provides direct access to an entity type.
     Resolver = Struct.new(
+      # location name providing the resolver root query.
       :location,
+
+      # merged type name to fulfill through this resolver.
       :type_name,
+
+      # key to select from prior locations
       :key,
+
+      # root field to query for this merged type
       :field,
+
+      # specifies the name of the argument used to send the key.
       :arg,
+
+      # specifies if the resolver is a list endpoint (preferred)
       :list,
-      :federation,
+
+      # specifies if keys should be sent to the servive as primitive representations.
+      :representations,
       keyword_init: true
     ) do
       alias_method :list?, :list
-      alias_method :federation?, :federation
+      alias_method :representations?, :representations
 
       def as_json
         {
@@ -24,7 +37,7 @@ module GraphQL
           field: field,
           arg: arg,
           list: list,
-          federation: federation,
+          representations: representations,
         }.tap(&:compact!)
       end
     end

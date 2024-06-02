@@ -24,21 +24,21 @@ module GraphQL::Stitching
         end
 
         def extract_federation_entities(schema, location)
-          return EMPTY_OBJECT unless federation_entities_schema?(schema)
+          return EMPTY_OBJECT unless representations_entities_schema?(schema)
 
           schema.possible_types(schema.get_type(ENTITY_TYPENAME)).each_with_object({}) do |entity_type, memo|
             entity_type.directives.each do |directive|
               next unless directive.graphql_name == "key"
 
               key = directive.arguments.keyword_arguments.fetch(:fields).strip
-              raise ComposerError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
+              raise ComposerError, "Composite representations keys are not supported." unless /^\w+$/.match?(key)
 
               field_path = "#{location}._entities"
               memo[field_path] ||= []
               memo[field_path] << new(
                 key: key,
                 type_name: entity_type.graphql_name,
-                federation: true,
+                representations: true,
               )
             end
           end
@@ -48,25 +48,25 @@ module GraphQL::Stitching
           new(
             key: kwargs[:key],
             type_name: kwargs[:type_name] || kwargs[:typeName],
-            federation: kwargs[:federation] || false,
+            representations: kwargs[:representations] || false,
           )
         end
 
         private
 
-        def federation_entities_schema?(schema)
+        def representations_entities_schema?(schema)
           entity_type = schema.get_type(ENTITY_TYPENAME)
           entities_query = schema.query.get_field(ENTITIES_QUERY)
           entity_type && entity_type.kind.union? && entities_query && entities_query.type.unwrap == entity_type
         end
       end
 
-      attr_reader :key, :type_name, :federation
+      attr_reader :key, :type_name, :representations
 
-      def initialize(key:, type_name:, federation: false)
+      def initialize(key:, type_name:, representations: false)
         @key = key
         @type_name = type_name
-        @federation = federation
+        @representations = representations
       end
     end
   end

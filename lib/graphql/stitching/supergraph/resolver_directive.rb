@@ -11,7 +11,7 @@ module GraphQL::Stitching
       argument :field, String, required: true
       argument :arg, String, required: true
       argument :list, Boolean, required: false
-      argument :representations, Boolean, required: false
+      argument :federation, Boolean, required: false
       repeatable true
     end
   end

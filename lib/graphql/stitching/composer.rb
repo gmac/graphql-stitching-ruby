@@ -584,7 +584,7 @@ module GraphQL
                 field: field_candidate.name,
                 arg: argument_name,
                 list: resolver_structure.first.list?,
-                representations: config.representations,
+                federation: config.federation,
               )
             end
           end

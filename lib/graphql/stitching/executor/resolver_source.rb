@@ -57,14 +57,14 @@ module GraphQL::Stitching
           if resolver.list?
             input = origin_set.each_with_index.reduce(String.new) do |memo, (origin_obj, index)|
               memo << "," if index > 0
-              memo << build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+              memo << build_key(resolver.key, origin_obj, federation: resolver.federation)
               memo
             end
 
             "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:[#{input}]) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              input = build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+              input = build_key(resolver.key, origin_obj, federation: resolver.federation?)
               "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:#{input}) #{op.selections}"
             end
           end
@@ -93,9 +93,9 @@ module GraphQL::Stitching
         return doc, variable_defs.keys
       end
 
-      def build_key(key, origin_obj, as_representation: false)
+      def build_key(key, origin_obj, federation: false)
         key_value = JSON.generate(origin_obj[ExportSelection.key(key)])
-        if as_representation
+        if federation
           "{ __typename: \"#{origin_obj[ExportSelection.typename_node.alias]}\", #{key}: #{key_value} }"
         else
           key_value

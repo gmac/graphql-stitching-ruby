@@ -51,7 +51,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           key: "id",
           arg: "id",
           list: false,
-          representations: false,
+          federation: false,
         ),
         GraphQL::Stitching::Resolver.new(
           location: "bravo",
@@ -60,7 +60,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           key: "id",
           arg: "key",
           list: false,
-          representations: false,
+          federation: false,
         ),
       ]
     }

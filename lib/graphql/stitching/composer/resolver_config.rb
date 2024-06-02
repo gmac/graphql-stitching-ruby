@@ -38,7 +38,7 @@ module GraphQL::Stitching
               memo[field_path] << new(
                 key: key,
                 type_name: entity_type.graphql_name,
-                federation: true,
+                representations: true,
               )
             end
           end
@@ -48,7 +48,7 @@ module GraphQL::Stitching
           new(
             key: kwargs[:key],
             type_name: kwargs[:type_name] || kwargs[:typeName],
-            federation: kwargs[:federation] || false,
+            representations: kwargs[:representations] || false,
           )
         end
 
@@ -61,12 +61,12 @@ module GraphQL::Stitching
         end
       end
 
-      attr_reader :key, :type_name, :federation
+      attr_reader :key, :type_name, :representations
 
-      def initialize(key:, type_name:, federation: false)
+      def initialize(key:, type_name:, representations: false)
         @key = key
         @type_name = type_name
-        @federation = federation
+        @representations = representations
       end
     end
   end

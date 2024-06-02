@@ -37,7 +37,7 @@ module GraphQL
                 field: kwargs[:field],
                 arg: kwargs[:arg],
                 list: kwargs[:list] || false,
-                federation: kwargs[:federation] || false,
+                representations: kwargs[:representations] || false,
               )
             end
 
@@ -130,7 +130,7 @@ module GraphQL
                   kwargs[:field] == resolver.field &&
                   kwargs[:arg] == resolver.arg &&
                   kwargs.fetch(:list, false) == resolver.list &&
-                  kwargs.fetch(:federation, false) == resolver.federation
+                  kwargs.fetch(:representations, false) == resolver.representations
               end
 
               type.directive(ResolverDirective, **{
@@ -140,7 +140,7 @@ module GraphQL
                 field: resolver.field,
                 arg: resolver.arg,
                 list: resolver.list || nil,
-                federation: resolver.federation || nil,
+                representations: resolver.representations || nil,
               }.tap(&:compact!)) if existing.nil?
             end
           end

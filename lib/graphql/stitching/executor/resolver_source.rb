@@ -106,7 +106,7 @@ module GraphQL::Stitching
         return unless raw_result
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-          results = if op.dig("resolver", "list")
+          results = if op.resolver.list?
             raw_result["_#{batch_index}_result"]
           else
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }

@@ -265,7 +265,7 @@ type Query {
 The `@stitch` directive can be added to class-based schemas with a directive class:
 
 ```ruby
-class StitchField < GraphQL::Schema::Directive
+class StitchingResolver < GraphQL::Schema::Directive
   graphql_name "stitch"
   locations FIELD_DEFINITION
   repeatable true
@@ -274,7 +274,7 @@ end
 
 class Query < GraphQL::Schema::Object
   field :product, Product, null: false do
-    directive StitchField, key: "id"
+    directive StitchingResolver, key: "id"
     argument :id, ID, required: true
   end
 end
@@ -284,7 +284,7 @@ The `@stitch` directive can be exported from a class-based schema to an SDL stri
 
 #### SDL-based schemas
 
-A clean SDL string may also have stitching directives applied via static configuration by passing a `stitch` array in [location settings](./docs/composer.md#performing-composition):
+A clean schema may also have stitching directives applied via static configuration by passing a `stitch` array in [location settings](./docs/composer.md#performing-composition):
 
 ```ruby
 sdl_string = <<~GRAPHQL
@@ -316,7 +316,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
 The library is configured to use a `@stitch` directive by default. You may customize this by setting a new name during initialization:
 
 ```ruby
-GraphQL::Stitching.stitch_directive = "merge"
+GraphQL::Stitching.stitch_directive = "resolver"
 ```
 
 ## Executables

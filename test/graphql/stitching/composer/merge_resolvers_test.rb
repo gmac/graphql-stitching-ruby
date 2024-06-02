@@ -16,7 +16,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           field: "a",
           arg: "id",
           list: false,
-          federation: false,
+          representations: false,
           type_name: "Test"
         ),
         GraphQL::Stitching::Resolver.new(
@@ -25,7 +25,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           field: "b",
           arg: "ids",
           list: true,
-          federation: false,
+          representations: false,
           type_name: "Test"
         ),
       ],
@@ -130,7 +130,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       type Query {
         fruitA(id:ID!):Fruit
           @stitch(key: "id", typeName: "Apple")
-          @stitch(key: "id", typeName: "Banana", federation: true)
+          @stitch(key: "id", typeName: "Banana", representations: true)
         coconut(id: ID!): Coconut
           @stitch(key: "id")
       }
@@ -151,8 +151,8 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_equal ["coconut", "fruitB"], supergraph.resolvers["Coconut"].map(&:field).sort
     assert_equal ["fruitB"], supergraph.resolvers["Fruit"].map(&:field).sort
 
-    assert_equal false, supergraph.resolvers["Apple"].find { _1.location == "a" }.federation
-    assert_equal true, supergraph.resolvers["Banana"].find { _1.location == "a" }.federation
+    assert_equal false, supergraph.resolvers["Apple"].find { _1.location == "a" }.representations?
+    assert_equal true, supergraph.resolvers["Banana"].find { _1.location == "a" }.representations?
   end
 
   def test_raises_when_given_typename_is_not_a_possible_type

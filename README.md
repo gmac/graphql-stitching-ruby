@@ -365,17 +365,17 @@ The `GraphQL::Stitching::HttpExecutable` class is provided as a simple executabl
 The stitching executor automatically batches subgraph requests so that only one request is made per location per generation of data. This is done using batched queries that combine all data access for a given a location. For example:
 
 ```graphql
-query MyOperation_2 {
-  _0_result: widgets(ids:["a","b","c"]) { ... } # << 3 Widget
-  _1_0_result: sprocket(id:"x") { ... } # << 1 Sprocket
-  _1_1_result: sprocket(id:"y") { ... } # << 1 Sprocket
-  _1_2_result: sprocket(id:"z") { ... } # << 1 Sprocket
+query MyOperation_2($_0_key:[ID!]!, $_1_0_key:ID!, $_1_1_key:ID!, $_1_2_key:ID!) {
+  _0_result: widgets(ids: $_0_key) { ... } # << 3 Widget
+  _1_0_result: sprocket(id: $_1_0_key) { ... } # << 1 Sprocket
+  _1_1_result: sprocket(id: $_1_1_key) { ... } # << 1 Sprocket
+  _1_2_result: sprocket(id: $_1_2_key) { ... } # << 1 Sprocket
 }
 ```
 
 Tips:
 
-* List queries (like the `widgets` selection above) are more compact for accessing multiple records, and are therefore preferable as stitching accessors.
+* List queries (like the `widgets` selection above) are generally preferable as resolver queries because they keep the batched document consistent regardless of set size, and make for smaller documents that parse and validate faster.
 * Assure that root field resolvers across your subgraph implement batching to anticipate cases like the three `sprocket` selections above.
 
 Otherwise, there's no developer intervention necessary (or generally possible) to improve upon data access. Note that multiple generations of data may still force the executor to return to a previous location for more data.

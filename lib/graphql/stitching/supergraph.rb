@@ -35,8 +35,9 @@ module GraphQL
                 location: kwargs[:location],
                 key: kwargs[:key],
                 field: kwargs[:field],
-                arg: kwargs[:arg],
                 list: kwargs[:list] || false,
+                arg: kwargs[:arg],
+                arg_type_name: kwargs[:arg_type_name],
                 representations: kwargs[:representations] || false,
               )
             end
@@ -138,8 +139,9 @@ module GraphQL
                 location: resolver.location,
                 key: resolver.key,
                 field: resolver.field,
-                arg: resolver.arg,
                 list: resolver.list || nil,
+                arg: resolver.arg,
+                arg_type_name: resolver.arg_type_name,
                 representations: resolver.representations || nil,
               }.tap(&:compact!)) if existing.nil?
             end

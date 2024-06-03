@@ -546,14 +546,13 @@ module GraphQL
                 raise ComposerError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
-              argument_name = key_selections[0].alias
-              argument_name ||= if field_candidate.arguments.size == 1
-                field_candidate.arguments.keys.first
-              elsif field_candidate.arguments[config.key]
-                config.key
+              argument = field_candidate.arguments[key_selections[0].alias]
+              argument ||= if field_candidate.arguments.size == 1
+                field_candidate.arguments.values.first
+              else
+                field_candidate.arguments[config.key]
               end
 
-              argument = field_candidate.arguments[argument_name]
               unless argument
                 raise ComposerError, "No resolver argument matched for #{type_name}.#{field_name}. " \
                   "Add an alias to the key that specifies its intended argument, ex: `arg:key`"
@@ -561,7 +560,7 @@ module GraphQL
 
               argument_structure = Util.flatten_type_structure(argument.type)
               if argument_structure.length != resolver_structure.length
-                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument_name} resolver. " \
+                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
                   "Arguments must map directly to results."
               end
 
@@ -582,7 +581,8 @@ module GraphQL
                 type_name: resolver_type_name,
                 key: key_selections[0].name,
                 field: field_candidate.name,
-                arg: argument_name,
+                arg: argument.graphql_name,
+                arg_type_name: argument.type.unwrap.graphql_name,
                 list: resolver_structure.first.list?,
                 representations: config.representations,
               )

@@ -17,6 +17,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
         location: "products",
         field: "storefronts",
         arg: "ids",
+        arg_type_name: "ID",
         key: "id",
         list: true,
         type_name: "Storefront"
@@ -35,6 +36,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
         location: "products",
         field: "product",
         arg: "upc",
+        arg_type_name: "ID",
         key: "upc",
         list: false,
         type_name: "Product"
@@ -52,10 +54,10 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
     query_document, variable_names = @source.build_document(@origin_sets_by_operation)
 
     expected = %|
-      query($lang:String!,$currency:Currency!){
-        _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
-        _1_0_result: product(upc:"abc") { price(currency:$currency) }
-        _1_1_result: product(upc:"xyz") { price(currency:$currency) }
+      query($lang:String!,$_0_key:[ID!]!,$currency:Currency!,$_1_0_key:ID!,$_1_1_key:ID!){
+        _0_result: storefronts(ids:$_0_key) { name(lang:$lang) }
+        _1_0_result: product(upc:$_1_0_key) { price(currency:$currency) }
+        _1_1_result: product(upc:$_1_1_key) { price(currency:$currency) }
       }
     |
 
@@ -67,10 +69,10 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
     query_document, variable_names = @source.build_document(@origin_sets_by_operation, "MyOperation")
 
     expected = %|
-      query MyOperation_2_3($lang:String!,$currency:Currency!){
-        _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
-        _1_0_result: product(upc:"abc") { price(currency:$currency) }
-        _1_1_result: product(upc:"xyz") { price(currency:$currency) }
+      query MyOperation_2_3($lang:String!,$_0_key:[ID!]!,$currency:Currency!,$_1_0_key:ID!,$_1_1_key:ID!){
+        _0_result: storefronts(ids:$_0_key) { name(lang:$lang) }
+        _1_0_result: product(upc:$_1_0_key) { price(currency:$currency) }
+        _1_1_result: product(upc:$_1_1_key) { price(currency:$currency) }
       }
     |
 
@@ -86,10 +88,10 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
     )
 
     expected = %|
-      query MyOperation_2_3($lang:String!,$currency:Currency!) @inContext(lang: "EN") {
-        _0_result: storefronts(ids:["7","8"]) { name(lang:$lang) }
-        _1_0_result: product(upc:"abc") { price(currency:$currency) }
-        _1_1_result: product(upc:"xyz") { price(currency:$currency) }
+      query MyOperation_2_3($lang:String!,$_0_key:[ID!]!,$currency:Currency!,$_1_0_key:ID!,$_1_1_key:ID!) @inContext(lang: "EN") {
+        _0_result: storefronts(ids:$_0_key) { name(lang:$lang) }
+        _1_0_result: product(upc:$_1_0_key) { price(currency:$currency) }
+        _1_1_result: product(upc:$_1_1_key) { price(currency:$currency) }
       }
     |
 

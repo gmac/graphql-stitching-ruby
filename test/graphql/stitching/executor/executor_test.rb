@@ -20,14 +20,14 @@ describe "GraphQL::Stitching::Executor" do
       alpha: {
         schema: GraphQL::Schema.from_definition(alpha),
         executable: -> (req, src, vars) {
-          results << { location: "alpha", source: src }
+          results << { location: "alpha", source: src, variables: vars }
           { "data" => returns.shift }
         },
       },
       bravo: {
         schema: GraphQL::Schema.from_definition(bravo),
         executable: -> (req, src, vars) {
-          results << { location: "bravo", source: src }
+          results << { location: "bravo", source: src, variables: vars }
           { "data" => returns.shift }
         },
       },
@@ -46,16 +46,23 @@ describe "GraphQL::Stitching::Executor" do
   def test_with_batching
     req = %|{ featured { name } }|
 
-    expected1 = %|
+    expected_source1 = %|
       query{ featured { _export_id: id _export___typename: __typename } }
     |
-    expected2 = %|
-      query{
-        _0_0_result: product(id:"1") { name }
-        _0_1_result: product(id:"2") { name }
-        _0_2_result: product(id:"3") { name }
+    expected_source2 = %|
+      query($_0_0_key:ID!,$_0_1_key:ID!,$_0_2_key:ID!){
+        _0_0_result: product(id:$_0_0_key) { name }
+        _0_1_result: product(id:$_0_1_key) { name }
+        _0_2_result: product(id:$_0_2_key) { name }
       }
     |
+
+    expected_vars1 = {}
+    expected_vars2 = {
+      "_0_0_key" => "1",
+      "_0_1_key" => "2",
+      "_0_2_key" => "3",
+    }
 
     execs = mock_execs(req, [
       {
@@ -75,21 +82,28 @@ describe "GraphQL::Stitching::Executor" do
     assert_equal 2, execs.length
 
     assert_equal "bravo", execs[0][:location]
-    assert_equal squish_string(expected1), execs[0][:source]
+    assert_equal squish_string(expected_source1), execs[0][:source]
+    assert_equal expected_vars1, execs[0][:variables]
 
     assert_equal "alpha", execs[1][:location]
-    assert_equal squish_string(expected2), execs[1][:source]
+    assert_equal squish_string(expected_source2), execs[1][:source]
+    assert_equal expected_vars2, execs[1][:variables]
   end
 
   def test_with_operation_name_and_directives
     req = %|query Test @inContext(lang: "EN") { featured { name } }|
 
-    expected1 = %|
+    expected_source1 = %|
       query Test_1 @inContext(lang: "EN") { featured { _export_id: id _export___typename: __typename } }
     |
-    expected2 = %|
-      query Test_2 @inContext(lang: "EN") { _0_0_result: product(id:"1") { name } }
+    expected_source2 = %|
+      query Test_2($_0_0_key:ID!) @inContext(lang: "EN") { _0_0_result: product(id:$_0_0_key) { name } }
     |
+
+    expected_vars1 = {}
+    expected_vars2 = {
+      "_0_0_key" => "1",
+    }
 
     execs = mock_execs(req, [
       { "featured" => [{ "_export_id" => "1", "_export___typename" => "Product" }] },
@@ -99,9 +113,11 @@ describe "GraphQL::Stitching::Executor" do
     assert_equal 2, execs.length
 
     assert_equal "bravo", execs[0][:location]
-    assert_equal squish_string(expected1), execs[0][:source]
+    assert_equal squish_string(expected_source1), execs[0][:source]
+    assert_equal expected_vars1, execs[0][:variables]
 
     assert_equal "alpha", execs[1][:location]
-    assert_equal squish_string(expected2), execs[1][:source]
+    assert_equal squish_string(expected_source2), execs[1][:source]
+    assert_equal expected_vars2, execs[1][:variables]
   end
 end

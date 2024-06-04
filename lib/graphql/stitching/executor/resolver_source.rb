@@ -6,6 +6,7 @@ module GraphQL::Stitching
       def initialize(executor, location)
         @executor = executor
         @location = location
+        @variables = {}
       end
 
       def fetch(ops)
@@ -28,7 +29,7 @@ module GraphQL::Stitching
             @executor.request.operation_name,
             @executor.request.operation_directives,
           )
-          variables = @executor.request.variables.slice(*variable_names)
+          variables = @variables.merge!(@executor.request.variables.slice(*variable_names))
           raw_result = @executor.request.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
           @executor.query_count += 1
 
@@ -42,11 +43,11 @@ module GraphQL::Stitching
       end
 
       # Builds batched resolver queries
-      # "query MyOperation_2_3($var:VarType) {
-      #   _0_result: list(keys:["a","b","c"]) { resolverSelections... }
-      #   _1_0_result: item(key:"x") { resolverSelections... }
-      #   _1_1_result: item(key:"y") { resolverSelections... }
-      #   _1_2_result: item(key:"z") { resolverSelections... }
+      # "query MyOperation_2_3($var:VarType, $_0_key:[ID!]!, $_1_0_key:ID!, $_1_1_key:ID!, $_1_2_key:ID!) {
+      #   _0_result: list(keys: $_0_key) { resolverSelections... }
+      #   _1_0_result: item(key: $_1_0_key) { resolverSelections... }
+      #   _1_1_result: item(key: $_1_1_key) { resolverSelections... }
+      #   _1_2_result: item(key: $_1_2_key) { resolverSelections... }
       # }"
       def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
@@ -55,17 +56,21 @@ module GraphQL::Stitching
           resolver = op.resolver
 
           if resolver.list?
-            input = origin_set.each_with_index.reduce(String.new) do |memo, (origin_obj, index)|
-              memo << "," if index > 0
-              memo << build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
-              memo
+            variable_name = "_#{batch_index}_key"
+
+            @variables[variable_name] = origin_set.map do |origin_obj|
+              build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
             end
 
-            "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:[#{input}]) #{op.selections}"
+            variable_defs[variable_name] = "[#{resolver.arg_type_name}!]!"
+            "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              input = build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
-              "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:#{input}) #{op.selections}"
+              variable_name = "_#{batch_index}_#{index}_key"
+              @variables[variable_name] = build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+
+              variable_defs[variable_name] = "#{resolver.arg_type_name}!"
+              "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
             end
           end
         end
@@ -90,15 +95,19 @@ module GraphQL::Stitching
 
         doc << "{ #{query_fields.join(" ")} }"
 
-        return doc, variable_defs.keys
+        return doc, variable_defs.keys.tap do |names|
+          names.reject! { @variables.key?(_1) }
+        end
       end
 
       def build_key(key, origin_obj, as_representation: false)
-        key_value = JSON.generate(origin_obj[ExportSelection.key(key)])
         if as_representation
-          "{ __typename: \"#{origin_obj[ExportSelection.typename_node.alias]}\", #{key}: #{key_value} }"
+          {
+            "__typename" => origin_obj[ExportSelection.typename_node.alias],
+            key => origin_obj[ExportSelection.key(key)],
+          }
         else
-          key_value
+          origin_obj[ExportSelection.key(key)]
         end
       end
 

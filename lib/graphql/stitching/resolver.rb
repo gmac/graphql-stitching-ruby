@@ -16,11 +16,14 @@ module GraphQL
       # name of the root field to query.
       :field,
 
+      # specifies when the resolver is a list query.
+      :list,
+
       # name of the root field argument used to send the key.
       :arg,
 
-      # specifies when the resolver is a list query.
-      :list,
+      # type name of the root field argument used to send the key.
+      :arg_type_name,
 
       # specifies that keys should be sent as JSON representations with __typename and key.
       :representations,
@@ -35,8 +38,9 @@ module GraphQL
           type_name: type_name,
           key: key,
           field: field,
-          arg: arg,
           list: list,
+          arg: arg,
+          arg_type_name: arg_type_name,
           representations: representations,
         }.tap(&:compact!)
       end

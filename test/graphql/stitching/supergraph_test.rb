@@ -86,25 +86,28 @@ describe "GraphQL::Stitching::Supergraph" do
     "Manufacturer" => [
       GraphQL::Stitching::Resolver.new(
         location: "manufacturers",
+        key: "id",
         field: "manufacturer",
         arg: "id",
-        key: "id",
+        arg_type_name: "ID",
       ),
     ],
     "Product" => [
       GraphQL::Stitching::Resolver.new(
         location: "products",
+        key: "upc",
         field: "products",
         arg: "upc",
-        key: "upc",
+        arg_type_name: "ID",
       ),
     ],
     "Storefront" => [
       GraphQL::Stitching::Resolver.new(
         location: "storefronts",
+        key: "id",
         field: "storefronts",
         arg: "id",
-        key: "id",
+        arg_type_name: "ID",
       ),
     ],
   }
@@ -311,11 +314,11 @@ describe "GraphQL::Stitching::Supergraph" do
       assert @schema_sdl.include?("directive @resolver")
       assert @schema_sdl.include?("directive @source")
       assert @schema_sdl.include?(squish_string(%|
-        interface I @resolver(location: "alpha", key: "id", field: "a", arg: "id") {
+        interface I @resolver(location: "alpha", key: "id", field: "a", arg: "id", argTypeName: "ID") {
       |))
       assert @schema_sdl.include?(squish_string(%|
-        type T implements I @resolver(location: "bravo", key: "id", field: "b", arg: "id")
-                            @resolver(typeName: "I", location: "alpha", key: "id", field: "a", arg: "id") {
+        type T implements I @resolver(location: "bravo", key: "id", field: "b", arg: "id", argTypeName: "ID")
+                            @resolver(typeName: "I", location: "alpha", key: "id", field: "a", arg: "id", argTypeName: "ID") {
       |))
       assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
       assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)

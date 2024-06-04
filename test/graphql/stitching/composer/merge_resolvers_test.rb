@@ -15,6 +15,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           key: "id",
           field: "a",
           arg: "id",
+          arg_type_name: "ID",
           list: false,
           representations: false,
           type_name: "Test"
@@ -24,6 +25,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           key: "id",
           field: "b",
           arg: "ids",
+          arg_type_name: "ID",
           list: true,
           representations: false,
           type_name: "Test"

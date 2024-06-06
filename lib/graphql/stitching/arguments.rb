@@ -8,34 +8,77 @@ module GraphQL
         attr_reader :value
         attr_reader :type_name
 
-        def initialize(name:, value:, type_name: nil, list: false, key: false)
+        def initialize(name:, value:, list: false, key_insert: false, type_name: nil)
           @name = name
           @value = value
-          @type_name = type_name
           @list = list
-          @key = key
+          @key_insert = key_insert
+          @type_name = type_name
         end
 
         def list?
           @list
         end
 
-        def key?
-          @key
+        def key_insert?
+          @key_insert
+        end
+
+        def as_json
+          {
+            type: "argument",
+            name: name,
+            type_name: type_name,
+            list: list? || nil,
+            key_insert: key_insert? || nil,
+            value: value.as_json,
+          }.tap(&:compact!)
         end
       end
 
-      class InputObject
-        attr_reader :arguments
+      class BaseValue
+        attr_reader :value
 
-        def initialize(arguments)
-          @arguments = arguments
+        def initialize(value)
+          @value = value
+        end
+
+        def as_json
+          raise "unimplemented"
         end
       end
+
+      class ObjectValue < BaseValue
+        def as_json
+          {
+            type: "object",
+            value: @value.map(&:as_json),
+          }
+        end
+      end
+
+      class KeyValue < BaseValue
+        def as_json
+          {
+            type: "key",
+            value: @value,
+          }
+        end
+      end
+
+      class LiteralValue < BaseValue
+        def as_json
+          {
+            type: "literal",
+            value: @value,
+          }
+        end
+      end
+
 
       class << self
         # "reps: {group: $scope.group, name: $scope.name}, other: 'Sfoo'"
-        def parse(definitions_by_name, template)
+        def parse(argument_defs_by_name, template)
           template = template.gsub("'", %|"|).gsub(/(\$[\w\.]+)/) { %|"#{_1}"| }
 
           ast = GraphQL.parse("{ f(#{template}) }")
@@ -43,35 +86,59 @@ module GraphQL
             .selections.first
             .arguments
 
-          ast.map do |node|
-            build_argument(node, definitions_by_name[node.name])
+          args = ast.map do |node|
+            unless argument_def = argument_defs_by_name[node.name]
+              raise "Input `#{node.name}` is not a valid field argument."
+            end
+            build_argument(node, argument_def)
           end
+
+          ObjectValue.new(args)
         end
 
-        def build_argument(node, definition)
-          case node
-          when GraphQL::Language::Nodes::Argument
-            key = false
-            value = if node.value.is_a?(GraphQL::Language::Nodes::AbstractNode)
-              build_argument(node.value, definition.type.unwrap)
-            elsif node.value.is_a?(String) && node.value.start_with?("$.")
-              key = true
-              node.value.sub(/^\$\./, "").split(".")
-            else
-              node.value
+        private
+
+        def build_argument(node, argument_def)
+          value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
+            build_object_value(node.value, argument_def ? argument_def.type.unwrap : nil)
+          elsif node.value.is_a?(String) && node.value.start_with?("$.")
+            KeyValue.new(node.value.sub(/^\$\./, "").split("."))
+          else
+            LiteralValue.new(node.value)
+          end
+
+          Argument.new(
+            name: node.name,
+            value: value,
+            list: argument_def ? argument_def.type.list? : nil,
+            type_name: argument_def ? argument_def.type.unwrap.graphql_name : nil,
+          )
+        end
+
+        def build_object_value(node, object_def)
+          if object_def
+            if !object_def.kind.input_object? && !object_def.kind.scalar?
+              raise "Objects can only be built into input object and scalar positions"
+            elsif object_def.kind.scalar? && GraphQL::Schema::BUILT_IN_TYPES[object_def.graphql_name]
+              raise "Objects can only be built into custom scalar types"
+            elsif object_def.kind.scalar?
+              object_def = nil
+            end
+          end
+
+          args = node.arguments.map do |n|
+            argument_def = if object_def
+              unless d = object_def.arguments[n.name]
+                raise "Input `#{n.name}` is not a valid argument " \
+                  "on input object `#{object_def.graphql_name}`."
+              end
+              d
             end
 
-            Argument.new(
-              name: node.name,
-              value: value,
-              list: definition.type.list?,
-              type_name: definition.type.unwrap.graphql_name,
-              key: key
-            )
-          when GraphQL::Language::Nodes::InputObject
-            args = node.arguments.map { |c| build_argument(c, definition.arguments[c.name]) }
-            InputObject.new(args)
+            build_argument(n, argument_def)
           end
+
+          ObjectValue.new(args)
         end
       end
     end

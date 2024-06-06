@@ -6,11 +6,11 @@ describe "GraphQL::Stitching::Plan" do
   def setup
     @resolver = GraphQL::Stitching::Resolver.new(
       location: "products",
-      field: "storefronts",
-      arg: "ids",
-      key: "id",
+      type_name: "Storefront",
       list: true,
-      type_name: "Storefront"
+      field: "storefronts",
+      key: "id",
+      arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
     )
 
     @op = GraphQL::Stitching::Plan::Op.new(

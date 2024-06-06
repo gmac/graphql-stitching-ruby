@@ -94,7 +94,7 @@ To facilitate this merging of types, stitching must know how to cross-reference 
 Types merge through resolver queries identified by a `@stitch` directive:
 
 ```graphql
-directive @stitch(key: String!) repeatable on FIELD_DEFINITION
+directive @stitch(key: String!, arguments: String) repeatable on FIELD_DEFINITION
 ```
 
 This directive (or [static configuration](#sdl-based-schemas)) is applied to root queries where a merged type may be accessed in each location, and a `key` argument specifies a field needed from other locations to be used as a query argument.
@@ -151,7 +151,7 @@ type Query {
 ```
 
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
-* The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#multiple-query-arguments) later).
+* The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#argument-shapes) later).
 
 Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) and/or [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain no exclusive data:
 
@@ -198,7 +198,7 @@ type Query {
 To customize which types an abstract query provides and their respective keys, you may extend the `@stitch` directive with a `typeName` constraint. This can be repeated to select multiple types.
 
 ```graphql
-directive @stitch(key: String!, typeName: String) repeatable on FIELD_DEFINITION
+directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION
 
 type Product { sku: ID! }
 type Order { id: ID! }
@@ -212,18 +212,39 @@ type Query {
 }
 ```
 
-#### Multiple query arguments
+#### Argument shapes
 
-Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For queries that accept multiple arguments with unmatched names, the key should provide an argument alias specified as `"<arg>:<key>"`.
+Stitching infers which argument to use for queries with a single argument, or when the key name matches its intended argument. For custom mappings, the `arguments` option may specify a template of GraphQL arguments that insert key selections:
 
 ```graphql
 type Product {
   id: ID!
 }
 type Query {
-  product(byId: ID, bySku: ID): Product @stitch(key: "byId:id")
+  product(byId: ID, bySku: ID): Product
+    @stitch(key: "id", arguments: "byId: $.id")
 }
 ```
+
+Key insertions are prefixed by `$.`, and presently support the named resolver key and `__typename`. This syntax allows sending multiple arguments that intermix stitching keys with complex object shapes and other static values:
+
+```graphql
+type Product {
+  id: ID!
+}
+union Entity = Product
+input EntityKey {
+  id: ID!
+  type: String!
+}
+
+type Query {
+  entities(keys: [EntityKey!]!, source: String="database"): [Entity]!
+    @stitch(key: "id", arguments: "keys: { id: $.id, type: $.__typename }, source: 'cache'")
+}
+```
+
+See [resolver arguments](./docs/resolver.md#arguments) for full documentation on shaping input.
 
 #### Multiple type keys
 

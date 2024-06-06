@@ -31,14 +31,12 @@ module GraphQL
               kwargs = directive.arguments.keyword_arguments
               resolver_map[type_name] ||= []
               resolver_map[type_name] << Resolver.new(
-                type_name: kwargs.fetch(:type_name, type_name),
                 location: kwargs[:location],
+                type_name: kwargs.fetch(:type_name, type_name),
+                list: kwargs[:list] || false,
                 key: kwargs[:key],
                 field: kwargs[:field],
-                list: kwargs[:list] || false,
-                arg: kwargs[:arg],
-                arg_type_name: kwargs[:arg_type_name],
-                representations: kwargs[:representations] || false,
+                arguments: Resolver.parse_arguments_with_type_defs(kwargs[:arguments], kwargs[:argument_types]),
               )
             end
 
@@ -124,27 +122,22 @@ module GraphQL
         @schema.types.each do |type_name, type|
           if resolvers_for_type = @resolvers.dig(type_name)
             resolvers_for_type.each do |resolver|
-              existing = type.directives.find do |d|
-                kwargs = d.arguments.keyword_arguments
-                d.graphql_name == ResolverDirective.graphql_name &&
-                  kwargs[:location] == resolver.location &&
-                  kwargs[:key] == resolver.key &&
-                  kwargs[:field] == resolver.field &&
-                  kwargs[:arg] == resolver.arg &&
-                  kwargs.fetch(:list, false) == resolver.list &&
-                  kwargs.fetch(:representations, false) == resolver.representations
-              end
-
-              type.directive(ResolverDirective, **{
-                type_name: (resolver.type_name if resolver.type_name != type_name),
+              params = {
                 location: resolver.location,
+                list: resolver.list? || nil,
                 key: resolver.key,
                 field: resolver.field,
-                list: resolver.list || nil,
-                arg: resolver.arg,
-                arg_type_name: resolver.arg_type_name,
-                representations: resolver.representations || nil,
-              }.tap(&:compact!)) if existing.nil?
+                arguments: resolver.arguments.map(&:to_definition).join(", "),
+                argument_types: resolver.arguments.map(&:to_type_definition).join(", "),
+                type_name: (resolver.type_name if resolver.type_name != type_name),
+              }
+
+              existing = type.directives.find do |d|
+                kwargs = d.arguments.keyword_arguments
+                d.graphql_name == ResolverDirective.graphql_name && params.all? { |k, v| kwargs[k] == v}
+              end
+
+              type.directive(ResolverDirective, **params.tap(&:compact!)) unless existing
             end
           end
 

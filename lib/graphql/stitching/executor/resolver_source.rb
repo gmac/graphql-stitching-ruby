@@ -56,21 +56,32 @@ module GraphQL::Stitching
           resolver = @executor.request.supergraph.resolvers_by_version[op.resolver]
 
           if resolver.list?
-            variable_name = "_#{batch_index}_key"
-
-            @variables[variable_name] = origin_set.map do |origin_obj|
-              build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+            arguments = resolver.arguments.map.with_index do |arg, i|
+              if arg.key?
+                variable_name = "_#{batch_index}_key_#{i}".freeze
+                @variables[variable_name] = origin_set.map { arg.build(_1) }
+                variable_defs[variable_name] = arg.to_type_signature
+                "#{arg.name}:$#{variable_name}"
+              else
+                "#{arg.name}:#{arg.value.print}"
+              end
             end
 
-            variable_defs[variable_name] = "[#{resolver.arg_type_name}!]!"
-            "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
+            "_#{batch_index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              variable_name = "_#{batch_index}_#{index}_key"
-              @variables[variable_name] = build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+              arguments = resolver.arguments.map.with_index do |arg, i|
+                if arg.key?
+                  variable_name = "_#{batch_index}_#{index}_key_#{i}".freeze
+                  @variables[variable_name] = arg.build(origin_obj)
+                  variable_defs[variable_name] = arg.to_type_signature
+                  "#{arg.name}:$#{variable_name}"
+                else
+                  "#{arg.name}:#{arg.value.print}"
+                end
+              end
 
-              variable_defs[variable_name] = "#{resolver.arg_type_name}!"
-              "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
+              "_#{batch_index}_#{index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
             end
           end
         end
@@ -85,8 +96,7 @@ module GraphQL::Stitching
         end
 
         if variable_defs.any?
-          variable_str = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
-          doc << "(#{variable_str})"
+          doc << "(#{variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")})"
         end
 
         if operation_directives
@@ -97,17 +107,6 @@ module GraphQL::Stitching
 
         return doc, variable_defs.keys.tap do |names|
           names.reject! { @variables.key?(_1) }
-        end
-      end
-
-      def build_key(key, origin_obj, as_representation: false)
-        if as_representation
-          {
-            "__typename" => origin_obj[ExportSelection.typename_node.alias],
-            key => origin_obj[ExportSelection.key(key)],
-          }
-        else
-          origin_obj[ExportSelection.key(key)]
         end
       end
 

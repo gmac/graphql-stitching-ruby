@@ -38,7 +38,7 @@ module GraphQL::Stitching
               memo[field_path] << new(
                 key: key,
                 type_name: entity_type.graphql_name,
-                representations: true,
+                arguments: "representations: { #{key}: $.#{key}, __typename: $.__typename }",
               )
             end
           end
@@ -48,7 +48,7 @@ module GraphQL::Stitching
           new(
             key: kwargs[:key],
             type_name: kwargs[:type_name] || kwargs[:typeName],
-            representations: kwargs[:representations] || false,
+            arguments: kwargs[:arguments],
           )
         end
 
@@ -57,16 +57,21 @@ module GraphQL::Stitching
         def federation_entities_schema?(schema)
           entity_type = schema.get_type(ENTITY_TYPENAME)
           entities_query = schema.query.get_field(ENTITIES_QUERY)
-          entity_type && entity_type.kind.union? && entities_query && entities_query.type.unwrap == entity_type
+          entity_type &&
+            entity_type.kind.union? &&
+            entities_query &&
+            entities_query.arguments["representations"] &&
+            entities_query.type.list? &&
+            entities_query.type.unwrap == entity_type
         end
       end
 
-      attr_reader :key, :type_name, :representations
+      attr_reader :key, :type_name, :arguments
 
-      def initialize(key:, type_name:, representations: false)
+      def initialize(key:, type_name:, arguments: nil)
         @key = key
         @type_name = type_name
-        @representations = representations
+        @arguments = arguments
       end
     end
   end

@@ -37,7 +37,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
       bravo: {
         schema: GraphQL::Schema.from_definition(bravo),
         stitch: [
-          { field_name: "productB", key: "key:id" },
+          { field_name: "productB", key: "id", arguments: "key: $.id" },
         ]
       }
     })
@@ -47,22 +47,18 @@ describe 'GraphQL::Stitching::Composer, configuration' do
         GraphQL::Stitching::Resolver.new(
           location: "alpha",
           type_name: "Product",
+          list: false,
           field: "productA",
           key: "id",
-          arg: "id",
-          arg_type_name: "ID",
-          list: false,
-          representations: false,
+          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
         GraphQL::Stitching::Resolver.new(
           location: "bravo",
           type_name: "Product",
+          list: false,
           field: "productB",
           key: "id",
-          arg: "key",
-          arg_type_name: "ID",
-          list: false,
-          representations: false,
+          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("key: $.id", "key: ID"),
         ),
       ]
     }

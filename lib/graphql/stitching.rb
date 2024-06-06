@@ -25,6 +25,7 @@ end
 
 require_relative "stitching/supergraph"
 require_relative "stitching/resolver"
+require_relative "stitching/arguments"
 require_relative "stitching/client"
 require_relative "stitching/composer"
 require_relative "stitching/executor"

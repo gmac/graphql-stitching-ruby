@@ -36,43 +36,63 @@ module GraphQL
             value: value.as_json,
           }.tap(&:compact!)
         end
+
+        def build(origin_obj)
+          val = value.build(origin_obj)
+          val = [val] if list?
+          val
+        end
       end
 
-      class BaseValue
+      class ArgumentValue
         attr_reader :value
 
         def initialize(value)
           @value = value
         end
 
+        def ==(other)
+          self.class == other.class && value == other.value
+        end
+
         def as_json
           raise "unimplemented"
         end
 
-        def ==(other)
-          self.class == other.class && value == other.value
+        def build(origin_obj)
+          value
         end
       end
 
-      class ObjectValue < BaseValue
+      class ObjectValue < ArgumentValue
         def as_json
           {
             node: "object",
             value: @value.map(&:as_json),
           }
         end
+
+        def build(origin_obj)
+          value.each_with_object({}) do |arg, memo|
+            memo[arg.name] = arg.build(origin_obj)
+          end
+        end
       end
 
-      class KeyValue < BaseValue
+      class KeyValue < ArgumentValue
         def as_json
           {
             node: "key",
             value: @value,
           }
         end
+
+        def build(origin_obj)
+          value.reduce(origin_obj) { |obj, ns| obj[ns] }
+        end
       end
 
-      class LiteralValue < BaseValue
+      class LiteralValue < ArgumentValue
         def as_json
           {
             node: "literal",
@@ -81,25 +101,26 @@ module GraphQL
         end
       end
 
-
       class << self
         # "reps: {group: $scope.group, name: $scope.name}, other: 'Sfoo'"
-        def parse(template, argument_defs_by_name)
+        def parse(template, field_def)
           template = template.gsub("'", %|"|).gsub(/(\$[\w\.]+)/) { %|"#{_1}"| }
+          template = template[1..-1] if template.start_with?("(")
+          template = template[0..-2] if template.end_with?(")")
 
           ast = GraphQL.parse("{ f(#{template}) }")
             .definitions.first
             .selections.first
             .arguments
 
-          build_argument_set(ast, argument_defs_by_name)
+          build_argument_set(ast, field_def.arguments, repeatable_key: field_def.type.list?)
         end
 
         private
 
-        def build_argument_set(nodes, argument_defs_by_name)
-          if argument_defs_by_name
-            argument_defs_by_name.each_value do |argument_def|
+        def build_argument_set(nodes, argument_defs, static_scope: false, repeatable_key: false)
+          if argument_defs
+            argument_defs.each_value do |argument_def|
               if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.graphql_name }
                 raise "Required argument `#{argument_def.graphql_name}` has no input."
               end
@@ -107,21 +128,29 @@ module GraphQL
           end
 
           nodes.map do |n|
-            argument_def = if argument_defs_by_name
-              unless d = argument_defs_by_name[n.name]
+            argument_def = if argument_defs
+              unless d = argument_defs[n.name]
                 raise "Input `#{n.name}` is not a valid argument."
               end
+
+              # lock the use of keys in a root argument's subtree
+              # when the key is repeatable (list fields) but the argument is not.
+              static_scope = true if repeatable_key && !d.type.list?
               d
             end
 
-            build_argument(n, argument_def)
+            build_argument(n, argument_def, static_scope:)
           end
         end
 
-        def build_argument(node, argument_def)
+        def build_argument(node, argument_def, static_scope: false)
           value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
-            build_object_value(node.value, argument_def ? argument_def.type.unwrap : nil)
+            object_def = argument_def ? argument_def.type.unwrap : nil
+            build_object_value(node.value, object_def, static_scope:)
           elsif node.value.is_a?(String) && node.value.start_with?("$.")
+            if static_scope
+              raise "Cannot use repeatable key `#{node.value}` in non-list argument `#{argument_def&.graphql_name}`."
+            end
             KeyValue.new(node.value.sub(/^\$\./, "").split("."))
           else
             LiteralValue.new(node.value)
@@ -135,7 +164,7 @@ module GraphQL
           )
         end
 
-        def build_object_value(node, object_def)
+        def build_object_value(node, object_def, static_scope: false)
           if object_def
             if !object_def.kind.input_object? && !object_def.kind.scalar?
               raise "Objects can only be built into input object and scalar positions."
@@ -146,7 +175,7 @@ module GraphQL
             end
           end
 
-          ObjectValue.new(build_argument_set(node.arguments, object_def&.arguments))
+          ObjectValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope:))
         end
       end
     end

@@ -84,7 +84,7 @@ module GraphQL
 
       class << self
         # "reps: {group: $scope.group, name: $scope.name}, other: 'Sfoo'"
-        def parse(argument_defs_by_name, template)
+        def parse(template, argument_defs_by_name)
           template = template.gsub("'", %|"|).gsub(/(\$[\w\.]+)/) { %|"#{_1}"| }
 
           ast = GraphQL.parse("{ f(#{template}) }")
@@ -98,7 +98,15 @@ module GraphQL
         private
 
         def build_argument_set(nodes, argument_defs_by_name)
-          args = nodes.map do |n|
+          if argument_defs_by_name
+            argument_defs_by_name.each_value do |argument_def|
+              if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.graphql_name }
+                raise "Required argument `#{argument_def.graphql_name}` has no input."
+              end
+            end
+          end
+
+          nodes.map do |n|
             argument_def = if argument_defs_by_name
               unless d = argument_defs_by_name[n.name]
                 raise "Input `#{n.name}` is not a valid argument."
@@ -108,16 +116,6 @@ module GraphQL
 
             build_argument(n, argument_def)
           end
-
-          if argument_defs_by_name
-            argument_defs_by_name.each_value do |argument_def|
-              if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.name }
-                raise "missing argument `#{_1.name}`"
-              end
-            end
-          end
-
-          args
         end
 
         def build_argument(node, argument_def)

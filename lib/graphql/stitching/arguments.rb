@@ -37,6 +37,12 @@ module GraphQL
           "#{name}: #{value.print}"
         end
 
+        def to_type_signature
+          return nil unless @type_name
+
+          list? ? "[#{@type_name}]" : @type_name
+        end
+
         def as_json
           {
             node: "argument",

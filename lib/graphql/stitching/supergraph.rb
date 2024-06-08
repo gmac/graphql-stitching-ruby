@@ -86,6 +86,7 @@ module GraphQL
         @schema.use(GraphQL::Schema::AlwaysVisible)
 
         @resolvers = resolvers
+        @resolvers_by_version = nil
         @fields_by_type_and_location = nil
         @locations_by_type = nil
         @memoized_introspection_types = nil
@@ -170,6 +171,12 @@ module GraphQL
       # @return [GraphQL::StaticValidation::Validator] static validator for the supergraph schema.
       def static_validator
         @static_validator ||= @schema.static_validator
+      end
+
+      def resolvers_by_version
+        @resolvers_by_version ||= resolvers.values.tap(&:flatten!).each_with_object({}) do |resolver, memo|
+          memo[resolver.version] = resolver
+        end
       end
 
       def fields

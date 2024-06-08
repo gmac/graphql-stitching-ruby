@@ -22,7 +22,7 @@ describe "GraphQL::Stitching::Plan" do
       if_type: "Storefront",
       selections: "{ name(lang:$lang) }",
       variables: { "lang" => "String!" },
-      resolver: @resolver,
+      resolver: @resolver.version,
     )
 
     @plan = GraphQL::Stitching::Plan.new(ops: [@op])
@@ -37,14 +37,7 @@ describe "GraphQL::Stitching::Plan" do
         "variables" => {"lang" => "String!"},
         "path" => ["storefronts"],
         "if_type" => "Storefront",
-        "resolver" => {
-          "location" => "products",
-          "type_name" => "Storefront",
-          "key" => "id",
-          "field" => "storefronts",
-          "arg" => "ids",
-          "list" => true,
-        },
+        "resolver" => @resolver.version,
       }],
     }
   end
@@ -56,6 +49,6 @@ describe "GraphQL::Stitching::Plan" do
   def test_from_json_deserialized_a_plan
     plan = GraphQL::Stitching::Plan.from_json(@serialized)
     assert_equal [@op], plan.ops
-    assert_equal @resolver, plan.ops.first.resolver
+    assert_equal @resolver.version, plan.ops.first.resolver
   end
 end

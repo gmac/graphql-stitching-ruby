@@ -53,7 +53,7 @@ module GraphQL::Stitching
         variable_defs = {}
         query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
-          resolver = op.resolver
+          resolver = @executor.request.supergraph.resolvers_by_version[op.resolver]
 
           if resolver.list?
             variable_name = "_#{batch_index}_key"
@@ -115,7 +115,7 @@ module GraphQL::Stitching
         return unless raw_result
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-          results = if op.resolver.list?
+          results = if @executor.request.supergraph.resolvers_by_version[op.resolver].list?
             raw_result["_#{batch_index}_result"]
           else
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }

@@ -43,7 +43,7 @@ module GraphQL
           variables: rendered_variables,
           path: @path,
           if_type: type_condition,
-          resolver: @resolver,
+          resolver: @resolver&.version,
         )
       end
 

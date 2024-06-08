@@ -4,6 +4,25 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Executor, ResolverSource" do
   def setup
+    @resolver1 = GraphQL::Stitching::Resolver.new(
+      location: "products",
+      field: "storefronts",
+      arg: "ids",
+      arg_type_name: "ID",
+      key: "id",
+      list: true,
+      type_name: "Storefront"
+    )
+    @resolver2 = GraphQL::Stitching::Resolver.new(
+      location: "products",
+      field: "product",
+      arg: "upc",
+      arg_type_name: "ID",
+      key: "upc",
+      list: false,
+      type_name: "Product"
+    )
+
     @op1 = GraphQL::Stitching::Plan::Op.new(
       step: 2,
       after: 1,
@@ -13,15 +32,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
       if_type: "Storefront",
       selections: "{ name(lang:$lang) }",
       variables: { "lang" => "String!" },
-      resolver: GraphQL::Stitching::Resolver.new(
-        location: "products",
-        field: "storefronts",
-        arg: "ids",
-        arg_type_name: "ID",
-        key: "id",
-        list: true,
-        type_name: "Storefront"
-      )
+      resolver: @resolver1.version,
     )
     @op2 = GraphQL::Stitching::Plan::Op.new(
       step: 3,
@@ -32,18 +43,16 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
       if_type: "Product",
       selections: "{ price(currency:$currency) }",
       variables: { "currency" => "Currency!" },
-      resolver: GraphQL::Stitching::Resolver.new(
-        location: "products",
-        field: "product",
-        arg: "upc",
-        arg_type_name: "ID",
-        key: "upc",
-        list: false,
-        type_name: "Product"
-      )
+      resolver: @resolver2.version,
     )
 
-    @source = GraphQL::Stitching::Executor::ResolverSource.new({}, "products")
+    supergraph = GraphQL::Stitching::Supergraph.new(schema: GraphQL::Schema, resolvers: {
+      "Storefront" => [@resolver1],
+      "Product" => [@resolver2],
+    })
+    request = GraphQL::Stitching::Request.new(supergraph, "{ test }")
+    executor = GraphQL::Stitching::Executor.new(request)
+    @source = GraphQL::Stitching::Executor::ResolverSource.new(executor, "products")
     @origin_sets_by_operation = {
       @op1 => [{ "_export_id" => "7" }, { "_export_id" => "8" }],
       @op2 => [{ "_export_upc" => "abc" }, { "_export_upc" => "xyz" }],

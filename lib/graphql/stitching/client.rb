@@ -70,7 +70,11 @@ module GraphQL
       def load_plan(request)
         if @on_cache_read && plan_json = @on_cache_read.call(request)
           plan = GraphQL::Stitching::Plan.from_json(JSON.parse(plan_json))
-          return request.plan(plan)
+
+          # only use plans referencing current resolver versions
+          if plan.ops.all? { |op| !op.resolver || @supergraph.resolvers_by_version[op.resolver] }
+            return request.plan(plan)
+          end
         end
 
         plan = request.plan

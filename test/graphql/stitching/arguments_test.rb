@@ -280,6 +280,43 @@ class GraphQL::Stitching::ArgumentsTest < Minitest::Test
     assert_equal ["123"], args.map { _1.build(origin_obj) }
   end
 
+  def test_prints_expected_argument_structure
+    template = "key: {slug: $.name, namespace: 'sol', nested: {slug: $.outer.name, namespace: $.outer.galaxy}}"
+    arg = GraphQL::Stitching::Arguments.parse(template, get_field("objectKey")).first
+
+    assert_equal template, arg.print
+  end
+
+  def test_parses_with_root_type_map
+    template = "keys: {slug: $.name, namespace: 'beep'}, other: 'boom'"
+    type_map = {
+      "keys" => "[ObjectKey]",
+      "other" => "String",
+    }
+    expected = [Argument.new(
+      name: "keys",
+      type_name: "ObjectKey",
+      list: true,
+      value: ObjectValue.new([
+        Argument.new(
+          name: "slug",
+          value: KeyValue.new(["name"]),
+        ),
+        Argument.new(
+          name: "namespace",
+          value: LiteralValue.new("beep"),
+        ),
+      ]),
+    ),
+    Argument.new(
+      name: "other",
+      type_name: "String",
+      value: LiteralValue.new("boom"),
+    )]
+
+    assert_equal expected, GraphQL::Stitching::Arguments.parse_with_root_type_map(template, type_map)
+  end
+
   private
 
   def get_field(field_name)

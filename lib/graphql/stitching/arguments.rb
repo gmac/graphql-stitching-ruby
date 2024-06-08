@@ -27,6 +27,16 @@ module GraphQL
             @list == other.list?
         end
 
+        def build(origin_obj)
+          val = value.build(origin_obj)
+          val = [val] if list?
+          val
+        end
+
+        def print
+          "#{name}: #{value.print}"
+        end
+
         def as_json
           {
             node: "argument",
@@ -35,12 +45,6 @@ module GraphQL
             list: list? || nil,
             value: value.as_json,
           }.tap(&:compact!)
-        end
-
-        def build(origin_obj)
-          val = value.build(origin_obj)
-          val = [val] if list?
-          val
         end
       end
 
@@ -55,40 +59,52 @@ module GraphQL
           self.class == other.class && value == other.value
         end
 
-        def as_json
-          raise "unimplemented"
-        end
-
         def build(origin_obj)
           value
+        end
+
+        def print
+          JSON.generate(value).gsub(%|"|, "'")
+        end
+
+        def as_json
+          raise "unimplemented"
         end
       end
 
       class ObjectValue < ArgumentValue
+        def build(origin_obj)
+          value.each_with_object({}) do |arg, memo|
+            memo[arg.name] = arg.build(origin_obj)
+          end
+        end
+
+        def print
+          "{#{value.map(&:print).join(", ")}}"
+        end
+
         def as_json
           {
             node: "object",
             value: @value.map(&:as_json),
           }
         end
-
-        def build(origin_obj)
-          value.each_with_object({}) do |arg, memo|
-            memo[arg.name] = arg.build(origin_obj)
-          end
-        end
       end
 
       class KeyValue < ArgumentValue
+        def build(origin_obj)
+          value.reduce(origin_obj) { |obj, ns| obj[ns] }
+        end
+
+        def print
+          "$.#{value.join(".")}"
+        end
+
         def as_json
           {
             node: "key",
             value: @value,
           }
-        end
-
-        def build(origin_obj)
-          value.reduce(origin_obj) { |obj, ns| obj[ns] }
         end
       end
 
@@ -104,19 +120,32 @@ module GraphQL
       class << self
         # "reps: {group: $scope.group, name: $scope.name}, other: 'Sfoo'"
         def parse(template, field_def)
+          ast = parse_ast(template)
+          build_argument_set(ast, field_def.arguments, repeatable_key: field_def.type.list?)
+        end
+
+        def parse_with_root_type_map(template, root_type_map)
+          parse_ast(template).map do |node|
+            type_name = root_type_map[node.name]
+            list = type_name.start_with?("[")
+            type_name = type_name[1..-2] if list
+
+            build_argument(node, nil, type_name:, list:)
+          end
+        end
+
+        private
+
+        def parse_ast(template)
           template = template.gsub("'", %|"|).gsub(/(\$[\w\.]+)/) { %|"#{_1}"| }
           template = template[1..-1] if template.start_with?("(")
           template = template[0..-2] if template.end_with?(")")
 
-          ast = GraphQL.parse("{ f(#{template}) }")
+          GraphQL.parse("{ f(#{template}) }")
             .definitions.first
             .selections.first
             .arguments
-
-          build_argument_set(ast, field_def.arguments, repeatable_key: field_def.type.list?)
         end
-
-        private
 
         def build_argument_set(nodes, argument_defs, static_scope: false, repeatable_key: false)
           if argument_defs
@@ -143,7 +172,7 @@ module GraphQL
           end
         end
 
-        def build_argument(node, argument_def, static_scope: false)
+        def build_argument(node, argument_def, static_scope: false, type_name: nil, list: false)
           value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
             object_def = argument_def ? argument_def.type.unwrap : nil
             build_object_value(node.value, object_def, static_scope:)
@@ -159,8 +188,8 @@ module GraphQL
           Argument.new(
             name: node.name,
             value: value,
-            list: argument_def ? argument_def.type.list? : false,
-            type_name: argument_def ? argument_def.type.unwrap.graphql_name : nil,
+            list: argument_def ? argument_def.type.list? : list,
+            type_name: argument_def ? argument_def.type.unwrap.graphql_name : type_name,
           )
         end
 

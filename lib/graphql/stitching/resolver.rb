@@ -32,6 +32,10 @@ module GraphQL
       alias_method :list?, :list
       alias_method :representations?, :representations
 
+      def version
+        @version ||= Digest::SHA2.hexdigest(as_json.to_json)
+      end
+
       def as_json
         {
           location: location,

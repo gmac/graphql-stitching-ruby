@@ -47,7 +47,7 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       }
     |
 
-    compose_definitions({
+    @supergraph = compose_definitions({
       "storefronts" => @storefronts_sdl,
       "products" => @products_sdl,
       "manufacturers" => @manufacturers_sdl,
@@ -91,10 +91,11 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ name manufacturer { products { name } _export_id: id _export___typename: __typename } }|,
       path: ["storefront", "products"],
-      resolver: {
+      resolver: resolver_version("Product", {
+        location: "products",
         field: "product",
         key: "upc",
-      },
+      }),
     }
 
     assert_keys plan.ops[2].as_json, {
@@ -103,10 +104,11 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ address }|,
       path: ["storefront", "products", "manufacturer"],
-      resolver: {
+      resolver: resolver_version("Manufacturer", {
+        location: "manufacturers",
         field: "manufacturer",
         key: "id",
-      },
+      }),
     }
   end
 
@@ -136,10 +138,11 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ products { name } }|,
       path: ["manufacturer"],
-      resolver: {
+      resolver: resolver_version("Manufacturer", {
+        location: "products",
         field: "productsManufacturer",
         key: "id",
-      },
+      }),
     }
 
     assert_keys plan2.ops[0].as_json, {
@@ -165,10 +168,10 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       type Query { node(id:ID!):Node @stitch(key:"id") }
     |
 
-    supergraph = compose_definitions({ "a" => a, "b" => b })
+    @supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Request.new(
-      supergraph,
+      @supergraph,
       %|{ apple(id:"1") { id name weight } }|,
     ).plan
 
@@ -189,10 +192,11 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["apple"],
-      resolver: {
+      resolver: resolver_version("Apple", {
+        location: "b",
         field: "node",
         key: "id",
-      },
+      }),
     }
   end
 
@@ -209,10 +213,10 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       type Query { node(id:ID!):Node @stitch(key:"id") }
     |
 
-    supergraph = compose_definitions({ "a" => a, "b" => b })
+    @supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Request.new(
-      supergraph,
+      @supergraph,
       %|{ apple(id:"1") { id name weight } }|,
     ).plan
 
@@ -233,10 +237,11 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["apple"],
-      resolver: {
+      resolver: resolver_version("Apple", {
+        location: "b",
         field: "node",
         key: "id",
-      },
+      }),
     }
   end
 
@@ -254,10 +259,10 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       type Query { fruit(id:ID!):Fruit @stitch(key:"id") }
     |
 
-    supergraph = compose_definitions({ "a" => a, "b" => b })
+    @supergraph = compose_definitions({ "a" => a, "b" => b })
 
     plan = GraphQL::Stitching::Request.new(
-      supergraph,
+      @supergraph,
       %|{ node(id:"1") { id ...on Apple { name weight } } }|,
     ).plan
 
@@ -278,10 +283,20 @@ describe "GraphQL::Stitching::Planner, resolvers" do
       operation_type: "query",
       selections: %|{ ... on Apple { weight } }|,
       path: ["node"],
-      resolver: {
+      resolver: resolver_version("Apple", {
+        location: "b",
         field: "fruit",
         key: "id",
-      },
+      }),
     }
+  end
+
+  private
+
+  def resolver_version(type_name, criteria)
+    @supergraph.resolvers[type_name].find do |resolver|
+      json = resolver.as_json
+      criteria.all? { |k, v| json[k] == v }
+    end.version
   end
 end

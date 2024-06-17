@@ -18,7 +18,7 @@ require 'graphql/stitching'
 
 ComposerError = GraphQL::Stitching::Composer::ComposerError
 ValidationError = GraphQL::Stitching::Composer::ValidationError
-STITCH_DEFINITION = "directive @stitch(key: String!, typeName: String, representations: Boolean=false) repeatable on FIELD_DEFINITION\n"
+STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
 
 def squish_string(str)
   str.gsub(/\s+/, " ").strip

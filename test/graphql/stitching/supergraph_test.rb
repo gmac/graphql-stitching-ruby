@@ -88,8 +88,7 @@ describe "GraphQL::Stitching::Supergraph" do
         location: "manufacturers",
         key: "id",
         field: "manufacturer",
-        arg: "id",
-        arg_type_name: "ID",
+        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
     "Product" => [
@@ -97,8 +96,7 @@ describe "GraphQL::Stitching::Supergraph" do
         location: "products",
         key: "upc",
         field: "products",
-        arg: "upc",
-        arg_type_name: "ID",
+        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
       ),
     ],
     "Storefront" => [
@@ -106,8 +104,7 @@ describe "GraphQL::Stitching::Supergraph" do
         location: "storefronts",
         key: "id",
         field: "storefronts",
-        arg: "id",
-        arg_type_name: "ID",
+        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
   }
@@ -240,16 +237,16 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
     routes = supergraph.route_type_to_locations("T", "a", ["b", "c"])
-    assert_equal ["b"], routes["b"].map { _1["location"] }
-    assert_equal ["b", "c"], routes["c"].map { _1["location"] }
+    assert_equal ["b"], routes["b"].map { _1.location }
+    assert_equal ["b", "c"], routes["c"].map { _1.location }
 
     routes = supergraph.route_type_to_locations("T", "b", ["a", "c"])
-    assert_equal ["a"], routes["a"].map { _1["location"] }
-    assert_equal ["c"], routes["c"].map { _1["location"] }
+    assert_equal ["a"], routes["a"].map { _1.location }
+    assert_equal ["c"], routes["c"].map { _1.location }
 
     routes = supergraph.route_type_to_locations("T", "c", ["a", "b"])
-    assert_equal ["b", "a"], routes["a"].map { _1["location"] }
-    assert_equal ["b"], routes["b"].map { _1["location"] }
+    assert_equal ["b", "a"], routes["a"].map { _1.location }
+    assert_equal ["b"], routes["b"].map { _1.location }
   end
 
   def test_route_type_to_locations_favors_longer_paths_through_necessary_locations
@@ -289,8 +286,8 @@ describe "GraphQL::Stitching::Supergraph" do
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c, "d" => d, "e" => e })
 
     routes = supergraph.route_type_to_locations("T", "a", ["b", "c", "d"])
-    assert_equal ["b", "c", "d"], routes["d"].map { _1["location"] }
-    assert routes.none? { |_key, path| path.any? { _1["location"] == "e" } }
+    assert_equal ["b", "c", "d"], routes["d"].map { _1.location }
+    assert routes.none? { |_key, path| path.any? { _1.location == "e" } }
   end
 
   describe "#to_definition / #from_definition" do
@@ -314,11 +311,11 @@ describe "GraphQL::Stitching::Supergraph" do
       assert @schema_sdl.include?("directive @resolver")
       assert @schema_sdl.include?("directive @source")
       assert @schema_sdl.include?(squish_string(%|
-        interface I @resolver(location: "alpha", key: "id", field: "a", arg: "id", argTypeName: "ID") {
+        interface I @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!") {
       |))
       assert @schema_sdl.include?(squish_string(%|
-        type T implements I @resolver(location: "bravo", key: "id", field: "b", arg: "id", argTypeName: "ID")
-                            @resolver(typeName: "I", location: "alpha", key: "id", field: "a", arg: "id", argTypeName: "ID") {
+        type T implements I @resolver(location: "bravo", key: "id", field: "b", arguments: "id: $.id", argumentTypes: "id: ID!")
+                            @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!", typeName: "I") {
       |))
       assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
       assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)

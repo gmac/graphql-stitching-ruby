@@ -203,7 +203,7 @@ module GraphQL::Stitching
       def build_argument(node, argument_def, static_scope: false, type_struct: nil)
         value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
           object_def = argument_def ? argument_def.type.unwrap : nil
-          build_object_value(node.value, object_def, static_scope:)
+          build_object_value(node.value, object_def, static_scope: static_scope)
         elsif node.value.is_a?(GraphQL::Language::Nodes::Enum)
           EnumValue.new(node.value.name)
         elsif node.value.is_a?(String) && node.value.start_with?("$.")
@@ -235,7 +235,7 @@ module GraphQL::Stitching
           end
         end
 
-        ObjectValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope:))
+        ObjectValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope: static_scope))
       end
     end
   end

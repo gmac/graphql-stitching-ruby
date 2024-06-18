@@ -44,6 +44,8 @@ module GraphQL::Stitching
         print.gsub(%|"|, "'")
       end
 
+      alias_method :to_s, :to_definition
+
       def to_type_definition
         "#{name}: #{to_type_signature}"
       end
@@ -110,7 +112,9 @@ module GraphQL::Stitching
       end
 
       def build(origin_obj)
-        value.reduce(origin_obj) { |obj, ns| obj[ExportSelection.key(ns)] }
+        value.each_with_index.reduce(origin_obj) do |obj, (ns, idx)|
+          obj[idx.zero? ? Resolver.export_key(ns) : ns]
+        end
       end
 
       def print
@@ -155,11 +159,12 @@ module GraphQL::Stitching
       private
 
       def parse_arg_defs(template)
-        template = template.gsub("'", %|"|).gsub(/(\$[\w\.]+)/) { %|"#{_1}"| }
-        if template.start_with?("(")
-          template = template[1..-1]
-          template = template[0..-2] if template.end_with?(")")
-        end
+        template = template
+          .gsub("'", %|"|) # 'sfoo' -> "sfoo"
+          .gsub(/(\$[\w\.]+)/) { %|"#{_1}"| } # $.key -> "$.key"
+          .tap(&:strip!)
+
+        template = template[1..-2] if template.start_with?("(") && template.end_with?(")")
 
         GraphQL.parse("{ f(#{template}) }")
           .definitions.first

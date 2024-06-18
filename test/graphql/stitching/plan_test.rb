@@ -9,7 +9,7 @@ describe "GraphQL::Stitching::Plan" do
       type_name: "Storefront",
       list: true,
       field: "storefronts",
-      key: "id",
+      key: GraphQL::Stitching::Resolver.parse_key("id"),
       arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
     )
 

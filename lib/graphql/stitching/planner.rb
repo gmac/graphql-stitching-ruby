@@ -74,7 +74,7 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key}")
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -199,8 +199,8 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.alias&.start_with?(ExportSelection::EXPORT_PREFIX)
-              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{ExportSelection::EXPORT_PREFIX}" is a reserved prefix.)
+            if node.alias&.start_with?(Resolver::EXPORT_PREFIX)
+              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{Resolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
               next
@@ -262,7 +262,7 @@ module GraphQL
         # B.4) Add a `__typename` export to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
         if requires_typename
-          locale_selections << ExportSelection.typename_node
+          locale_selections << Resolver::TYPENAME_EXPORT_NODE
         end
 
         if remote_selections
@@ -276,20 +276,7 @@ module GraphQL
           routes.each_value do |route|
             route.reduce(locale_selections) do |parent_selections, resolver|
               # E.1) Add the key of each resolver query into the prior location's selection set.
-              if resolver.key
-                foreign_key = ExportSelection.key(resolver.key)
-                has_key = false
-                has_typename = false
-
-                parent_selections.each do |node|
-                  next unless node.is_a?(GraphQL::Language::Nodes::Field)
-                  has_key ||= node.alias == foreign_key
-                  has_typename ||= node.alias == ExportSelection.typename_node.alias
-                end
-
-                parent_selections << ExportSelection.key_node(resolver.key) unless has_key
-                parent_selections << ExportSelection.typename_node unless has_typename
-              end
+              parent_selections.push(*resolver.key.export_nodes) if resolver.key
 
               # E.2) Add a planner step for each new entrypoint location.
               add_step(
@@ -302,6 +289,8 @@ module GraphQL
               ).selections
             end
           end
+
+          locale_selections.uniq! { _1.alias || _1.name }
         end
 
         locale_selections

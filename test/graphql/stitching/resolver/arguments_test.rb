@@ -252,8 +252,8 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
     origin_obj = {
       "_export_name" => "neptune",
       "_export_outer" => {
-        "_export_name" => "saturn",
-        "_export_galaxy" => "milkyway",
+        "name" => "saturn",
+        "galaxy" => "milkyway",
       }
     }
 

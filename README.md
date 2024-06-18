@@ -6,7 +6,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 
 **Supports:**
 - Merged object and abstract types.
-- Multiple keys per merged type.
+- Multiple and composite keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
 - File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
@@ -226,7 +226,7 @@ type Query {
 }
 ```
 
-Key insertions are prefixed by `$.`, and presently support the named resolver key and `__typename`. This syntax allows sending multiple arguments that intermix stitching keys with complex object shapes and other static values:
+Key insertions are prefixed by `$` and specify a dot-notation path to any selections made by the resolver `key`, or `__typename`. This syntax allows sending multiple arguments that intermix stitching keys with complex input shapes and other static values:
 
 ```graphql
 type Product {
@@ -245,6 +245,35 @@ type Query {
 ```
 
 See [resolver arguments](./docs/resolver.md#arguments) for full documentation on shaping input.
+
+#### Composite type keys
+
+Resolver keys may make composite selections for multiple key fields and/or nested scopes, for example:
+
+```graphql
+interface FieldOwner {
+  id: ID!
+  type: String!
+}
+type CustomField {
+  owner: FieldOwner!
+  key: String!
+  value: String
+}
+input CustomFieldLookup {
+  ownerId: ID!
+  ownerType: String!
+  key: String!
+}
+type Query {
+  customFields(lookups: [CustomFieldLookup!]!): [CustomField]! @stitch(
+    key: "owner { id type } key",
+    arguments: "lookups: { ownerId: $.owner.id, ownerType: $.owner.type, key: $.key }"
+  )
+}
+```
+
+Note that composite key selections may _not_ be distributed across locations. The complete selection criteria must be available in each location that provides the key.
 
 #### Multiple type keys
 

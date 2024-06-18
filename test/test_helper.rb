@@ -37,16 +37,20 @@ def minimum_graphql_version?(versioning)
 end
 
 def compose_definitions(locations, options={})
-  locations = locations.each_with_object({}) do |(location, schema_or_sdl), memo|
-    schema = if schema_or_sdl.is_a?(String)
-      schema_or_sdl = STITCH_DEFINITION + schema_or_sdl if schema_or_sdl.include?("@stitch")
-      GraphQL::Schema.from_definition(schema_or_sdl)
+  locations = locations.each_with_object({}) do |(location, schema_config), memo|
+    memo[location.to_s] = if schema_config.is_a?(Hash)
+      schema_config
+    elsif schema_config.is_a?(String)
+      schema_config = STITCH_DEFINITION + schema_config if schema_config.include?("@stitch")
+      { schema: GraphQL::Schema.from_definition(schema_config) }
     else
-      schema_or_sdl
+      { schema: schema_config }
     end
-    memo[location.to_s] = { schema: schema }
   end
-  GraphQL::Stitching::Composer.new(**options).perform(locations)
+  composer = GraphQL::Stitching::Composer.new(**options)
+  supergraph = composer.perform(locations)
+  yield(composer, supergraph) if block_given?
+  supergraph
 end
 
 def supergraph_from_schema(schema, fields: {}, resolvers: {}, executables: {})

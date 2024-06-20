@@ -63,7 +63,7 @@ module GraphQL
               name: nil,
             )
 
-            flatten_ast_type_structure(ast.of_type, structure:)
+            flatten_ast_type_structure(ast.of_type, structure: structure)
           else
             structure << TypeStructure.new(
               list: false,

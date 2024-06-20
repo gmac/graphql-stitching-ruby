@@ -196,7 +196,7 @@ module GraphQL::Stitching
             d
           end
 
-          build_argument(n, argument_def, static_scope:)
+          build_argument(n, argument_def, static_scope: static_scope)
         end
       end
 

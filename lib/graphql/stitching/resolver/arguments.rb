@@ -82,7 +82,7 @@ module GraphQL::Stitching
 
     # An object input value
     # @api private
-    class ObjectValue < ArgumentValue
+    class ObjectArgumentValue < ArgumentValue
       def key?
         value.any?(&:key?)
       end
@@ -100,7 +100,7 @@ module GraphQL::Stitching
 
     # A key input value
     # @api private
-    class KeyValue < ArgumentValue
+    class KeyArgumentValue < ArgumentValue
       def initialize(value)
         super(Array(value))
       end
@@ -120,12 +120,12 @@ module GraphQL::Stitching
 
     # A typed enum input value
     # @api private
-    class EnumValue < ArgumentValue
+    class ArgumentEnumValue < ArgumentValue
     end
 
     # A primitive input value literal
     # @api private
-    class LiteralValue < ArgumentValue
+    class ArgumentLiteralValue < ArgumentValue
       def print
         JSON.generate(value)
       end
@@ -205,14 +205,14 @@ module GraphQL::Stitching
           object_def = argument_def ? argument_def.type.unwrap : nil
           build_object_value(node.value, object_def, static_scope: static_scope)
         elsif node.value.is_a?(GraphQL::Language::Nodes::Enum)
-          EnumValue.new(node.value.name)
+          ArgumentEnumValue.new(node.value.name)
         elsif node.value.is_a?(String) && node.value.start_with?("$.")
           if static_scope
             raise "Cannot use repeatable key `#{node.value}` in non-list argument `#{argument_def&.graphql_name}`."
           end
-          KeyValue.new(node.value.sub(/^\$\./, "").split("."))
+          KeyArgumentValue.new(node.value.sub(/^\$\./, "").split("."))
         else
-          LiteralValue.new(node.value)
+          ArgumentLiteralValue.new(node.value)
         end
 
         Argument.new(
@@ -235,7 +235,7 @@ module GraphQL::Stitching
           end
         end
 
-        ObjectValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope: static_scope))
+        ObjectArgumentValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope: static_scope))
       end
     end
   end

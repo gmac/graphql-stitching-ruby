@@ -33,7 +33,7 @@ module GraphQL::Stitching
         # only one resolver allowed per type/location/key
         resolvers_by_location_and_key = resolvers.each_with_object({}) do |resolver, memo|
           if memo.dig(resolver.location, resolver.key)
-            raise Composer::ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
+            raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
               "found in #{resolver.location}. Limit one resolver query per type and key in each location. "\
               "Abstract resolvers provide all possible types."
           end
@@ -49,14 +49,14 @@ module GraphQL::Stitching
 
           if locations.none? { resolvers_by_location_and_key[_1] }
             where = locations.length > 1 ? "one of #{locations.join(", ")} locations" : locations.first
-            raise Composer::ValidationError, "A resolver query is required for `#{type.graphql_name}` in #{where} to resolve field `#{field_name}`."
+            raise ValidationError, "A resolver query is required for `#{type.graphql_name}` in #{where} to resolve field `#{field_name}`."
           end
         end
 
         # All locations of a resolver type must include at least one key field
         supergraph.fields_by_type_and_location[type.graphql_name].each do |location, field_names|
           if field_names.none? { resolver_keys.include?(_1) }
-            raise Composer::ValidationError, "A resolver key is required for `#{type.graphql_name}` in #{location} to join with other locations."
+            raise ValidationError, "A resolver key is required for `#{type.graphql_name}` in #{location} to join with other locations."
           end
         end
 
@@ -66,7 +66,7 @@ module GraphQL::Stitching
           remote_locations = resolver_locations.reject { _1 == location }
           paths = supergraph.route_type_to_locations(type.graphql_name, location, remote_locations)
           if paths.length != remote_locations.length || paths.any? { |_loc, path| path.nil? }
-            raise Composer::ValidationError, "Cannot route `#{type.graphql_name}` resolvers in #{location} to all other locations. "\
+            raise ValidationError, "Cannot route `#{type.graphql_name}` resolvers in #{location} to all other locations. "\
               "All locations must provide a resolver query with a joining key."
           end
         end
@@ -78,7 +78,7 @@ module GraphQL::Stitching
         rescue StandardError => e
           # bug with inherited interfaces in older versions of GraphQL
           if type.interfaces.any? { _1.is_a?(GraphQL::Schema::LateBoundType) }
-            raise Composer::ComposerError, "Merged interface inheritance requires GraphQL >= v2.0.3"
+            raise CompositionError, "Merged interface inheritance requires GraphQL >= v2.0.3"
           else
             raise e
           end
@@ -86,7 +86,7 @@ module GraphQL::Stitching
 
         subgraph_types_by_location.each do |location, subgraph_type|
           if subgraph_type.fields.keys.sort != expected_fields
-            raise Composer::ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations, "\
+            raise ValidationError, "Shared type `#{type.graphql_name}` must have consistent fields across locations, "\
               "or else define resolver queries so that its unique fields may be accessed remotely."
           end
         end

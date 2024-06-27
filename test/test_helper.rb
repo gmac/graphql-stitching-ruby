@@ -16,8 +16,8 @@ require 'minitest/pride'
 require 'minitest/autorun'
 require 'graphql/stitching'
 
-ComposerError = GraphQL::Stitching::Composer::ComposerError
-ValidationError = GraphQL::Stitching::Composer::ValidationError
+CompositionError = GraphQL::Stitching::CompositionError
+ValidationError = GraphQL::Stitching::ValidationError
 STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
 
 def squish_string(str)

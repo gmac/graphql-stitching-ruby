@@ -8,6 +8,8 @@ module GraphQL
     EMPTY_ARRAY = [].freeze
 
     class StitchingError < StandardError; end
+    class CompositionError < StitchingError; end
+    class ValidationError < CompositionError; end
 
     class << self
       def stitch_directive

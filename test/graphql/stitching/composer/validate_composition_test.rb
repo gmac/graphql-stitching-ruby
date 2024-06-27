@@ -7,7 +7,7 @@ describe 'GraphQL::Stitching::Composer, general concerns' do
     a = "type Query { a:Boom } type Boom { a:String }"
     b = "type Query { b:Boom } interface Boom { b:String }"
 
-    assert_error('Cannot merge different kinds for `Boom`. Found: OBJECT, INTERFACE', ComposerError) do
+    assert_error('Cannot merge different kinds for `Boom`. Found: OBJECT, INTERFACE', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end

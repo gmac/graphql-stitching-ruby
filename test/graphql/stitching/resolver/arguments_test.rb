@@ -4,10 +4,10 @@ require "test_helper"
 
 class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
   Argument = GraphQL::Stitching::Resolver::Argument
-  ObjectValue = GraphQL::Stitching::Resolver::ObjectValue
-  LiteralValue = GraphQL::Stitching::Resolver::LiteralValue
-  EnumValue = GraphQL::Stitching::Resolver::EnumValue
-  KeyValue = GraphQL::Stitching::Resolver::KeyValue
+  ObjectArgumentValue = GraphQL::Stitching::Resolver::ObjectArgumentValue
+  ArgumentLiteralValue = GraphQL::Stitching::Resolver::ArgumentLiteralValue
+  ArgumentEnumValue = GraphQL::Stitching::Resolver::ArgumentEnumValue
+  KeyArgumentValue = GraphQL::Stitching::Resolver::KeyArgumentValue
 
   class TestSchema < GraphQL::Schema
     class TestEnum < GraphQL::Schema::Enum
@@ -66,23 +66,23 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "key",
       type_name: "ObjectKey",
       list: false,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
           type_name: "String",
-          value: KeyValue.new(["slug"]),
+          value: KeyArgumentValue.new(["slug"]),
         ),
         Argument.new(
           name: "namespace",
           type_name: "String",
-          value: LiteralValue.new("sfoo"),
+          value: ArgumentLiteralValue.new("sfoo"),
         ),
       ]),
     ),
     Argument.new(
       name: "other",
       type_name: "String",
-      value: KeyValue.new(["slug"]),
+      value: KeyArgumentValue.new(["slug"]),
     )]
 
     assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
@@ -94,25 +94,25 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "key",
       type_name: "ObjectKey",
       list: false,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
           type_name: "String",
-          value: KeyValue.new(["slug"]),
+          value: KeyArgumentValue.new(["slug"]),
         ),
         Argument.new(
           name: "nested",
           type_name: "ObjectKey",
-          value: ObjectValue.new([
+          value: ObjectArgumentValue.new([
             Argument.new(
               name: "slug",
               type_name: "String",
-              value: KeyValue.new(["slug"]),
+              value: KeyArgumentValue.new(["slug"]),
             ),
             Argument.new(
               name: "namespace",
               type_name: "String",
-              value: LiteralValue.new("sfoo"),
+              value: ArgumentLiteralValue.new("sfoo"),
             ),
           ]),
         ),
@@ -128,11 +128,11 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "key",
       type_name: "ObjectKey",
       list: false,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
           type_name: "String",
-          value: KeyValue.new(["ref", "slug"]),
+          value: KeyArgumentValue.new(["ref", "slug"]),
         ),
       ]),
     )]
@@ -146,21 +146,21 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "keys",
       type_name: "ObjectKey",
       list: true,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
           type_name: "String",
-          value: KeyValue.new(["slug"]),
+          value: KeyArgumentValue.new(["slug"]),
         ),
         Argument.new(
           name: "nestedList",
           type_name: "ObjectKey",
           list: true,
-          value: ObjectValue.new([
+          value: ObjectArgumentValue.new([
             Argument.new(
               name: "slug",
               type_name: "String",
-              value: KeyValue.new(["ref", "slug"]),
+              value: KeyArgumentValue.new(["ref", "slug"]),
             ),
           ]),
         ),
@@ -176,20 +176,20 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "key",
       type_name: "ScalarKey",
       list: false,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
           type_name: nil,
-          value: KeyValue.new(["slug"]),
+          value: KeyArgumentValue.new(["slug"]),
         ),
         Argument.new(
           name: "nested",
           type_name: nil,
-          value: ObjectValue.new([
+          value: ObjectArgumentValue.new([
             Argument.new(
               name: "slug",
               type_name: nil,
-              value: KeyValue.new(["slug"]),
+              value: KeyArgumentValue.new(["slug"]),
             ),
           ]),
         ),
@@ -310,61 +310,61 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       name: "keys",
       type_name: "ObjectKey",
       list: true,
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "slug",
-          value: KeyValue.new(["name"]),
+          value: KeyArgumentValue.new(["name"]),
         ),
         Argument.new(
           name: "namespace",
-          value: LiteralValue.new("beep"),
+          value: ArgumentLiteralValue.new("beep"),
         ),
       ]),
     ),
     Argument.new(
       name: "other",
       type_name: "String",
-      value: LiteralValue.new("boom"),
+      value: ArgumentLiteralValue.new("boom"),
     )]
 
     assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_type_defs(template, type_defs)
   end
 
   def test_checks_primitive_values_for_presence_of_keys
-    assert_equal false, Argument.new(name: "test", value: LiteralValue.new("boom")).key?
-    assert_equal false, Argument.new(name: "test", value: EnumValue.new("YES")).key?
-    assert Argument.new(name: "test", value: KeyValue.new("id")).key?
+    assert_equal false, Argument.new(name: "test", value: ArgumentLiteralValue.new("boom")).key?
+    assert_equal false, Argument.new(name: "test", value: ArgumentEnumValue.new("YES")).key?
+    assert Argument.new(name: "test", value: KeyArgumentValue.new("id")).key?
   end
 
   def test_checks_composite_values_for_presence_of_keys
     assert_equal false, Argument.new(
       name: "test",
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "first",
-          value: EnumValue.new(["YES"]),
+          value: ArgumentEnumValue.new(["YES"]),
         ),
         Argument.new(
           name: "second",
-          value: LiteralValue.new("boom"),
+          value: ArgumentLiteralValue.new("boom"),
         ),
       ]),
     ).key?
 
     assert Argument.new(
       name: "test",
-      value: ObjectValue.new([
+      value: ObjectArgumentValue.new([
         Argument.new(
           name: "first",
-          value: EnumValue.new(["YES"]),
+          value: ArgumentEnumValue.new(["YES"]),
         ),
         Argument.new(
           name: "second",
-          value: LiteralValue.new("boom"),
+          value: ArgumentLiteralValue.new("boom"),
         ),
         Argument.new(
           name: "third",
-          value: KeyValue.new("id"),
+          value: KeyArgumentValue.new("id"),
         ),
       ]),
     ).key?

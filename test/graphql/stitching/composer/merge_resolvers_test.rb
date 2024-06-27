@@ -181,7 +181,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       conditions << (b.location == location)
       conditions << (b.field == field) if field
       conditions << (b.arguments.first.name == arg) if arg
-      conditions << (b.arguments.first.value == GraphQL::Stitching::Resolver::KeyValue.new(key)) if key
+      conditions << (b.arguments.first.value == GraphQL::Stitching::Resolver::KeyArgumentValue.new(key)) if key
       conditions << (b.key == key) if key
       conditions.all?
     end

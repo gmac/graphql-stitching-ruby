@@ -95,6 +95,11 @@ module GraphQL
       end
 
       def execute_at_location(location, source, variables, request)
+        puts "RESOLVE: #{location}"
+        puts source
+        puts variables
+        puts "***"
+
         executable = executables[location]
 
         if executable.nil?

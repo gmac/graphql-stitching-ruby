@@ -179,7 +179,7 @@ module GraphQL::Stitching
         if argument_defs
           argument_defs.each_value do |argument_def|
             if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.graphql_name }
-              raise "Required argument `#{argument_def.graphql_name}` has no input."
+              raise CompositionError, "Required argument `#{argument_def.graphql_name}` has no input."
             end
           end
         end
@@ -187,7 +187,7 @@ module GraphQL::Stitching
         nodes.map do |n|
           argument_def = if argument_defs
             unless d = argument_defs[n.name]
-              raise "Input `#{n.name}` is not a valid argument."
+              raise CompositionError, "Input `#{n.name}` is not a valid argument."
             end
 
             # lock the use of keys in a root argument's subtree
@@ -208,7 +208,7 @@ module GraphQL::Stitching
           ArgumentEnumValue.new(node.value.name)
         elsif node.value.is_a?(String) && node.value.start_with?("$.")
           if static_scope
-            raise "Cannot use repeatable key `#{node.value}` in non-list argument `#{argument_def&.graphql_name}`."
+            raise CompositionError, "Cannot use repeatable key `#{node.value}` in non-list argument `#{argument_def&.graphql_name}`."
           end
           KeyArgumentValue.new(node.value.sub(/^\$\./, "").split("."))
         else
@@ -227,9 +227,9 @@ module GraphQL::Stitching
       def build_object_value(node, object_def, static_scope: false)
         if object_def
           if !object_def.kind.input_object? && !object_def.kind.scalar?
-            raise "Objects can only be built into input object and scalar positions."
+            raise CompositionError, "Objects can only be built into input object and scalar positions."
           elsif object_def.kind.scalar? && GraphQL::Schema::BUILT_IN_TYPES[object_def.graphql_name]
-            raise "Objects can only be built into custom scalar types."
+            raise CompositionError, "Objects can only be built into custom scalar types."
           elsif object_def.kind.scalar?
             object_def = nil
           end

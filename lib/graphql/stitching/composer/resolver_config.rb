@@ -12,10 +12,10 @@ module GraphQL::Stitching
 
           assignments.each_with_object({}) do |kwargs, memo|
             type = kwargs[:parent_type_name] ? schema.get_type(kwargs[:parent_type_name]) : schema.query
-            raise ComposerError, "Invalid stitch directive type `#{kwargs[:parent_type_name]}`" unless type
+            raise CompositionError, "Invalid stitch directive type `#{kwargs[:parent_type_name]}`" unless type
 
             field = type.get_field(kwargs[:field_name])
-            raise ComposerError, "Invalid stitch directive field `#{kwargs[:field_name]}`" unless field
+            raise CompositionError, "Invalid stitch directive field `#{kwargs[:field_name]}`" unless field
 
             field_path = "#{location}.#{field.name}"
             memo[field_path] ||= []
@@ -31,7 +31,7 @@ module GraphQL::Stitching
               next unless directive.graphql_name == "key"
 
               key = directive.arguments.keyword_arguments.fetch(:fields).strip
-              raise ComposerError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
+              raise CompositionError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
 
               field_path = "#{location}._entities"
               memo[field_path] ||= []

@@ -8,9 +8,6 @@ require_relative "./composer/resolver_config"
 module GraphQL
   module Stitching
     class Composer
-      class ComposerError < StitchingError; end
-      class ValidationError < ComposerError; end
-
       # @api private
       NO_DEFAULT_VALUE = begin
         class T < GraphQL::Schema::Object
@@ -93,17 +90,17 @@ module GraphQL
 
         # "Typename" => "location" => subgraph_type
         @subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
-          raise ComposerError, "The subscription operation is not supported." if schema.subscription
+          raise CompositionError, "Location keys must be strings" unless location.is_a?(String)
+          raise CompositionError, "The subscription operation is not supported." if schema.subscription
 
           introspection_types = schema.introspection_system.types.keys
           schema.types.each do |type_name, subgraph_type|
             next if introspection_types.include?(type_name)
 
             if type_name == @query_name && subgraph_type != schema.query
-              raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
+              raise CompositionError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
             elsif type_name == @mutation_name && subgraph_type != schema.mutation
-              raise ComposerError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+              raise CompositionError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             end
 
             type_name = @query_name if subgraph_type == schema.query
@@ -122,7 +119,7 @@ module GraphQL
           kinds = types_by_location.values.map { _1.kind.name }.tap(&:uniq!)
 
           if kinds.length > 1
-            raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
+            raise CompositionError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
           extract_resolvers(type_name, types_by_location) if type_name == @query_name
@@ -141,7 +138,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
+            raise CompositionError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
           end
         end
 
@@ -184,9 +181,9 @@ module GraphQL
           schema = input[:schema]
 
           if schema.nil?
-            raise ComposerError, "A schema is required for `#{location}` location."
+            raise CompositionError, "A schema is required for `#{location}` location."
           elsif !(schema.is_a?(Class) && schema <= GraphQL::Schema)
-            raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
+            raise CompositionError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
           @resolver_configs.merge!(ResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
@@ -388,7 +385,7 @@ module GraphQL
           if arguments_by_location.length != members_by_location.length
             if value_types.any?(&:non_null?)
               path = [type_name, field_name, argument_name].compact.join(".")
-              raise ComposerError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
+              raise CompositionError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
             end
             next
           end
@@ -477,11 +474,11 @@ module GraphQL
 
         alt_structures.each do |alt_structure|
           if alt_structure.length != basis_structure.length
-            raise ComposerError, "Cannot compose mixed list structures at `#{path}`."
+            raise CompositionError, "Cannot compose mixed list structures at `#{path}`."
           end
 
           if alt_structure.last.name != basis_structure.last.name
-            raise ComposerError, "Cannot compose mixed types at `#{path}`."
+            raise CompositionError, "Cannot compose mixed types at `#{path}`."
           end
         end
 
@@ -543,7 +540,7 @@ module GraphQL
               key_selections = GraphQL.parse("{ #{config.key} }").definitions[0].selections
 
               if key_selections.length != 1
-                raise ComposerError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
+                raise CompositionError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
               end
 
               arguments_format = config.arguments || begin
@@ -555,7 +552,7 @@ module GraphQL
                 end
 
                 unless argument
-                  raise ComposerError, "No resolver argument matched for #{type_name}.#{field_name}."
+                  raise CompositionError, "No resolver argument matched for #{type_name}.#{field_name}."
                     # "Add an alias to the key that specifies its intended argument, ex: `arg:key`"
                 end
 
@@ -566,16 +563,16 @@ module GraphQL
               # resolver_args.select(&:key?).each do |resolver_arg|
               #   argument_structure = Util.flatten_type_structure(argument.type)
               #   if argument_structure.length != resolver_structure.length
-              #     raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
+              #     raise CompositionError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
               #       "Arguments must map directly to results."
               #   end
               # end
 
               resolver_type_name = if config.type_name
                 if !resolver_type.kind.abstract?
-                  raise ComposerError, "Resolver config may only specify a type name for abstract resolvers."
+                  raise CompositionError, "Resolver config may only specify a type name for abstract resolvers."
                 elsif !resolver_type.possible_types.find { _1.graphql_name == config.type_name }
-                  raise ComposerError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
+                  raise CompositionError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
                 end
                 config.type_name
               else

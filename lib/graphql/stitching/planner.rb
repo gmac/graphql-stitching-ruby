@@ -153,7 +153,7 @@ module GraphQL
           end
 
         else
-          raise "Invalid operation type."
+          raise StitchingError, "Invalid operation type."
         end
       end
 
@@ -173,7 +173,7 @@ module GraphQL
             each_field_in_scope(parent_type, fragment.selections, &block)
 
           else
-            raise "Unexpected node of type #{node.class.name} in selection set."
+            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
           end
         end
       end
@@ -255,7 +255,7 @@ module GraphQL
             end
 
           else
-            raise "Unexpected node of type #{node.class.name} in selection set."
+            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
           end
         end
 

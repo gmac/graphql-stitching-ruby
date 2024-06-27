@@ -64,7 +64,7 @@ module GraphQL
             return nil if result.nil?
 
           else
-            raise "Unexpected node of type #{node.class.name} in selection set."
+            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
           end
         end
 

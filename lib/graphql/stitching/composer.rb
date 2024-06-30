@@ -537,37 +537,6 @@ module GraphQL
             end
 
             resolver_configs.each do |config|
-              key_selections = GraphQL.parse("{ #{config.key} }").definitions[0].selections
-
-              if key_selections.length != 1
-                raise CompositionError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
-              end
-
-              arguments_format = config.arguments || begin
-                key_selection = key_selections.first.alias || key_selections.first.name
-                argument = if subgraph_field.arguments.size == 1
-                  subgraph_field.arguments.values.first
-                else
-                  subgraph_field.arguments[key_selection]
-                end
-
-                unless argument
-                  raise CompositionError, "No resolver argument matched for #{type_name}.#{field_name}."
-                    # "Add an alias to the key that specifies its intended argument, ex: `arg:key`"
-                end
-
-                "#{argument.graphql_name}: $.#{key_selection}"
-              end
-
-              resolver_args = Resolver.parse_arguments(arguments_format, subgraph_field)
-              # resolver_args.select(&:key?).each do |resolver_arg|
-              #   argument_structure = Util.flatten_type_structure(argument.type)
-              #   if argument_structure.length != resolver_structure.length
-              #     raise CompositionError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
-              #       "Arguments must map directly to results."
-              #   end
-              # end
-
               resolver_type_name = if config.type_name
                 if !resolver_type.kind.abstract?
                   raise CompositionError, "Resolver config may only specify a type name for abstract resolvers."
@@ -579,13 +548,42 @@ module GraphQL
                 resolver_type.graphql_name
               end
 
+              key = Resolver.parse_key_with_types(
+                config.key,
+                @subgraph_types_by_name_and_location[resolver_type_name],
+              )
+
+              arguments_format = config.arguments || begin
+                argument = if subgraph_field.arguments.size == 1
+                  subgraph_field.arguments.values.first
+                else
+                  subgraph_field.arguments[key.default_argument_name]
+                end
+
+                unless argument
+                  raise CompositionError, "No resolver argument matched for #{type_name}.#{field_name}." \
+                    "An argument mapping is required for unmatched names and composite keys."
+                end
+
+                "#{argument.graphql_name}: $.#{key.default_argument_name}"
+              end
+
+              resolver_args = Resolver.parse_arguments(arguments_format, subgraph_field)
+              # resolver_args.select(&:key?).each do |resolver_arg|
+              #   argument_structure = Util.flatten_type_structure(argument.type)
+              #   if argument_structure.length != resolver_structure.length
+              #     raise CompositionError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
+              #       "Arguments must map directly to results."
+              #   end
+              # end
+
               @resolver_map[resolver_type_name] ||= []
               @resolver_map[resolver_type_name] << Resolver.new(
                 location: location,
                 type_name: resolver_type_name,
-                list: resolver_structure.first.list?,
-                key: key_selections[0].name,
                 field: subgraph_field.name,
+                list: resolver_structure.first.list?,
+                key: key,
                 arguments: resolver_args,
               )
             end

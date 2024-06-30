@@ -1,75 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "./supergraph/resolver_directive"
-require_relative "./supergraph/source_directive"
+require_relative "./supergraph/to_definition"
 
 module GraphQL
   module Stitching
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
-
-      class << self
-        def validate_executable!(location, executable)
-          return true if executable.is_a?(Class) && executable <= GraphQL::Schema
-          return true if executable && executable.respond_to?(:call)
-          raise StitchingError, "Invalid executable provided for location `#{location}`."
-        end
-
-        def from_definition(schema, executables:)
-          schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
-          field_map = {}
-          resolver_map = {}
-          possible_locations = {}
-          introspection_types = schema.introspection_system.types.keys
-
-          schema.types.each do |type_name, type|
-            next if introspection_types.include?(type_name)
-
-            type.directives.each do |directive|
-              next unless directive.graphql_name == ResolverDirective.graphql_name
-
-              kwargs = directive.arguments.keyword_arguments
-              resolver_map[type_name] ||= []
-              resolver_map[type_name] << Resolver.new(
-                location: kwargs[:location],
-                type_name: kwargs.fetch(:type_name, type_name),
-                list: kwargs[:list] || false,
-                key: kwargs[:key],
-                field: kwargs[:field],
-                arguments: Resolver.parse_arguments_with_type_defs(kwargs[:arguments], kwargs[:argument_types]),
-              )
-            end
-
-            next unless type.kind.fields?
-
-            type.fields.each do |field_name, field|
-              field.directives.each do |d|
-                next unless d.graphql_name == SourceDirective.graphql_name
-
-                location = d.arguments.keyword_arguments[:location]
-                field_map[type_name] ||= {}
-                field_map[type_name][field_name] ||= []
-                field_map[type_name][field_name] << location
-                possible_locations[location] = true
-              end
-            end
-          end
-
-          executables = possible_locations.keys.each_with_object({}) do |location, memo|
-            executable = executables[location] || executables[location.to_sym]
-            if validate_executable!(location, executable)
-              memo[location] = executable
-            end
-          end
-
-          new(
-            schema: schema,
-            fields: field_map,
-            resolvers: resolver_map,
-            executables: executables,
-          )
-        end
-      end
 
       # @return [GraphQL::Schema] the composed schema for the supergraph.
       attr_reader :schema
@@ -109,56 +45,6 @@ module GraphQL
             memo[location.to_s] = executable
           end
         end.freeze
-      end
-
-      def to_definition
-        if @schema.directives[ResolverDirective.graphql_name].nil?
-          @schema.directive(ResolverDirective)
-        end
-        if @schema.directives[SourceDirective.graphql_name].nil?
-          @schema.directive(SourceDirective)
-        end
-
-        @schema.types.each do |type_name, type|
-          if resolvers_for_type = @resolvers.dig(type_name)
-            resolvers_for_type.each do |resolver|
-              params = {
-                location: resolver.location,
-                list: resolver.list? || nil,
-                key: resolver.key,
-                field: resolver.field,
-                arguments: resolver.arguments.map(&:to_definition).join(", "),
-                argument_types: resolver.arguments.map(&:to_type_definition).join(", "),
-                type_name: (resolver.type_name if resolver.type_name != type_name),
-              }
-
-              existing = type.directives.find do |d|
-                kwargs = d.arguments.keyword_arguments
-                d.graphql_name == ResolverDirective.graphql_name && params.all? { |k, v| kwargs[k] == v}
-              end
-
-              type.directive(ResolverDirective, **params.tap(&:compact!)) unless existing
-            end
-          end
-
-          next unless type.kind.fields?
-
-          type.fields.each do |field_name, field|
-            locations_for_field = @locations_by_type_and_field.dig(type_name, field_name)
-            next if locations_for_field.nil?
-
-            locations_for_field.each do |location|
-              existing = field.directives.find do |d|
-                d.graphql_name == SourceDirective.graphql_name &&
-                  d.arguments.keyword_arguments[:location] == location
-              end
-
-              field.directive(SourceDirective, location: location) if existing.nil?
-            end
-          end
-        end
-
-        @schema.to_definition
       end
 
       # @return [GraphQL::StaticValidation::Validator] static validator for the supergraph schema.
@@ -245,24 +131,23 @@ module GraphQL
       end
 
       # collects all possible resolver keys for a given type
-      # ("Type") => ["id", ...]
+      # ("Type") => [Key("id"), ...]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
           if type_name == @schema.query.graphql_name
             GraphQL::Stitching::EMPTY_ARRAY
           else
-            @resolvers[type_name].map(&:key).tap(&:uniq!)
+            @resolvers[type_name].map(&:key).uniq(&:to_definition)
           end
         end
       end
 
       # collects possible resolver keys for a given type and location
-      # ("Type", "location") => ["id", ...]
+      # ("Type", "location") => [Key("id"), ...]
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
-        possible_keys_by_type[location] ||= begin
-          location_fields = fields_by_type_and_location[type_name][location] || []
-          location_fields & possible_keys_for_type(type_name)
+        possible_keys_by_type[location] ||= possible_keys_for_type(type_name).select do |key|
+          key.locations.include?(location)
         end
       end
 

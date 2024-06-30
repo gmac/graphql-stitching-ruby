@@ -8,12 +8,12 @@ Resolvers configure arguments through a template string of [GraphQL argument lit
 
 #### Key insertions
 
-Key values are selections read from the original record that was fetched from previous locations. This origin record is represented by `$`, and dot-notation paths may reference key fields from it. At present, only two key fields are supported: the `key` named by the resolver, and `__typename`.
+Key values fetched from previous locations may be inserted into arguments. Key insertions are prefixed by `$` and specify a dot-notation path to any selections made by the resolver `key`, or `__typename`.
 
 ```graphql
 type Query {
   entity(id: ID!, type: String!): [Entity]!
-    @stitch(key: "id", arguments: "id: $.id, type: $.__typename")
+    @stitch(key: "owner { id }", arguments: "id: $.owner.id, type: $.__typename")
 }
 ```
 

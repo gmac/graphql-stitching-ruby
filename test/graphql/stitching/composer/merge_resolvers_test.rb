@@ -15,7 +15,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           type_name: "Test",
           list: false,
           field: "a",
-          key: "id",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
           arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
         GraphQL::Stitching::Resolver.new(
@@ -23,7 +23,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
           type_name: "Test",
           list: true,
           field: "b",
-          key: "id",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
           arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
         ),
       ],
@@ -182,7 +182,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       conditions << (b.field == field) if field
       conditions << (b.arguments.first.name == arg) if arg
       conditions << (b.arguments.first.value == GraphQL::Stitching::Resolver::KeyArgumentValue.new(key)) if key
-      conditions << (b.key == key) if key
+      conditions << (b.key == GraphQL::Stitching::Resolver.parse_key(key)) if key
       conditions.all?
     end
     assert resolver, "No resolver found for #{[location, type_name, key, field, arg].join(".")}"

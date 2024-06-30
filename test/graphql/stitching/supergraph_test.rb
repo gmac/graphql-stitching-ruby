@@ -86,24 +86,24 @@ describe "GraphQL::Stitching::Supergraph" do
     "Manufacturer" => [
       GraphQL::Stitching::Resolver.new(
         location: "manufacturers",
-        key: "id",
         field: "manufacturer",
+        key: GraphQL::Stitching::Resolver.parse_key("id", FIELDS_MAP.dig("Manufacturer", "id")),
         arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
     "Product" => [
       GraphQL::Stitching::Resolver.new(
         location: "products",
-        key: "upc",
         field: "products",
+        key: GraphQL::Stitching::Resolver.parse_key("upc", FIELDS_MAP.dig("Product", "upc")),
         arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
       ),
     ],
     "Storefront" => [
       GraphQL::Stitching::Resolver.new(
         location: "storefronts",
-        key: "id",
         field: "storefronts",
+        key: GraphQL::Stitching::Resolver.parse_key("id", FIELDS_MAP.dig("Storefront", "id")),
         arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
@@ -142,8 +142,8 @@ describe "GraphQL::Stitching::Supergraph" do
       resolvers: RESOLVERS_MAP,
     )
 
-    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products")
-    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "storefronts")
+    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "products").map(&:to_definition)
+    assert_equal ["upc"], supergraph.possible_keys_for_type_and_location("Product", "storefronts").map(&:to_definition)
     assert_equal [], supergraph.possible_keys_for_type_and_location("Product", "manufacturers")
   end
 
@@ -308,14 +308,20 @@ describe "GraphQL::Stitching::Supergraph" do
 
     def test_to_definition_annotates_schema
       @schema_sdl = squish_string(@schema_sdl)
+      assert @schema_sdl.include?("directive @key")
       assert @schema_sdl.include?("directive @resolver")
       assert @schema_sdl.include?("directive @source")
       assert @schema_sdl.include?(squish_string(%|
-        interface I @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!") {
+        interface I
+          @key(key: "id", location: "alpha")
+          @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!") {
       |))
       assert @schema_sdl.include?(squish_string(%|
-        type T implements I @resolver(location: "bravo", key: "id", field: "b", arguments: "id: $.id", argumentTypes: "id: ID!")
-                            @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!", typeName: "I") {
+        type T implements I
+          @key(key: "id", location: "alpha")
+          @key(key: "id", location: "bravo")
+          @resolver(location: "bravo", key: "id", field: "b", arguments: "id: $.id", argumentTypes: "id: ID!")
+          @resolver(location: "alpha", key: "id", field: "a", arguments: "id: $.id", argumentTypes: "id: ID!", typeName: "I") {
       |))
       assert @schema_sdl.include?(%|id: ID! @source(location: "alpha") @source(location: "bravo")|)
       assert @schema_sdl.include?(%|a: String @source(location: "alpha")|)
@@ -326,11 +332,11 @@ describe "GraphQL::Stitching::Supergraph" do
 
     def test_to_definition_annotations_are_idempotent
       @supergraph.to_definition
-      assert_equal 2, @supergraph.schema.get_type("T").directives.length
+      assert_equal 4, @supergraph.schema.get_type("T").directives.length
       assert_equal 2, @supergraph.schema.get_type("T").get_field("id").directives.length
 
       @supergraph.to_definition
-      assert_equal 2, @supergraph.schema.get_type("T").directives.length
+      assert_equal 4, @supergraph.schema.get_type("T").directives.length
       assert_equal 2, @supergraph.schema.get_type("T").get_field("id").directives.length
     end
 
@@ -341,7 +347,6 @@ describe "GraphQL::Stitching::Supergraph" do
       })
 
       assert_equal @supergraph.fields, supergraph_import.fields
-      assert_equal @supergraph.resolvers, supergraph_import.resolvers
       assert_equal ["alpha", "bravo"], supergraph_import.locations.sort
       assert_equal @supergraph.schema.types.keys.sort, supergraph_import.schema.types.keys.sort
       assert_equal @supergraph.resolvers, supergraph_import.resolvers

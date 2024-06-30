@@ -49,7 +49,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           type_name: "Product",
           list: false,
           field: "productA",
-          key: "id",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
           arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
         GraphQL::Stitching::Resolver.new(
@@ -57,7 +57,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
           type_name: "Product",
           list: false,
           field: "productB",
-          key: "id",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
           arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("key: $.id", "key: ID"),
         ),
       ]

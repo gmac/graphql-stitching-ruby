@@ -40,7 +40,7 @@ module GraphQL
           end
 
           if filtered_selections.none?
-            filtered_selections << ExportSelection.typename_node
+            filtered_selections << Resolver::TYPENAME_EXPORT_NODE
           end
 
           if changed

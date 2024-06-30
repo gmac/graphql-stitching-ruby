@@ -32,20 +32,21 @@ module GraphQL::Stitching
 
         # only one resolver allowed per type/location/key
         resolvers_by_location_and_key = resolvers.each_with_object({}) do |resolver, memo|
-          if memo.dig(resolver.location, resolver.key)
+          if memo.dig(resolver.location, resolver.key.to_definition)
             raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
               "found in #{resolver.location}. Limit one resolver query per type and key in each location. "\
               "Abstract resolvers provide all possible types."
           end
           memo[resolver.location] ||= {}
-          memo[resolver.location][resolver.key] = resolver
+          memo[resolver.location][resolver.key.to_definition] = resolver
         end
 
-        resolver_keys = resolvers.map(&:key).to_set
+        resolver_keys = resolvers.map(&:key)
+        resolver_key_strs = resolver_keys.map(&:to_definition).to_set
 
         # All non-key fields must be resolvable in at least one resolver location
         supergraph.locations_by_type_and_field[type.graphql_name].each do |field_name, locations|
-          next if resolver_keys.include?(field_name)
+          next if resolver_key_strs.include?(field_name)
 
           if locations.none? { resolvers_by_location_and_key[_1] }
             where = locations.length > 1 ? "one of #{locations.join(", ")} locations" : locations.first
@@ -53,9 +54,9 @@ module GraphQL::Stitching
           end
         end
 
-        # All locations of a resolver type must include at least one key field
-        supergraph.fields_by_type_and_location[type.graphql_name].each do |location, field_names|
-          if field_names.none? { resolver_keys.include?(_1) }
+        # All locations of a merged type must include at least one resolver key
+        supergraph.fields_by_type_and_location[type.graphql_name].each_key do |location|
+          if resolver_keys.none? { _1.locations.include?(location) }
             raise ValidationError, "A resolver key is required for `#{type.graphql_name}` in #{location} to join with other locations."
           end
         end

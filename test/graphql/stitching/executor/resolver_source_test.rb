@@ -9,7 +9,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
       type_name: "Storefront",
       list: true,
       field: "storefronts",
-      key: "id",
+      key: GraphQL::Stitching::Resolver.parse_key("id"),
       arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
     )
     @resolver2 = GraphQL::Stitching::Resolver.new(
@@ -17,7 +17,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
       type_name: "Product",
       list: false,
       field: "product",
-      key: "upc",
+      key: GraphQL::Stitching::Resolver.parse_key("upc"),
       arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
     )
 

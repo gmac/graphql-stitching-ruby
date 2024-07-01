@@ -31,6 +31,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       field :object_key, Boolean, null: false do |f|
         f.argument(:key, ObjectKey, required: true)
         f.argument(:other, String, required: false)
+        f.argument(:list, [String], required: false)
       end
 
       field :object_list_key, [Boolean], null: false do |f|
@@ -85,7 +86,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       value: KeyArgumentValue.new(["slug"]),
     )]
 
-    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
+    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey"))
   end
 
   def test_builds_nested_object_key_into_matching_input_objects
@@ -119,7 +120,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       ]),
     )]
 
-    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
+    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey"))
   end
 
   def test_builds_nested_key_paths
@@ -137,7 +138,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       ]),
     )]
 
-    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
+    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey"))
   end
 
   def test_builds_object_list_keys_into_matching_inputs
@@ -167,7 +168,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       ]),
     )]
 
-    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectListKey"))
+    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectListKey"))
   end
 
   def test_builds_objects_into_custom_scalar_with_no_typing
@@ -196,58 +197,64 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       ]),
     )]
 
-    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments(template, get_field("scalarKey"))
+    assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("scalarKey"))
   end
 
   def test_errors_for_building_objects_into_builtin_scalars
     assert_error "can only be built into custom scalar types" do
       template = "key: {slug: $.slug, namespace: $.namespace}"
-      GraphQL::Stitching::Resolver.parse_arguments(template, get_field("builtinScalarKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("builtinScalarKey"))
     end
   end
 
   def test_errors_for_building_objects_into_non_object_non_scalars
     assert_error "can only be built into input object and scalar positions" do
       template = "key: {slug: $.slug, namespace: $.namespace}"
-      GraphQL::Stitching::Resolver.parse_arguments(template, get_field("enumKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("enumKey"))
     end
   end
 
   def test_errors_building_invalid_root_keys
     assert_error "`invalid` is not a valid argument" do
       template = "key: {slug: $.slug, namespace: $.namespace}, invalid: true"
-      GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey"))
     end
   end
 
   def test_errors_building_invalid_object_keys
     assert_error "`invalid` is not a valid argument" do
       template = "key: {slug: $.slug, namespace: $.namespace, invalid: true}"
-      GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey"))
     end
   end
 
   def test_errors_omitting_a_required_root_argument
     assert_error "Required argument `key` has no input" do
-      GraphQL::Stitching::Resolver.parse_arguments(%|other:"test"|, get_field("objectKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(%|other:"test"|, get_field("objectKey"))
     end
   end
 
   def test_errors_omitting_a_required_object_argument
     assert_error "Required argument `slug` has no input" do
-      GraphQL::Stitching::Resolver.parse_arguments(%|key: {namespace: $.namespace}|, get_field("objectKey"))
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(%|key: {namespace: $.namespace}|, get_field("objectKey"))
     end
   end
 
   def test_errors_building_keys_into_non_list_arguments_for_list_fields
-    assert_error "Cannot use repeatable key `$.slug` in non-list argument `other`" do
-      GraphQL::Stitching::Resolver.parse_arguments(%|keys: {slug: $.slug} other: $.slug|, get_field("objectListKey"))
+    assert_error "Cannot use repeatable key for `Query.objectListKey` in non-list argument `other`" do
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(%|keys: {slug: $.slug} other: $.slug|, get_field("objectListKey"))
+    end
+  end
+
+  def test_errors_building_keys_into_list_arguments_for_non_list_fields
+    assert_error "Cannot use non-repeatable key for `Query.objectKey` in list argument `list`" do
+      GraphQL::Stitching::Resolver.parse_arguments_with_field(%|key: {slug: $.slug}, list: $.slug|, get_field("objectKey"))
     end
   end
 
   def test_arguments_build_expected_value_structure
     template = "key: {slug: $.name, namespace: 'sol', nested:{slug: $.outer.name, namespace: $.outer.galaxy}}"
-    arg = GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey")).first
+    arg = GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey")).first
 
     origin_obj = {
       "_export_name" => "neptune",
@@ -271,7 +278,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
 
   def test_arguments_build_primitive_keys
     template = "key: $.key, scope: 'foo', mode: YES"
-    args = GraphQL::Stitching::Resolver.parse_arguments(template, get_field("basicKey"))
+    args = GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("basicKey"))
     origin_obj = { "_export_key" => "123" }
 
     assert_equal ["123", "foo", "YES"], args.map { _1.build(origin_obj) }
@@ -279,7 +286,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
 
   def test_arguments_allows_wrapping_parenthesis
     template = "(key: $.key)"
-    args = GraphQL::Stitching::Resolver.parse_arguments(template, get_field("basicKey"))
+    args = GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("basicKey"))
     origin_obj = { "_export_key" => "123" }
 
     assert_equal ["123"], args.map { _1.build(origin_obj) }
@@ -287,7 +294,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
 
   def test_prints_argument_object_structures
     template = "key: {slug: $.name, namespace: 'sol', nested: {slug: $.outer.name, namespace: $.outer.galaxy}}"
-    arg = GraphQL::Stitching::Resolver.parse_arguments(template, get_field("objectKey")).first
+    arg = GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("objectKey")).first
 
     assert_equal template, arg.to_definition
     assert_equal template.gsub("'", %|"|), arg.print
@@ -296,7 +303,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
 
   def test_prints_primitive_argument_types
     template = "key: $.key, scope: 'foo', mode: YES"
-    args = GraphQL::Stitching::Resolver.parse_arguments(template, get_field("basicKey"))
+    args = GraphQL::Stitching::Resolver.parse_arguments_with_field(template, get_field("basicKey"))
 
     assert_equal template, args.map(&:to_definition).join(", ")
     assert_equal template.gsub("'", %|"|), args.map(&:print).join(", ")

@@ -142,9 +142,22 @@ module GraphQL::Stitching
       # @param template [String] the template string to parse.
       # @param field_def [GraphQL::Schema::FieldDefinition] a field definition providing arguments schema.
       # @return [[GraphQL::Stitching::Resolver::Argument]] an array of resolver arguments.
-      def parse_arguments(template, field_def)
+      def parse_arguments_with_field(template, field_def)
         ast = parse_arg_defs(template)
-        build_argument_set(ast, field_def.arguments, repeatable_key: field_def.type.list?)
+        args = build_argument_set(ast, field_def.arguments)
+        args.each do |arg|
+          next unless arg.key?
+
+          if field_def.type.list? && !arg.list?
+            raise CompositionError, "Cannot use repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
+              "in non-list argument `#{arg.name}`."
+          elsif !field_def.type.list? && arg.list?
+            raise CompositionError, "Cannot use non-repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
+              "in list argument `#{arg.name}`."
+          end
+        end
+
+        args
       end
 
       # Parses an argument template string into resolver arguments via SDL casting.
@@ -153,7 +166,7 @@ module GraphQL::Stitching
       # @return [[GraphQL::Stitching::Resolver::Argument]] an array of resolver arguments.
       def parse_arguments_with_type_defs(template, type_defs)
         type_map = parse_type_defs(type_defs)
-        parse_arg_defs(template).map { build_argument(_1, nil, type_struct: type_map[_1.name]) }
+        parse_arg_defs(template).map { build_argument(_1, type_struct: type_map[_1.name]) }
       end
 
       private
@@ -180,7 +193,7 @@ module GraphQL::Stitching
           end
       end
 
-      def build_argument_set(nodes, argument_defs, static_scope: false, repeatable_key: false)
+      def build_argument_set(nodes, argument_defs)
         if argument_defs
           argument_defs.each_value do |argument_def|
             if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.graphql_name }
@@ -189,32 +202,23 @@ module GraphQL::Stitching
           end
         end
 
-        nodes.map do |n|
+        nodes.map do |node|
           argument_def = if argument_defs
-            unless d = argument_defs[n.name]
-              raise CompositionError, "Input `#{n.name}` is not a valid argument."
-            end
-
-            # lock the use of keys in a root argument's subtree
-            # when the key is repeatable (list fields) but the argument is not.
-            static_scope = true if repeatable_key && !d.type.list?
-            d
+            arg = argument_defs[node.name]
+            raise CompositionError, "Input `#{node.name}` is not a valid argument." unless arg
+            arg
           end
 
-          build_argument(n, argument_def, static_scope: static_scope)
+          build_argument(node, argument_def: argument_def)
         end
       end
 
-      def build_argument(node, argument_def, static_scope: false, type_struct: nil)
+      def build_argument(node, argument_def: nil, type_struct: nil)
         value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
-          object_def = argument_def ? argument_def.type.unwrap : nil
-          build_object_value(node.value, object_def, static_scope: static_scope)
+          build_object_value(node.value, argument_def ? argument_def.type.unwrap : nil)
         elsif node.value.is_a?(GraphQL::Language::Nodes::Enum)
           ArgumentEnumValue.new(node.value.name)
         elsif node.value.is_a?(String) && node.value.start_with?("$.")
-          if static_scope
-            raise CompositionError, "Cannot use repeatable key `#{node.value}` in non-list argument `#{argument_def&.graphql_name}`."
-          end
           KeyArgumentValue.new(node.value.sub(/^\$\./, "").split("."))
         else
           ArgumentLiteralValue.new(node.value)
@@ -229,7 +233,7 @@ module GraphQL::Stitching
         )
       end
 
-      def build_object_value(node, object_def, static_scope: false)
+      def build_object_value(node, object_def)
         if object_def
           if !object_def.kind.input_object? && !object_def.kind.scalar?
             raise CompositionError, "Objects can only be built into input object and scalar positions."
@@ -240,7 +244,7 @@ module GraphQL::Stitching
           end
         end
 
-        ObjectArgumentValue.new(build_argument_set(node.arguments, object_def&.arguments, static_scope: static_scope))
+        ObjectArgumentValue.new(build_argument_set(node.arguments, object_def&.arguments))
       end
     end
   end

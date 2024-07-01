@@ -149,6 +149,21 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_equal ["fruitB"], supergraph.resolvers["Fruit"].map(&:field).sort
   end
 
+  def test_raises_when_resolver_specifies_typename_for_non_abstract
+    a = %|
+      type Apple { id:ID! name:String }
+      type Query { appleA(id: ID!): Apple @stitch(key: "id", typeName: "Banana") }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Query { appleB(id: ID!): Apple @stitch(key: "id") }
+    |
+
+    assert_error("may only specify a type name for abstract resolvers") do
+      compose_definitions({ "a" => a, "b" => b })
+    end
+  end
+
   def test_raises_when_given_typename_is_not_a_possible_type
     a = %|
       type Apple { id:ID! name:String }
@@ -168,8 +183,34 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       }
     |
 
-    assert_error "`Banana` is not a possible return type" do
+    assert_error("`Banana` is not a possible return type") do
       compose_definitions({ "a" => a, "b" => b })
+    end
+  end
+
+  def test_multiple_arguments_selects_matched_key_name
+    a = %|
+      type Apple { id: ID! upc: ID! name: String }
+      type Query { appleA(id: ID, upc: ID): Apple @stitch(key: "id") }
+    |
+    b = %|
+      type Apple { id: ID! upc: ID! color: String }
+      type Query { appleB(id: ID, upc: ID): Apple @stitch(key: "upc") }
+    |
+
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_resolver(supergraph, "Apple", location: "a", key: "id", field: "appleA", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "b", key: "upc", field: "appleB", arg: "upc")
+  end
+
+  def test_raises_for_multiple_arguments_with_no_matched_key_names
+    a = %|
+      type Apple { id: ID! upc: ID! name: String }
+      type Query { appleA(theId: ID, theUpc: ID): Apple @stitch(key: "id") }
+    |
+
+    assert_error("No resolver argument matched for `Query.appleA`") do
+      compose_definitions({ "a" => a })
     end
   end
 

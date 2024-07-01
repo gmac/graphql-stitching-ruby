@@ -561,21 +561,12 @@ module GraphQL
                 end
 
                 unless argument
-                  raise CompositionError, "No resolver argument matched for #{type_name}.#{field_name}." \
+                  raise CompositionError, "No resolver argument matched for `#{type_name}.#{field_name}`." \
                     "An argument mapping is required for unmatched names and composite keys."
                 end
 
                 "#{argument.graphql_name}: $.#{key.default_argument_name}"
               end
-
-              resolver_args = Resolver.parse_arguments(arguments_format, subgraph_field)
-              # resolver_args.select(&:key?).each do |resolver_arg|
-              #   argument_structure = Util.flatten_type_structure(argument.type)
-              #   if argument_structure.length != resolver_structure.length
-              #     raise CompositionError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
-              #       "Arguments must map directly to results."
-              #   end
-              # end
 
               @resolver_map[resolver_type_name] ||= []
               @resolver_map[resolver_type_name] << Resolver.new(
@@ -584,7 +575,7 @@ module GraphQL
                 field: subgraph_field.name,
                 list: resolver_structure.first.list?,
                 key: key,
-                arguments: resolver_args,
+                arguments: Resolver.parse_arguments_with_field(arguments_format, subgraph_field),
               )
             end
           end

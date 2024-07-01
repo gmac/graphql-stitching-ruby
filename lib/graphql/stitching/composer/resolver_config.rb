@@ -30,15 +30,15 @@ module GraphQL::Stitching
             entity_type.directives.each do |directive|
               next unless directive.graphql_name == "key"
 
-              key = directive.arguments.keyword_arguments.fetch(:fields).strip
-              raise CompositionError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
-
+              key = Resolver.parse_key(directive.arguments.keyword_arguments.fetch(:fields))
+              key_fields = key.map { "#{_1.name}: $.#{_1.name}" }
               field_path = "#{location}._entities"
+
               memo[field_path] ||= []
               memo[field_path] << new(
-                key: key,
+                key: key.to_definition,
                 type_name: entity_type.graphql_name,
-                arguments: "representations: { #{key}: $.#{key}, __typename: $.__typename }",
+                arguments: "representations: { #{key_fields.join(", ")}, __typename: $.__typename }",
               )
             end
           end

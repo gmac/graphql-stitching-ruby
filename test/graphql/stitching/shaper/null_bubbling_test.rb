@@ -291,4 +291,57 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
 
     assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
   end
+
+  def test_bubble_through_fragment_spreads_again
+    schema_sdl = %|
+      type ParentResource {
+        id: ID!
+        subResource: SubResource
+      }
+      type SubResource {
+        id: ID!
+        title: String!
+      }
+      type Query {
+        parentResource(id: ID!): ParentResource
+      }
+    |
+    query = %|
+      query {
+        parentResource(id: "1") {
+          ...ParentResourceAttrs
+        }
+      }
+      fragment ParentResourceAttrs on ParentResource {
+        id
+        subResource {
+          id
+          title
+        }
+      }
+    |
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
+    )
+    raw = {
+      "parentResource" => {
+        "id" => "1",
+        # "_export___typename" => "ParentResource",
+        "subResource" => {
+          "id" => "2",
+          "_export_id" => "2",
+          "_export___typename" => "SubResource",
+        },
+      },
+    }
+    expected = {
+      "parentResource" => {
+        "id" => "1",
+        "subResource" => nil,
+      },
+    }
+
+    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+  end
 end

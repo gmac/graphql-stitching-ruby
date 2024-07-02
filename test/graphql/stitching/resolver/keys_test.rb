@@ -170,16 +170,16 @@ class GraphQL::Stitching::Resolver::KeysTest < Minitest::Test
         composer.subgraph_types_by_name_and_location["Test"],
       ).first
 
-      assert_equal "Test", field.type
-      assert_equal false, field.list
+      assert_equal "Test", field.type_name
+      assert_equal false, field.list?
 
       id_field = field.inner[0]
-      assert_equal "ID", id_field.type
-      assert_equal false, id_field.list
+      assert_equal "ID", id_field.type_name
+      assert_equal false, id_field.list?
 
       list_field = field.inner[1]
-      assert_equal "Test", list_field.type
-      assert_equal true, list_field.list
+      assert_equal "Test", list_field.type_name
+      assert_equal true, list_field.list?
     end
   end
 

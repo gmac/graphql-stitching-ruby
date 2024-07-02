@@ -24,6 +24,15 @@ module GraphQL::Stitching
         value.key?
       end
 
+      def verify_key(key)
+        if key?
+          value.verify_key(self, key)
+          true
+        else
+          false
+        end
+      end
+
       def ==(other)
         self.class == other.class &&
           @name == other.name &&
@@ -69,6 +78,10 @@ module GraphQL::Stitching
         false
       end
 
+      def verify_key(arg, key)
+        nil
+      end
+
       def ==(other)
         self.class == other.class && value == other.value
       end
@@ -87,6 +100,10 @@ module GraphQL::Stitching
     class ObjectArgumentValue < ArgumentValue
       def key?
         value.any?(&:key?)
+      end
+
+      def verify_key(arg, key)
+        value.each { _1.verify_key(key) }
       end
 
       def build(origin_obj)
@@ -109,6 +126,22 @@ module GraphQL::Stitching
 
       def key?
         true
+      end
+
+      def verify_key(arg, key)
+        key_field = value.reduce(Resolver::KeyField.new("", inner: key)) do |field, ns|
+          if ns == Resolver::TYPE_NAME
+            Resolver::KeyField.new(Resolver::TYPE_NAME)
+          elsif field
+            field.inner.find { _1.name == ns }
+          end
+        end
+
+        # still not capturing enough type information to accurately compare key/arg types...
+        # best we can do for now is to verify the argument insertion matches a key path.
+        if key_field.nil?
+          raise CompositionError, "Argument `#{arg.name}: #{print}` cannot insert key `#{key.to_definition}`."
+        end
       end
 
       def build(origin_obj)

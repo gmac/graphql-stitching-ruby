@@ -568,6 +568,9 @@ module GraphQL
                 "#{argument.graphql_name}: $.#{key.default_argument_name}"
               end
 
+              arguments = Resolver.parse_arguments_with_field(arguments_format, subgraph_field)
+              arguments.each { _1.verify_key(key) }
+
               @resolver_map[resolver_type_name] ||= []
               @resolver_map[resolver_type_name] << Resolver.new(
                 location: location,
@@ -575,7 +578,7 @@ module GraphQL
                 field: subgraph_field.name,
                 list: resolver_structure.first.list?,
                 key: key,
-                arguments: Resolver.parse_arguments_with_field(arguments_format, subgraph_field),
+                arguments: arguments,
               )
             end
           end

@@ -377,6 +377,58 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
     ).key?
   end
 
+  def test_verifies_key_insertion_paths_against_flat_key_selections
+    arg = Argument.new(name: "id", value: KeyArgumentValue.new("id"))
+
+    assert arg.verify_key(GraphQL::Stitching::Resolver.parse_key("id"))
+
+    assert_error("Argument `id: $.id` cannot insert key `sfoo`") do
+      arg.verify_key(GraphQL::Stitching::Resolver.parse_key("sfoo"))
+    end
+  end
+
+  def test_verifies_key_insertion_paths_against_nested_key_selections
+    arg = Argument.new(name: "ownerId", value: KeyArgumentValue.new(["owner", "id"]))
+
+    assert arg.verify_key(GraphQL::Stitching::Resolver.parse_key("owner { id }"))
+
+    assert_error("Argument `ownerId: $.owner.id` cannot insert key `owner { sfoo }`") do
+      arg.verify_key(GraphQL::Stitching::Resolver.parse_key("owner { sfoo }"))
+    end
+  end
+
+  def test_verifies_key_insertion_paths_for_typename_as_valid
+    arg = Argument.new(name: "type", value: KeyArgumentValue.new("__typename"))
+    assert arg.verify_key(GraphQL::Stitching::Resolver.parse_key("id"))
+  end
+
+  def test_no_key_verification_for_non_key_values
+    arg = Argument.new(name: "secret", value: ArgumentLiteralValue.new("boo"))
+    assert !arg.verify_key(GraphQL::Stitching::Resolver.parse_key("id"))
+  end
+
+  def test_verifies_key_insertion_paths_through_input_object_scopes
+    arg = Argument.new(
+      name: "test",
+      value: ObjectArgumentValue.new([
+        Argument.new(
+          name: "flat",
+          value: KeyArgumentValue.new("id"),
+        ),
+        Argument.new(
+          name: "nested",
+          value: KeyArgumentValue.new(["owner", "id"]),
+        ),
+        Argument.new(
+          name: "nested_type_name",
+          value: KeyArgumentValue.new(["owner", "__typename"]),
+        ),
+      ]),
+    )
+
+    assert arg.verify_key(GraphQL::Stitching::Resolver.parse_key("id owner { id }"))
+  end
+
   private
 
   def get_field(field_name)

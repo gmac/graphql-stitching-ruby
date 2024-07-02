@@ -91,8 +91,9 @@ module GraphQL::Stitching
       attr_reader :inner
 
       # optional information about location and typing, used during composition
-      attr_accessor :type
+      attr_accessor :type_name
       attr_accessor :list
+      alias_method :list?, :list
 
       def initialize(name, root: false, inner: EMPTY_FIELD_SET)
         @name = name
@@ -197,7 +198,7 @@ module GraphQL::Stitching
 
       def assign_field_info!(field, subgraph_type)
         field.list = subgraph_type.list?
-        field.type = subgraph_type.unwrap.graphql_name
+        field.type_name = subgraph_type.unwrap.graphql_name
         assign_field_set_info!(field.inner, subgraph_type)
       end
     end

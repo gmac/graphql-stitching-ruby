@@ -50,18 +50,18 @@ describe "GraphQL::Stitching::Executor" do
       query{ featured { _export_id: id _export___typename: __typename } }
     |
     expected_source2 = %|
-      query($_0_0_key:ID!,$_0_1_key:ID!,$_0_2_key:ID!){
-        _0_0_result: product(id:$_0_0_key) { name }
-        _0_1_result: product(id:$_0_1_key) { name }
-        _0_2_result: product(id:$_0_2_key) { name }
+      query($_0_0_key_0:ID!,$_0_1_key_0:ID!,$_0_2_key_0:ID!){
+        _0_0_result: product(id:$_0_0_key_0) { name }
+        _0_1_result: product(id:$_0_1_key_0) { name }
+        _0_2_result: product(id:$_0_2_key_0) { name }
       }
     |
 
     expected_vars1 = {}
     expected_vars2 = {
-      "_0_0_key" => "1",
-      "_0_1_key" => "2",
-      "_0_2_key" => "3",
+      "_0_0_key_0" => "1",
+      "_0_1_key_0" => "2",
+      "_0_2_key_0" => "3",
     }
 
     execs = mock_execs(req, [
@@ -97,12 +97,12 @@ describe "GraphQL::Stitching::Executor" do
       query Test_1 @inContext(lang: "EN") { featured { _export_id: id _export___typename: __typename } }
     |
     expected_source2 = %|
-      query Test_2($_0_0_key:ID!) @inContext(lang: "EN") { _0_0_result: product(id:$_0_0_key) { name } }
+      query Test_2($_0_0_key_0:ID!) @inContext(lang: "EN") { _0_0_result: product(id:$_0_0_key_0) { name } }
     |
 
     expected_vars1 = {}
     expected_vars2 = {
-      "_0_0_key" => "1",
+      "_0_0_key_0" => "1",
     }
 
     execs = mock_execs(req, [

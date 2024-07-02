@@ -77,10 +77,11 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ name price }",
       path: ["buyable"],
       if_type: "Product",
-      resolver: {
+      resolver: resolver_version("Product", {
+        location: "a",
         field: "products",
         key: "id",
-      },
+      }),
     }
   end
 
@@ -262,10 +263,10 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Apple",
-      resolver: {
+      resolver: resolver_version("Apple", {
         location: "b",
         key: "id",
-      },
+      }),
     }
 
     assert_keys plan.ops[2].as_json, {
@@ -274,10 +275,10 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ c }",
       path: ["fruit"],
       if_type: "Apple",
-      resolver: {
+      resolver: resolver_version("Apple", {
         location: "c",
         key: "id",
-      },
+      }),
     }
 
     assert_keys plan.ops[3].as_json, {
@@ -286,10 +287,19 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Banana",
-      resolver: {
+      resolver: resolver_version("Banana", {
         location: "b",
         key: "id",
-      },
+      }),
     }
+  end
+
+  private
+
+  def resolver_version(type_name, criteria)
+    @supergraph.resolvers[type_name].find do |resolver|
+      json = resolver.as_json
+      criteria.all? { |k, v| json[k] == v }
+    end.version
   end
 end

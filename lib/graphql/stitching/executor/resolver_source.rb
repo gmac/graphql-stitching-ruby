@@ -17,7 +17,7 @@ module GraphQL::Stitching
 
           if op.if_type
             # operations planned around unused fragment conditions should not trigger requests
-            origin_set.select! { _1[ExportSelection.typename_node.alias] == op.if_type }
+            origin_set.select! { _1[Resolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
           end
 
           memo[op] = origin_set if origin_set.any?
@@ -53,24 +53,35 @@ module GraphQL::Stitching
         variable_defs = {}
         query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
-          resolver = op.resolver
+          resolver = @executor.request.supergraph.resolvers_by_version[op.resolver]
 
           if resolver.list?
-            variable_name = "_#{batch_index}_key"
-
-            @variables[variable_name] = origin_set.map do |origin_obj|
-              build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+            arguments = resolver.arguments.map.with_index do |arg, i|
+              if arg.key?
+                variable_name = "_#{batch_index}_key_#{i}".freeze
+                @variables[variable_name] = origin_set.map { arg.build(_1) }
+                variable_defs[variable_name] = arg.to_type_signature
+                "#{arg.name}:$#{variable_name}"
+              else
+                "#{arg.name}:#{arg.value.print}"
+              end
             end
 
-            variable_defs[variable_name] = "[#{resolver.arg_type_name}!]!"
-            "_#{batch_index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
+            "_#{batch_index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
           else
             origin_set.map.with_index do |origin_obj, index|
-              variable_name = "_#{batch_index}_#{index}_key"
-              @variables[variable_name] = build_key(resolver.key, origin_obj, as_representation: resolver.representations?)
+              arguments = resolver.arguments.map.with_index do |arg, i|
+                if arg.key?
+                  variable_name = "_#{batch_index}_#{index}_key_#{i}".freeze
+                  @variables[variable_name] = arg.build(origin_obj)
+                  variable_defs[variable_name] = arg.to_type_signature
+                  "#{arg.name}:$#{variable_name}"
+                else
+                  "#{arg.name}:#{arg.value.print}"
+                end
+              end
 
-              variable_defs[variable_name] = "#{resolver.arg_type_name}!"
-              "_#{batch_index}_#{index}_result: #{resolver.field}(#{resolver.arg}:$#{variable_name}) #{op.selections}"
+              "_#{batch_index}_#{index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
             end
           end
         end
@@ -85,8 +96,7 @@ module GraphQL::Stitching
         end
 
         if variable_defs.any?
-          variable_str = variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")
-          doc << "(#{variable_str})"
+          doc << "(#{variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")})"
         end
 
         if operation_directives
@@ -100,22 +110,11 @@ module GraphQL::Stitching
         end
       end
 
-      def build_key(key, origin_obj, as_representation: false)
-        if as_representation
-          {
-            "__typename" => origin_obj[ExportSelection.typename_node.alias],
-            key => origin_obj[ExportSelection.key(key)],
-          }
-        else
-          origin_obj[ExportSelection.key(key)]
-        end
-      end
-
       def merge_results!(origin_sets_by_operation, raw_result)
         return unless raw_result
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-          results = if op.resolver.list?
+          results = if @executor.request.supergraph.resolvers_by_version[op.resolver].list?
             raw_result["_#{batch_index}_result"]
           else
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }

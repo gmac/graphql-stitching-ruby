@@ -1,47 +1,68 @@
 # frozen_string_literal: true
 
+require_relative "./resolver/arguments"
+require_relative "./resolver/keys"
+
 module GraphQL
   module Stitching
     # Defines a root resolver query that provides direct access to an entity type.
-    Resolver = Struct.new(
+    class Resolver
+      extend ArgumentsParser
+      extend KeysParser
+
       # location name providing the resolver query.
-      :location,
+      attr_reader :location
 
       # name of merged type fulfilled through this resolver.
-      :type_name,
-
-      # a key field to select from prior locations, sent as resolver argument.
-      :key,
+      attr_reader :type_name
 
       # name of the root field to query.
-      :field,
+      attr_reader :field
+
+      # a key field to select from prior locations, sent as resolver argument.
+      attr_reader :key
+
+      # parsed resolver Argument structures.
+      attr_reader :arguments
+
+      def initialize(
+        location:,
+        type_name: nil,
+        list: false,
+        field: nil,
+        key: nil,
+        arguments: nil
+      )
+        @location = location
+        @type_name = type_name
+        @list = list
+        @field = field
+        @key = key
+        @arguments = arguments
+      end
 
       # specifies when the resolver is a list query.
-      :list,
+      def list?
+        @list
+      end
 
-      # name of the root field argument used to send the key.
-      :arg,
+      def version
+        @version ||= Digest::SHA2.hexdigest(as_json.to_json)
+      end
 
-      # type name of the root field argument used to send the key.
-      :arg_type_name,
-
-      # specifies that keys should be sent as JSON representations with __typename and key.
-      :representations,
-      keyword_init: true
-    ) do
-      alias_method :list?, :list
-      alias_method :representations?, :representations
+      def ==(other)
+        self.class == other.class && self.as_json == other.as_json
+      end
 
       def as_json
         {
           location: location,
           type_name: type_name,
-          key: key,
+          list: list?,
           field: field,
-          list: list,
-          arg: arg,
-          arg_type_name: arg_type_name,
-          representations: representations,
+          key: key.to_definition,
+          arguments: arguments.map(&:to_definition).join(", "),
+          argument_types: arguments.map(&:to_type_definition).join(", "),
         }.tap(&:compact!)
       end
     end

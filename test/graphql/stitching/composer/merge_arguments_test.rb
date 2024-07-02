@@ -26,7 +26,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "input Test { arg:Int } type Query { test(arg:Test):String }"
     b = "input Test { arg:String } type Query { test(arg:Test):String }"
 
-    assert_error('Cannot compose mixed types at `Test.arg`', ComposerError) do
+    assert_error('Cannot compose mixed types at `Test.arg`', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -35,7 +35,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "type Query { test(arg:Int):String }"
     b = "type Query { test(arg:String):String }"
 
-    assert_error('Cannot compose mixed types at `Query.test.arg`', ComposerError) do
+    assert_error('Cannot compose mixed types at `Query.test.arg`', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -71,7 +71,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "input Test { arg:[[String!]] } type Query { test:Test }"
     b = "input Test { arg:[String!] } type Query { test:Test }"
 
-    assert_error('Cannot compose mixed list structures at `Test.arg`.', ComposerError) do
+    assert_error('Cannot compose mixed list structures at `Test.arg`.', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -80,7 +80,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "type Query { test(arg:[String]):String }"
     b = "type Query { test(arg:[[String]]):String }"
 
-    assert_error('Cannot compose mixed list structures at `Query.test.arg`.', ComposerError) do
+    assert_error('Cannot compose mixed list structures at `Query.test.arg`.', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -141,7 +141,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "input Test { arg1:String! } type Query { test(arg:Test):String }"
     b = "input Test { arg2:String } type Query { test(arg:Test):String }"
 
-    assert_error('Required argument `Test.arg1` must be defined in all locations.', ComposerError) do
+    assert_error('Required argument `Test.arg1` must be defined in all locations.', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end
@@ -150,7 +150,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     a = "type Query { test(arg1:String):String }"
     b = "type Query { test(arg2:String!):String }"
 
-    assert_error('Required argument `Query.test.arg2` must be defined in all locations.', ComposerError) do
+    assert_error('Required argument `Query.test.arg2` must be defined in all locations.', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
     end
   end

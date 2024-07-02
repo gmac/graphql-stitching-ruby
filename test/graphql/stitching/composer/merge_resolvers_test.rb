@@ -12,23 +12,19 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       "Test" => [
         GraphQL::Stitching::Resolver.new(
           location: "a",
-          key: "id",
-          field: "a",
-          arg: "id",
-          arg_type_name: "ID",
+          type_name: "Test",
           list: false,
-          representations: false,
-          type_name: "Test"
+          field: "a",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
+          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
         GraphQL::Stitching::Resolver.new(
           location: "b",
-          key: "id",
-          field: "b",
-          arg: "ids",
-          arg_type_name: "ID",
+          type_name: "Test",
           list: true,
-          representations: false,
-          type_name: "Test"
+          field: "b",
+          key: GraphQL::Stitching::Resolver.parse_key("id"),
+          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
         ),
       ],
     }
@@ -46,7 +42,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     |
     b = %|
       type T { id:ID! upc:ID! }
-      type Query { b(id: ID, code: ID):T @stitch(key: "id") @stitch(key: "code:upc") }
+      type Query { b(id: ID, code: ID):T @stitch(key: "id") @stitch(key: "upc", arguments: "code: $.upc") }
     |
     c = %|
       type T { id:ID! }
@@ -122,7 +118,6 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_resolver(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
   end
 
-
   def test_builds_union_resolvers_for_select_typenames
     a = %|
       type Apple { id:ID! name:String }
@@ -132,7 +127,7 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       type Query {
         fruitA(id:ID!):Fruit
           @stitch(key: "id", typeName: "Apple")
-          @stitch(key: "id", typeName: "Banana", representations: true)
+          @stitch(key: "id", typeName: "Banana")
         coconut(id: ID!): Coconut
           @stitch(key: "id")
       }
@@ -152,9 +147,21 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_equal ["fruitA", "fruitB"], supergraph.resolvers["Banana"].map(&:field).sort
     assert_equal ["coconut", "fruitB"], supergraph.resolvers["Coconut"].map(&:field).sort
     assert_equal ["fruitB"], supergraph.resolvers["Fruit"].map(&:field).sort
+  end
 
-    assert_equal false, supergraph.resolvers["Apple"].find { _1.location == "a" }.representations?
-    assert_equal true, supergraph.resolvers["Banana"].find { _1.location == "a" }.representations?
+  def test_raises_when_resolver_specifies_typename_for_non_abstract
+    a = %|
+      type Apple { id:ID! name:String }
+      type Query { appleA(id: ID!): Apple @stitch(key: "id", typeName: "Banana") }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Query { appleB(id: ID!): Apple @stitch(key: "id") }
+    |
+
+    assert_error("may only specify a type name for abstract resolvers") do
+      compose_definitions({ "a" => a, "b" => b })
+    end
   end
 
   def test_raises_when_given_typename_is_not_a_possible_type
@@ -176,8 +183,34 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       }
     |
 
-    assert_error "`Banana` is not a possible return type" do
+    assert_error("`Banana` is not a possible return type") do
       compose_definitions({ "a" => a, "b" => b })
+    end
+  end
+
+  def test_multiple_arguments_selects_matched_key_name
+    a = %|
+      type Apple { id: ID! upc: ID! name: String }
+      type Query { appleA(id: ID, upc: ID): Apple @stitch(key: "id") }
+    |
+    b = %|
+      type Apple { id: ID! upc: ID! color: String }
+      type Query { appleB(id: ID, upc: ID): Apple @stitch(key: "upc") }
+    |
+
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+    assert_resolver(supergraph, "Apple", location: "a", key: "id", field: "appleA", arg: "id")
+    assert_resolver(supergraph, "Apple", location: "b", key: "upc", field: "appleB", arg: "upc")
+  end
+
+  def test_raises_for_multiple_arguments_with_no_matched_key_names
+    a = %|
+      type Apple { id: ID! upc: ID! name: String }
+      type Query { appleA(theId: ID, theUpc: ID): Apple @stitch(key: "id") }
+    |
+
+    assert_error("No resolver argument matched for `Query.appleA`") do
+      compose_definitions({ "a" => a })
     end
   end
 
@@ -188,8 +221,9 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       conditions = []
       conditions << (b.location == location)
       conditions << (b.field == field) if field
-      conditions << (b.arg == arg) if arg
-      conditions << (b.key == key) if key
+      conditions << (b.arguments.first.name == arg) if arg
+      conditions << (b.arguments.first.value == GraphQL::Stitching::Resolver::KeyArgumentValue.new(key)) if key
+      conditions << (b.key == GraphQL::Stitching::Resolver.parse_key(key)) if key
       conditions.all?
     end
     assert resolver, "No resolver found for #{[location, type_name, key, field, arg].join(".")}"

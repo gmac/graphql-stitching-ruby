@@ -8,6 +8,8 @@ module GraphQL
     EMPTY_ARRAY = [].freeze
 
     class StitchingError < StandardError; end
+    class CompositionError < StitchingError; end
+    class ValidationError < CompositionError; end
 
     class << self
       def stitch_directive
@@ -28,7 +30,6 @@ require_relative "stitching/resolver"
 require_relative "stitching/client"
 require_relative "stitching/composer"
 require_relative "stitching/executor"
-require_relative "stitching/export_selection"
 require_relative "stitching/http_executable"
 require_relative "stitching/plan"
 require_relative "stitching/planner_step"

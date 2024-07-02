@@ -8,9 +8,6 @@ require_relative "./composer/resolver_config"
 module GraphQL
   module Stitching
     class Composer
-      class ComposerError < StitchingError; end
-      class ValidationError < ComposerError; end
-
       # @api private
       NO_DEFAULT_VALUE = begin
         class T < GraphQL::Schema::Object
@@ -41,7 +38,7 @@ module GraphQL
       attr_reader :mutation_name
 
       # @api private
-      attr_reader :candidate_types_by_name_and_location
+      attr_reader :subgraph_types_by_name_and_location
 
       # @api private
       attr_reader :schema_directives
@@ -67,8 +64,8 @@ module GraphQL
         @field_map = nil
         @resolver_map = nil
         @mapped_type_names = nil
-        @candidate_directives_by_name_and_location = nil
-        @candidate_types_by_name_and_location = nil
+        @subgraph_directives_by_name_and_location = nil
+        @subgraph_types_by_name_and_location = nil
         @schema_directives = nil
       end
 
@@ -76,8 +73,8 @@ module GraphQL
         reset!
         schemas, executables = prepare_locations_input(locations_input)
 
-        # "directive_name" => "location" => candidate_directive
-        @candidate_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
+        # "directive_name" => "location" => subgraph_directive
+        @subgraph_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
@@ -85,44 +82,44 @@ module GraphQL
         end
 
         # "directive_name" => merged_directive
-        @schema_directives = @candidate_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
+        @schema_directives = @subgraph_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
           memo[directive_name] = build_directive(directive_name, directives_by_location)
         end
 
         @schema_directives.merge!(GraphQL::Schema.default_directives)
 
-        # "Typename" => "location" => candidate_type
-        @candidate_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          raise ComposerError, "Location keys must be strings" unless location.is_a?(String)
-          raise ComposerError, "The subscription operation is not supported." if schema.subscription
+        # "Typename" => "location" => subgraph_type
+        @subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
+          raise CompositionError, "Location keys must be strings" unless location.is_a?(String)
+          raise CompositionError, "The subscription operation is not supported." if schema.subscription
 
           introspection_types = schema.introspection_system.types.keys
-          schema.types.each do |type_name, type_candidate|
+          schema.types.each do |type_name, subgraph_type|
             next if introspection_types.include?(type_name)
 
-            if type_name == @query_name && type_candidate != schema.query
-              raise ComposerError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
-            elsif type_name == @mutation_name && type_candidate != schema.mutation
-              raise ComposerError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+            if type_name == @query_name && subgraph_type != schema.query
+              raise CompositionError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
+            elsif type_name == @mutation_name && subgraph_type != schema.mutation
+              raise CompositionError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             end
 
-            type_name = @query_name if type_candidate == schema.query
-            type_name = @mutation_name if type_candidate == schema.mutation
-            @mapped_type_names[type_candidate.graphql_name] = type_name if type_candidate.graphql_name != type_name
+            type_name = @query_name if subgraph_type == schema.query
+            type_name = @mutation_name if subgraph_type == schema.mutation
+            @mapped_type_names[subgraph_type.graphql_name] = type_name if subgraph_type.graphql_name != type_name
 
             memo[type_name] ||= {}
-            memo[type_name][location] = type_candidate
+            memo[type_name][location] = subgraph_type
           end
         end
 
         enum_usage = build_enum_usage_map(schemas.values)
 
         # "Typename" => merged_type
-        schema_types = @candidate_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
+        schema_types = @subgraph_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.tap(&:uniq!)
 
           if kinds.length > 1
-            raise ComposerError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
+            raise CompositionError, "Cannot merge different kinds for `#{type_name}`. Found: #{kinds.join(", ")}."
           end
 
           extract_resolvers(type_name, types_by_location) if type_name == @query_name
@@ -141,7 +138,7 @@ module GraphQL
           when "INPUT_OBJECT"
             build_input_object_type(type_name, types_by_location)
           else
-            raise ComposerError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
+            raise CompositionError, "Unexpected kind encountered for `#{type_name}`. Found: #{kinds.first}."
           end
         end
 
@@ -184,9 +181,9 @@ module GraphQL
           schema = input[:schema]
 
           if schema.nil?
-            raise ComposerError, "A schema is required for `#{location}` location."
+            raise CompositionError, "A schema is required for `#{location}` location."
           elsif !(schema.is_a?(Class) && schema <= GraphQL::Schema)
-            raise ComposerError, "The schema for `#{location}` location must be a GraphQL::Schema class."
+            raise CompositionError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
           @resolver_configs.merge!(ResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
@@ -234,10 +231,10 @@ module GraphQL
         builder = self
 
         # "value" => "location" => enum_value
-        enum_values_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
-          type_candidate.enum_values.each do |enum_value_candidate|
-            memo[enum_value_candidate.graphql_name] ||= {}
-            memo[enum_value_candidate.graphql_name][location] = enum_value_candidate
+        enum_values_by_name_location = types_by_location.each_with_object({}) do |(location, subgraph_type), memo|
+          subgraph_type.enum_values.each do |subgraph_enum_value|
+            memo[subgraph_enum_value.graphql_name] ||= {}
+            memo[subgraph_enum_value.graphql_name][location] = subgraph_enum_value
           end
         end
 
@@ -342,14 +339,14 @@ module GraphQL
       # @!visibility private
       def build_merged_fields(type_name, types_by_location, owner)
         # "field_name" => "location" => field
-        fields_by_name_location = types_by_location.each_with_object({}) do |(location, type_candidate), memo|
+        fields_by_name_location = types_by_location.each_with_object({}) do |(location, subgraph_type), memo|
           @field_map[type_name] ||= {}
-          type_candidate.fields.each do |field_name, field_candidate|
-            @field_map[type_name][field_candidate.name] ||= []
-            @field_map[type_name][field_candidate.name] << location
+          subgraph_type.fields.each do |field_name, subgraph_field|
+            @field_map[type_name][subgraph_field.name] ||= []
+            @field_map[type_name][subgraph_field.name] << location
 
             memo[field_name] ||= {}
-            memo[field_name][location] = field_candidate
+            memo[field_name][location] = subgraph_field
           end
         end
 
@@ -375,8 +372,8 @@ module GraphQL
       # @!visibility private
       def build_merged_arguments(type_name, members_by_location, owner, field_name: nil, directive_name: nil)
         # "argument_name" => "location" => argument
-        args_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
-          member_candidate.arguments.each do |argument_name, argument|
+        args_by_name_location = members_by_location.each_with_object({}) do |(location, subgraph_member), memo|
+          subgraph_member.arguments.each do |argument_name, argument|
             memo[argument_name] ||= {}
             memo[argument_name][location] = argument
           end
@@ -388,7 +385,7 @@ module GraphQL
           if arguments_by_location.length != members_by_location.length
             if value_types.any?(&:non_null?)
               path = [type_name, field_name, argument_name].compact.join(".")
-              raise ComposerError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
+              raise CompositionError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
             end
             next
           end
@@ -429,8 +426,8 @@ module GraphQL
       # @!scope class
       # @!visibility private
       def build_merged_directives(type_name, members_by_location, owner, field_name: nil, argument_name: nil, enum_value: nil)
-        directives_by_name_location = members_by_location.each_with_object({}) do |(location, member_candidate), memo|
-          member_candidate.directives.each do |directive|
+        directives_by_name_location = members_by_location.each_with_object({}) do |(location, subgraph_member), memo|
+          subgraph_member.directives.each do |directive|
             memo[directive.graphql_name] ||= {}
             memo[directive.graphql_name][location] = directive
           end
@@ -470,18 +467,18 @@ module GraphQL
 
       # @!scope class
       # @!visibility private
-      def merge_value_types(type_name, type_candidates, field_name: nil, argument_name: nil)
+      def merge_value_types(type_name, subgraph_types, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].tap(&:compact!).join(".")
-        alt_structures = type_candidates.map { Util.flatten_type_structure(_1) }
+        alt_structures = subgraph_types.map { Util.flatten_type_structure(_1) }
         basis_structure = alt_structures.shift
 
         alt_structures.each do |alt_structure|
           if alt_structure.length != basis_structure.length
-            raise ComposerError, "Cannot compose mixed list structures at `#{path}`."
+            raise CompositionError, "Cannot compose mixed list structures at `#{path}`."
           end
 
           if alt_structure.last.name != basis_structure.last.name
-            raise ComposerError, "Cannot compose mixed types at `#{path}`."
+            raise CompositionError, "Cannot compose mixed types at `#{path}`."
           end
         end
 
@@ -528,63 +525,60 @@ module GraphQL
       # @!scope class
       # @!visibility private
       def extract_resolvers(type_name, types_by_location)
-        types_by_location.each do |location, type_candidate|
-          type_candidate.fields.each do |field_name, field_candidate|
-            resolver_type = field_candidate.type.unwrap
-            resolver_structure = Util.flatten_type_structure(field_candidate.type)
+        types_by_location.each do |location, subgraph_type|
+          subgraph_type.fields.each do |field_name, subgraph_field|
+            resolver_type = subgraph_field.type.unwrap
+            resolver_structure = Util.flatten_type_structure(subgraph_field.type)
             resolver_configs = @resolver_configs.fetch("#{location}.#{field_name}",  [])
 
-            field_candidate.directives.each do |directive|
+            subgraph_field.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
               resolver_configs << ResolverConfig.from_kwargs(directive.arguments.keyword_arguments)
             end
 
             resolver_configs.each do |config|
-              key_selections = GraphQL.parse("{ #{config.key} }").definitions[0].selections
-
-              if key_selections.length != 1
-                raise ComposerError, "Resolver key at #{type_name}.#{field_name} must specify exactly one key."
-              end
-
-              argument = field_candidate.arguments[key_selections[0].alias]
-              argument ||= if field_candidate.arguments.size == 1
-                field_candidate.arguments.values.first
-              else
-                field_candidate.arguments[config.key]
-              end
-
-              unless argument
-                raise ComposerError, "No resolver argument matched for #{type_name}.#{field_name}. " \
-                  "Add an alias to the key that specifies its intended argument, ex: `arg:key`"
-              end
-
-              argument_structure = Util.flatten_type_structure(argument.type)
-              if argument_structure.length != resolver_structure.length
-                raise ComposerError, "Mismatched input/output for #{type_name}.#{field_name}.#{argument.graphql_name} resolver. " \
-                  "Arguments must map directly to results."
-              end
-
               resolver_type_name = if config.type_name
                 if !resolver_type.kind.abstract?
-                  raise ComposerError, "Resolver config may only specify a type name for abstract resolvers."
+                  raise CompositionError, "Resolver config may only specify a type name for abstract resolvers."
                 elsif !resolver_type.possible_types.find { _1.graphql_name == config.type_name }
-                  raise ComposerError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
+                  raise CompositionError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
                 end
                 config.type_name
               else
                 resolver_type.graphql_name
               end
 
+              key = Resolver.parse_key_with_types(
+                config.key,
+                @subgraph_types_by_name_and_location[resolver_type_name],
+              )
+
+              arguments_format = config.arguments || begin
+                argument = if subgraph_field.arguments.size == 1
+                  subgraph_field.arguments.values.first
+                else
+                  subgraph_field.arguments[key.default_argument_name]
+                end
+
+                unless argument
+                  raise CompositionError, "No resolver argument matched for `#{type_name}.#{field_name}`." \
+                    "An argument mapping is required for unmatched names and composite keys."
+                end
+
+                "#{argument.graphql_name}: $.#{key.default_argument_name}"
+              end
+
+              arguments = Resolver.parse_arguments_with_field(arguments_format, subgraph_field)
+              arguments.each { _1.verify_key(key) }
+
               @resolver_map[resolver_type_name] ||= []
               @resolver_map[resolver_type_name] << Resolver.new(
                 location: location,
                 type_name: resolver_type_name,
-                key: key_selections[0].name,
-                field: field_candidate.name,
-                arg: argument.graphql_name,
-                arg_type_name: argument.type.unwrap.graphql_name,
+                field: subgraph_field.name,
                 list: resolver_structure.first.list?,
-                representations: config.representations,
+                key: key,
+                arguments: arguments,
               )
             end
           end
@@ -619,7 +613,7 @@ module GraphQL
           next unless resolver_type.kind.abstract?
 
           expanded_types = Util.expand_abstract_type(schema, resolver_type)
-          expanded_types.select { @candidate_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
+          expanded_types.select { @subgraph_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
             @resolver_map[expanded_type.graphql_name] ||= []
             @resolver_map[expanded_type.graphql_name].push(*@resolver_map[type_name])
           end
@@ -673,7 +667,7 @@ module GraphQL
         @field_map = {}
         @resolver_map = {}
         @mapped_type_names = {}
-        @candidate_directives_by_name_and_location = nil
+        @subgraph_directives_by_name_and_location = nil
         @schema_directives = nil
       end
     end

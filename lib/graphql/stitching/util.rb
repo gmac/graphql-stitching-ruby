@@ -47,6 +47,34 @@ module GraphQL
           structure
         end
 
+        # builds a single-dimensional representation of a wrapped type structure from AST
+        def flatten_ast_type_structure(ast, structure: [])
+          null = true
+
+          while ast.is_a?(GraphQL::Language::Nodes::NonNullType)
+            ast = ast.of_type
+            null = false
+          end
+
+          if ast.is_a?(GraphQL::Language::Nodes::ListType)
+            structure << TypeStructure.new(
+              list: true,
+              null: null,
+              name: nil,
+            )
+
+            flatten_ast_type_structure(ast.of_type, structure: structure)
+          else
+            structure << TypeStructure.new(
+              list: false,
+              null: null,
+              name: ast.name,
+            )
+          end
+
+          structure
+        end
+
         # expands interfaces and unions to an array of their memberships
         # like `schema.possible_types`, but includes child interfaces
         def expand_abstract_type(schema, parent_type)

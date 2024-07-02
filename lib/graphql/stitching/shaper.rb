@@ -23,8 +23,8 @@ module GraphQL
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
-        typename ||= raw_object[ExportSelection.typename_node.alias]
-        raw_object.reject! { |key, _v| ExportSelection.key?(key) }
+        typename ||= raw_object[Resolver::TYPENAME_EXPORT_NODE.alias]
+        raw_object.reject! { |key, _v| Resolver.export_key?(key) }
 
         selections.each do |node|
           case node
@@ -64,7 +64,7 @@ module GraphQL
             return nil if result.nil?
 
           else
-            raise "Unexpected node of type #{node.class.name} in selection set."
+            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
           end
         end
 

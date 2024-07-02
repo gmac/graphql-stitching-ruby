@@ -12,10 +12,10 @@ module GraphQL::Stitching
 
           assignments.each_with_object({}) do |kwargs, memo|
             type = kwargs[:parent_type_name] ? schema.get_type(kwargs[:parent_type_name]) : schema.query
-            raise ComposerError, "Invalid stitch directive type `#{kwargs[:parent_type_name]}`" unless type
+            raise CompositionError, "Invalid stitch directive type `#{kwargs[:parent_type_name]}`" unless type
 
             field = type.get_field(kwargs[:field_name])
-            raise ComposerError, "Invalid stitch directive field `#{kwargs[:field_name]}`" unless field
+            raise CompositionError, "Invalid stitch directive field `#{kwargs[:field_name]}`" unless field
 
             field_path = "#{location}.#{field.name}"
             memo[field_path] ||= []
@@ -30,15 +30,15 @@ module GraphQL::Stitching
             entity_type.directives.each do |directive|
               next unless directive.graphql_name == "key"
 
-              key = directive.arguments.keyword_arguments.fetch(:fields).strip
-              raise ComposerError, "Composite federation keys are not supported." unless /^\w+$/.match?(key)
-
+              key = Resolver.parse_key(directive.arguments.keyword_arguments.fetch(:fields))
+              key_fields = key.map { "#{_1.name}: $.#{_1.name}" }
               field_path = "#{location}._entities"
+
               memo[field_path] ||= []
               memo[field_path] << new(
-                key: key,
+                key: key.to_definition,
                 type_name: entity_type.graphql_name,
-                representations: true,
+                arguments: "representations: { #{key_fields.join(", ")}, __typename: $.__typename }",
               )
             end
           end
@@ -48,7 +48,7 @@ module GraphQL::Stitching
           new(
             key: kwargs[:key],
             type_name: kwargs[:type_name] || kwargs[:typeName],
-            representations: kwargs[:representations] || false,
+            arguments: kwargs[:arguments],
           )
         end
 
@@ -57,16 +57,21 @@ module GraphQL::Stitching
         def federation_entities_schema?(schema)
           entity_type = schema.get_type(ENTITY_TYPENAME)
           entities_query = schema.query.get_field(ENTITIES_QUERY)
-          entity_type && entity_type.kind.union? && entities_query && entities_query.type.unwrap == entity_type
+          entity_type &&
+            entity_type.kind.union? &&
+            entities_query &&
+            entities_query.arguments["representations"] &&
+            entities_query.type.list? &&
+            entities_query.type.unwrap == entity_type
         end
       end
 
-      attr_reader :key, :type_name, :representations
+      attr_reader :key, :type_name, :arguments
 
-      def initialize(key:, type_name:, representations: false)
+      def initialize(key:, type_name:, arguments: nil)
         @key = key
         @type_name = type_name
-        @representations = representations
+        @arguments = arguments
       end
     end
   end

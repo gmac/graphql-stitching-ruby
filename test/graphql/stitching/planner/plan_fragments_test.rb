@@ -157,4 +157,40 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal ["namespace", "test", "nest"], third.path
     assert_equal "{ b }", third.selections
   end
+
+  def test_plans_typename_into_root_selections_with_fragments
+    a = %|
+      type ParentResource { id: ID! subResource: SubResource }
+      type SubResource { id: ID! }
+      type Query {
+        parentResource(id: ID!): ParentResource
+        subResourcesByIds(ids: [ID!]!): [SubResource]! @stitch(key: "id")
+      }
+    |
+    b = %|
+      type SubResource { id: ID! title: String! }
+      type Query {
+        subResourcesByIds(ids: [ID!]!): [SubResource]! @stitch(key: "id")
+      }
+    |
+
+    query = %|
+      query {
+        parentResource(id: "1") {
+          ...ParentResourceAttrs
+        }
+      }
+      fragment ParentResourceAttrs on ParentResource {
+        id
+        subResource {
+          id
+          title
+        }
+      }
+    |
+
+    @supergraph = compose_definitions({ a: a, b: b })
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
+    pp plan.as_json
+  end
 end

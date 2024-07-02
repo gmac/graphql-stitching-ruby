@@ -157,12 +157,12 @@ module GraphQL::Stitching
 
     # A typed enum input value
     # @api private
-    class ArgumentEnumValue < ArgumentValue
+    class EnumArgumentValue < ArgumentValue
     end
 
     # A primitive input value literal
     # @api private
-    class ArgumentLiteralValue < ArgumentValue
+    class LiteralArgumentValue < ArgumentValue
       def print
         JSON.generate(value)
       end
@@ -250,11 +250,11 @@ module GraphQL::Stitching
         value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
           build_object_value(node.value, argument_def ? argument_def.type.unwrap : nil)
         elsif node.value.is_a?(GraphQL::Language::Nodes::Enum)
-          ArgumentEnumValue.new(node.value.name)
+          EnumArgumentValue.new(node.value.name)
         elsif node.value.is_a?(String) && node.value.start_with?("$.")
           KeyArgumentValue.new(node.value.sub(/^\$\./, "").split("."))
         else
-          ArgumentLiteralValue.new(node.value)
+          LiteralArgumentValue.new(node.value)
         end
 
         Argument.new(

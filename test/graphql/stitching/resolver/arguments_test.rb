@@ -5,8 +5,8 @@ require "test_helper"
 class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
   Argument = GraphQL::Stitching::Resolver::Argument
   ObjectArgumentValue = GraphQL::Stitching::Resolver::ObjectArgumentValue
-  ArgumentLiteralValue = GraphQL::Stitching::Resolver::ArgumentLiteralValue
-  ArgumentEnumValue = GraphQL::Stitching::Resolver::ArgumentEnumValue
+  LiteralArgumentValue = GraphQL::Stitching::Resolver::LiteralArgumentValue
+  EnumArgumentValue = GraphQL::Stitching::Resolver::EnumArgumentValue
   KeyArgumentValue = GraphQL::Stitching::Resolver::KeyArgumentValue
 
   class TestSchema < GraphQL::Schema
@@ -76,7 +76,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
         Argument.new(
           name: "namespace",
           type_name: "String",
-          value: ArgumentLiteralValue.new("sfoo"),
+          value: LiteralArgumentValue.new("sfoo"),
         ),
       ]),
     ),
@@ -113,7 +113,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
             Argument.new(
               name: "namespace",
               type_name: "String",
-              value: ArgumentLiteralValue.new("sfoo"),
+              value: LiteralArgumentValue.new("sfoo"),
             ),
           ]),
         ),
@@ -324,22 +324,22 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
         ),
         Argument.new(
           name: "namespace",
-          value: ArgumentLiteralValue.new("beep"),
+          value: LiteralArgumentValue.new("beep"),
         ),
       ]),
     ),
     Argument.new(
       name: "other",
       type_name: "String",
-      value: ArgumentLiteralValue.new("boom"),
+      value: LiteralArgumentValue.new("boom"),
     )]
 
     assert_equal expected, GraphQL::Stitching::Resolver.parse_arguments_with_type_defs(template, type_defs)
   end
 
   def test_checks_primitive_values_for_presence_of_keys
-    assert_equal false, Argument.new(name: "test", value: ArgumentLiteralValue.new("boom")).key?
-    assert_equal false, Argument.new(name: "test", value: ArgumentEnumValue.new("YES")).key?
+    assert_equal false, Argument.new(name: "test", value: LiteralArgumentValue.new("boom")).key?
+    assert_equal false, Argument.new(name: "test", value: EnumArgumentValue.new("YES")).key?
     assert Argument.new(name: "test", value: KeyArgumentValue.new("id")).key?
   end
 
@@ -349,11 +349,11 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       value: ObjectArgumentValue.new([
         Argument.new(
           name: "first",
-          value: ArgumentEnumValue.new(["YES"]),
+          value: EnumArgumentValue.new(["YES"]),
         ),
         Argument.new(
           name: "second",
-          value: ArgumentLiteralValue.new("boom"),
+          value: LiteralArgumentValue.new("boom"),
         ),
       ]),
     ).key?
@@ -363,11 +363,11 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
       value: ObjectArgumentValue.new([
         Argument.new(
           name: "first",
-          value: ArgumentEnumValue.new(["YES"]),
+          value: EnumArgumentValue.new(["YES"]),
         ),
         Argument.new(
           name: "second",
-          value: ArgumentLiteralValue.new("boom"),
+          value: LiteralArgumentValue.new("boom"),
         ),
         Argument.new(
           name: "third",
@@ -403,7 +403,7 @@ class GraphQL::Stitching::Resolver::ArgumentsTest < Minitest::Test
   end
 
   def test_no_key_verification_for_non_key_values
-    arg = Argument.new(name: "secret", value: ArgumentLiteralValue.new("boo"))
+    arg = Argument.new(name: "secret", value: LiteralArgumentValue.new("boo"))
     assert !arg.verify_key(GraphQL::Stitching::Resolver.parse_key("id"))
   end
 

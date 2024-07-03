@@ -244,6 +244,7 @@ module GraphQL
             fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
+            requires_typename = true
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
             is_same_scope = fragment_type == parent_type
             selection_set = is_same_scope ? locale_selections : []
@@ -251,7 +252,6 @@ module GraphQL
 
             unless is_same_scope
               locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
-              requires_typename = true
             end
 
           else

@@ -55,8 +55,10 @@ module GraphQL::Stitching
         end
 
         # All locations of a merged type must include at least one resolver key
-        supergraph.fields_by_type_and_location[type.graphql_name].each_key do |location|
-          if resolver_keys.none? { _1.locations.include?(location) }
+        supergraph.fields_by_type_and_location[type.graphql_name].each do |location, field_names|
+          has_resolver_key = resolver_keys.any? { _1.locations.include?(location) }
+          has_primitive_match = resolver_keys.any? { field_names.include?(_1.primitive_name) }
+          unless has_resolver_key || has_primitive_match
             raise ValidationError, "A resolver key is required for `#{type.graphql_name}` in #{location} to join with other locations."
           end
         end

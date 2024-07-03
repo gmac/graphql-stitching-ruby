@@ -90,7 +90,7 @@ class GraphQlController
       variables: params[:variables],
       operation_name: params[:operation_name]
     )
-  end 
+  end
 end
 ```
 
@@ -345,4 +345,4 @@ type Query {
 }
 ```
 
-In this graph, `Widget` is a merged type without a resolver query in location C. This works because all of its fields are resolvable in other locations; that means location C can provide outbound representations of this type without ever needing to resolve inbound requests for it. Outbound types do still require a shared key field (such as `id` above) that allow them to join with data in other resolver locations (such as `price` above).
+In this graph, `Widget` is a merged type without a resolver query in location C. This works because all of its fields are resolvable in other locations; that means location C can provide outbound representations of this type without ever needing to resolve inbound requests for it. Outbound types do still require a shared key field (such as `id` above) that allow them to join with data in other resolver locations (such as `price` above). Support for this pattern is limited to single-field keys, [composite keys](../README.md#composite-type-keys) require a resolver definition.

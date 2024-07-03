@@ -101,7 +101,7 @@ This directive (or [static configuration](#sdl-based-schemas)) is applied to roo
 
 ```ruby
 products_schema = <<~GRAPHQL
-  directive @stitch(key: String!) repeatable on FIELD_DEFINITION
+  directive @stitch(key: String!, arguments: String) repeatable on FIELD_DEFINITION
 
   type Product {
     id: ID!
@@ -114,7 +114,7 @@ products_schema = <<~GRAPHQL
 GRAPHQL
 
 catalog_schema = <<~GRAPHQL
-  directive @stitch(key: String!) repeatable on FIELD_DEFINITION
+  directive @stitch(key: String!, arguments: String) repeatable on FIELD_DEFINITION
 
   type Product {
     id: ID!
@@ -226,7 +226,7 @@ type Query {
 }
 ```
 
-Key insertions are prefixed by `$` and specify a dot-notation path to any selections made by the resolver `key`, or `__typename`. This syntax allows sending multiple arguments that intermix stitching keys with complex input shapes and other static values:
+Key insertions are prefixed by `$` and specify a dot-notation path to any selections made by the resolver key, or `__typename`. This syntax allows sending multiple arguments that intermix stitching keys with complex input shapes and other static values:
 
 ```graphql
 type Product {
@@ -237,10 +237,14 @@ input EntityKey {
   id: ID!
   type: String!
 }
+enum EntitySource {
+  DATABASE
+  CACHE
+}
 
 type Query {
-  entities(keys: [EntityKey!]!, source: String="database"): [Entity]!
-    @stitch(key: "id", arguments: "keys: { id: $.id, type: $.__typename }, source: 'cache'")
+  entities(keys: [EntityKey!]!, source: EntitySource = DATABASE): [Entity]!
+    @stitch(key: "id", arguments: "keys: { id: $.id, type: $.__typename }, source: CACHE")
 }
 ```
 
@@ -265,6 +269,7 @@ input CustomFieldLookup {
   ownerType: String!
   key: String!
 }
+
 type Query {
   customFields(lookups: [CustomFieldLookup!]!): [CustomField]! @stitch(
     key: "owner { id type } key",
@@ -320,6 +325,7 @@ class StitchingResolver < GraphQL::Schema::Directive
   locations FIELD_DEFINITION
   repeatable true
   argument :key, String, required: true
+  argument :arguments, String, required: false
 end
 
 class Query < GraphQL::Schema::Object
@@ -354,7 +360,7 @@ supergraph = GraphQL::Stitching::Composer.new.perform({
     executable: ->() { ... },
     stitch: [
       { field_name: "productById", key: "id" },
-      { field_name: "productBySku", key: "sku" },
+      { field_name: "productBySku", key: "sku", arguments: "mySku: $.sku" },
     ]
   },
   # ...

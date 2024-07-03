@@ -42,7 +42,7 @@ module GraphQL::Stitching
         to_definition == other.to_definition
       end
 
-      def default_argument_name
+      def primitive_name
         length == 1 ? first.name : nil
       end
 

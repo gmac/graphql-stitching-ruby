@@ -557,7 +557,7 @@ module GraphQL
                 argument = if subgraph_field.arguments.size == 1
                   subgraph_field.arguments.values.first
                 else
-                  subgraph_field.arguments[key.default_argument_name]
+                  subgraph_field.arguments[key.primitive_name]
                 end
 
                 unless argument
@@ -565,7 +565,7 @@ module GraphQL
                     "An argument mapping is required for unmatched names and composite keys."
                 end
 
-                "#{argument.graphql_name}: $.#{key.default_argument_name}"
+                "#{argument.graphql_name}: $.#{key.primitive_name}"
               end
 
               arguments = Resolver.parse_arguments_with_field(arguments_format, subgraph_field)

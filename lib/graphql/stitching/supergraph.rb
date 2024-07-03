@@ -147,7 +147,11 @@ module GraphQL
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= possible_keys_for_type(type_name).select do |key|
-          key.locations.include?(location)
+          next true if key.locations.include?(location)
+
+          # Outbound-only locations without resolver queries may dynamically match primitive keys
+          location_fields = fields_by_type_and_location[type_name][location] || GraphQL::Stitching::EMPTY_ARRAY
+          location_fields.include?(key.primitive_name)
         end
       end
 

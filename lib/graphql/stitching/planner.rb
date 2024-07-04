@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "./planner/step"
+
 module GraphQL
   module Stitching
     class Planner
@@ -85,7 +87,7 @@ module GraphQL
         end
 
         if step.nil?
-          @steps_by_entrypoint[entrypoint] = PlannerStep.new(
+          @steps_by_entrypoint[entrypoint] = Step.new(
             index: next_index,
             after: parent_index,
             location: location,

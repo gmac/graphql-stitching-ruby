@@ -1,8 +1,8 @@
 # typed: false
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
+module GraphQL::Stitching
+  class Executor
     # Shapes the final results payload to the request selection and schema definition.
     # This eliminates unrequested export selections and applies null bubbling.
     # @api private

@@ -47,7 +47,7 @@ module GraphQL
       end
 
       def version
-        @version ||= Digest::SHA2.hexdigest(as_json.to_json)
+        @version ||= Digest::SHA2.hexdigest("#{Stitching::VERSION}/#{as_json.to_json}")
       end
 
       def ==(other)

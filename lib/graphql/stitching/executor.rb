@@ -3,6 +3,7 @@
 require "json"
 require_relative "./executor/resolver_source"
 require_relative "./executor/root_source"
+require_relative "./executor/shaper"
 
 module GraphQL
   module Stitching
@@ -33,7 +34,7 @@ module GraphQL
         result = {}
 
         if @data && @data.length > 0
-          result["data"] = raw ? @data : GraphQL::Stitching::Shaper.new(@request).perform!(@data)
+          result["data"] = raw ? @data : Shaper.new(@request).perform!(@data)
         end
 
         if @errors.length > 0

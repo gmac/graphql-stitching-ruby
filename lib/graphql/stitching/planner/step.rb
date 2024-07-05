@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
+module GraphQL::Stitching
+  class Planner
     # A planned step in the sequence of stitching entrypoints together.
     # This is a mutable object that may change throughout the planning process.
     # It ultimately builds an immutable Plan::Op at the end of planning.
-    class PlannerStep
+    class Step
       GRAPHQL_PRINTER = GraphQL::Language::Printer.new
 
       attr_reader :index, :location, :parent_type, :operation_type, :path

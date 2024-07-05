@@ -3,7 +3,7 @@
 require "test_helper"
 require_relative "../../../schemas/introspection"
 
-describe "GraphQL::Stitching::Shaper, grooming" do
+describe "GraphQL::Stitching::Executor::GraphQL::Stitching::Executor::Shaper, grooming" do
   def test_prunes_stitching_fields
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     request = GraphQL::Stitching::Request.new(
@@ -27,7 +27,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_adds_missing_fields
@@ -50,7 +50,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_grooms_through_inline_fragments
@@ -82,7 +82,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_grooms_through_fragment_spreads
@@ -110,7 +110,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
       }
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_renames_root_query_typenames
@@ -130,7 +130,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
 
     raw = { "__typename" => "QueryRoot", "typename1" => "QueryRoot", "typename2" => "QueryRoot" }
     expected = { "__typename" => "Query", "typename1" => "Query", "typename2" => "Query" }
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_renames_root_mutation_typenames
@@ -150,7 +150,7 @@ describe "GraphQL::Stitching::Shaper, grooming" do
 
     raw = { "__typename" => "MutationRoot", "typename1" => "MutationRoot", "typename2" => "MutationRoot" }
     expected = { "__typename" => "Mutation", "typename1" => "Mutation", "typename2" => "Mutation" }
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_handles_introspection_types
@@ -162,6 +162,6 @@ describe "GraphQL::Stitching::Shaper, grooming" do
     )
 
     raw = schema.execute(query: INTROSPECTION_QUERY).to_h
-    assert GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 end

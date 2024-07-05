@@ -124,7 +124,6 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
             price
           }
           _export___typename: __typename
-          _export___typename: __typename
         }
       }
     |
@@ -155,8 +154,6 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
           id
           ... on Product { _export_id: id _export___typename: __typename }
           ... on Bundle { name price }
-          _export___typename: __typename
-          _export___typename: __typename
           _export___typename: __typename
         }
       }

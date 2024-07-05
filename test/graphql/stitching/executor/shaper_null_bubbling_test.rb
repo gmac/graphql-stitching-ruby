@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Shaper, null bubbling" do
+describe "GraphQL::Stitching::Executor::GraphQL::Stitching::Executor::Shaper, null bubbling" do
   def test_basic_object_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     request = GraphQL::Stitching::Request.new(
@@ -22,7 +22,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       }
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_single_object_scopes
@@ -39,7 +39,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
     }
     expected = { "test" => nil }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_recursive_object_scopes
@@ -55,7 +55,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       }
     }
 
-    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_nil GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_basic_list_structure
@@ -77,7 +77,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_list_elements
@@ -99,7 +99,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_required_list_elements
@@ -118,7 +118,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil,
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_required_lists
@@ -134,7 +134,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_nil GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_basic_nested_list_structure
@@ -156,7 +156,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_nested_list_elements
@@ -178,7 +178,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_nested_required_list_elements
@@ -200,7 +200,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_for_inner_required_lists
@@ -219,7 +219,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubbles_null_through_nested_required_list_scopes
@@ -235,7 +235,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       ]
     }
 
-    assert_nil GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_nil GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubble_through_inline_fragment
@@ -264,7 +264,7 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubble_through_fragment_spreads
@@ -289,6 +289,6 @@ describe "GraphQL::Stitching::Shaper, null bubbling" do
       "test" => nil
     }
 
-    assert_equal expected, GraphQL::Stitching::Shaper.new(request).perform!(raw)
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 end

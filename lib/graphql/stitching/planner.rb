@@ -263,7 +263,7 @@ module GraphQL
 
         # B.4) Add a `__typename` export to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
-        if requires_typename
+        if requires_typename && !locale_selections.include?(Resolver::TYPENAME_EXPORT_NODE)
           locale_selections << Resolver::TYPENAME_EXPORT_NODE
         end
 
@@ -279,6 +279,10 @@ module GraphQL
             route.reduce(locale_selections) do |parent_selections, resolver|
               # E.1) Add the key of each resolver query into the prior location's selection set.
               parent_selections.push(*resolver.key.export_nodes) if resolver.key
+              parent_selections.uniq! do |node|
+                export_node = node.is_a?(GraphQL::Language::Nodes::Field) && Resolver.export_key?(node.alias)
+                export_node ? node.alias : node
+              end
 
               # E.2) Add a planner step for each new entrypoint location.
               add_step(
@@ -291,8 +295,6 @@ module GraphQL
               ).selections
             end
           end
-
-          locale_selections.uniq! { _1.alias || _1.name }
         end
 
         locale_selections

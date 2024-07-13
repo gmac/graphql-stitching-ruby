@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../schemas/example"
+require_relative "../../../schemas/example"
 
 describe "GraphQL::Stitching::Request" do
   def setup

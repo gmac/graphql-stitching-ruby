@@ -4,7 +4,10 @@ require "graphql"
 
 module GraphQL
   module Stitching
+    # @api private
     EMPTY_OBJECT = {}.freeze
+
+    # @api private
     EMPTY_ARRAY = [].freeze
 
     class StitchingError < StandardError; end
@@ -18,6 +21,8 @@ module GraphQL
 
       attr_writer :stitch_directive
 
+      # Names of stitching directives to omit from the composed supergraph.
+      # @returns [Array<String>] list of stitching directive names.
       def stitching_directive_names
         [stitch_directive]
       end
@@ -34,6 +39,5 @@ require_relative "stitching/plan"
 require_relative "stitching/planner"
 require_relative "stitching/request"
 require_relative "stitching/resolver"
-require_relative "stitching/skip_include"
 require_relative "stitching/util"
 require_relative "stitching/version"

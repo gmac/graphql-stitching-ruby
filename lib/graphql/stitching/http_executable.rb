@@ -6,6 +6,9 @@ require "json"
 
 module GraphQL
   module Stitching
+    # HttpExecutable provides an out-of-the-box convenience for sending 
+    # HTTP post requests to a remote location, or a base class 
+    # for other implementations with GraphQL multipart uploads.
     class HttpExecutable
       # Builds a new executable for proxying subgraph requests via HTTP.
       # @param url [String] the url of the remote location to proxy.

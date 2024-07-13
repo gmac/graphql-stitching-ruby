@@ -1,12 +1,15 @@
 # frozen_string_literal: true
 
-require_relative "./composer/base_validator"
-require_relative "./composer/validate_interfaces"
-require_relative "./composer/validate_resolvers"
-require_relative "./composer/resolver_config"
+require_relative "composer/base_validator"
+require_relative "composer/validate_interfaces"
+require_relative "composer/validate_resolvers"
+require_relative "composer/resolver_config"
 
 module GraphQL
   module Stitching
+    # Composer receives many individual `GraphQL::Schema` instances 
+    # representing various graph locations and merges them into one 
+    # combined Supergraph that is validated for integrity.
     class Composer
       # @api private
       NO_DEFAULT_VALUE = begin
@@ -26,9 +29,9 @@ module GraphQL
       BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
 
       # @api private
-      VALIDATORS = [
-        "ValidateInterfaces",
-        "ValidateResolvers",
+      COMPOSITION_VALIDATORS = [
+        ValidateInterfaces,
+        ValidateResolvers,
       ].freeze
 
       # @return [String] name of the Query type in the composed schema.
@@ -59,18 +62,21 @@ module GraphQL
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
         @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
+        
+        @field_map = {}
+        @resolver_map = {}
         @resolver_configs = {}
-
-        @field_map = nil
-        @resolver_map = nil
-        @mapped_type_names = nil
+        @mapped_type_names = {}
         @subgraph_directives_by_name_and_location = nil
         @subgraph_types_by_name_and_location = nil
         @schema_directives = nil
       end
 
       def perform(locations_input)
-        reset!
+        if @subgraph_types_by_name_and_location
+          raise CompositionError, "Composer may only perform once per instance."
+        end
+
         schemas, executables = prepare_locations_input(locations_input)
 
         # "directive_name" => "location" => subgraph_directive
@@ -163,9 +169,8 @@ module GraphQL
           executables: executables,
         )
 
-        VALIDATORS.each do |validator|
-          klass = Object.const_get("GraphQL::Stitching::Composer::#{validator}")
-          klass.new.perform(supergraph, self)
+        COMPOSITION_VALIDATORS.each do |validator_class|
+          validator_class.new.perform(supergraph, self)
         end
 
         supergraph
@@ -659,16 +664,6 @@ module GraphQL
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end
-      end
-
-      private
-
-      def reset!
-        @field_map = {}
-        @resolver_map = {}
-        @mapped_type_names = {}
-        @subgraph_directives_by_name_and_location = nil
-        @schema_directives = nil
       end
     end
   end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module GraphQL
-  module Stitching
+module GraphQL::Stitching
+  class Request
     # Faster implementation of an AST visitor for prerendering
     # @skip and @include conditional directives into a document.
     # This avoids unnecessary planning steps, and prepares result shaping.

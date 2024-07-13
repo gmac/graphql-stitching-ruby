@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::SkipInclude" do
+describe "GraphQL::Stitching::Request::SkipInclude" do
   def test_omits_statically_skipped_nodes
     render_skip_include "query {
       a {
@@ -106,7 +106,7 @@ describe "GraphQL::Stitching::SkipInclude" do
   def render_skip_include(source, variables = {})
     @source = source
     @changed = false
-    @result = GraphQL::Stitching::SkipInclude.render(GraphQL.parse(@source), variables) do
+    @result = GraphQL::Stitching::Request::SkipInclude.render(GraphQL.parse(@source), variables) do
       @changed = true
     end
   end

@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Executor::GraphQL::Stitching::Executor::Shaper, null bubbling" do
+describe "GraphQL::Stitching::Executor::Shaper, null bubbling" do
   def test_basic_object_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     request = GraphQL::Stitching::Request.new(

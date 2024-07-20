@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "./resolver/arguments"
-require_relative "./resolver/keys"
+require_relative "resolver/arguments"
+require_relative "resolver/keys"
 
 module GraphQL
   module Stitching
-    # Defines a root resolver query that provides direct access to an entity type.
+    # Defines a type resolver query that provides direct access to an entity type.
     class Resolver
       extend ArgumentsParser
       extend KeysParser

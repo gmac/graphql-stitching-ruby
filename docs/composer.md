@@ -1,6 +1,6 @@
 ## GraphQL::Stitching::Composer
 
-A `Composer` receives many individual `GraphQL:Schema` instances for various graph locations and _composes_ them into a combined [`Supergraph`](./supergraph.md) that is validated for integrity.
+A `Composer` receives many individual `GraphQL::Schema` instances representing various graph locations and _composes_ them into one combined [`Supergraph`](./supergraph.md) that is validated for integrity.
 
 ### Configuring composition
 

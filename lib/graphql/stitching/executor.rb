@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "./executor/resolver_source"
-require_relative "./executor/root_source"
-require_relative "./executor/shaper"
+require_relative "executor/resolver_source"
+require_relative "executor/root_source"
+require_relative "executor/shaper"
 
 module GraphQL
   module Stitching
+    # Executor handles executing upon a planned request.
+    # All planned steps are initiated, their results merged,
+    # and loaded keys are collected for batching subsequent steps.
+    # Final execution results are then shaped to match the request selection.
     class Executor
       # @return [Request] the stitching request to execute.
       attr_reader :request
@@ -20,6 +24,9 @@ module GraphQL
       # @return [Integer] tally of queries performed while executing.
       attr_accessor :query_count
 
+      # Builds a new executor.
+      # @param request [Request] the stitching request to execute.
+      # @param nonblocking [Boolean] specifies if the dataloader should use async concurrency.
       def initialize(request, nonblocking: false)
         @request = request
         @data = {}
@@ -58,8 +65,8 @@ module GraphQL
             .select { next_steps.include?(_1.after) }
             .group_by { [_1.location, _1.resolver.nil?] }
             .map do |(location, root_source), ops|
-              source_type = root_source ? RootSource : ResolverSource
-              @dataloader.with(source_type, self, location).request_all(ops)
+              source_class = root_source ? RootSource : ResolverSource
+              @dataloader.with(source_class, self, location).request_all(ops)
             end
 
           tasks.each(&method(:exec_task))

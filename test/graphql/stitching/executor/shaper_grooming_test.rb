@@ -3,7 +3,7 @@
 require "test_helper"
 require_relative "../../../schemas/introspection"
 
-describe "GraphQL::Stitching::Executor::GraphQL::Stitching::Executor::Shaper, grooming" do
+describe "GraphQL::Stitching::Executor::Shaper, grooming" do
   def test_prunes_stitching_fields
     schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
     request = GraphQL::Stitching::Request.new(

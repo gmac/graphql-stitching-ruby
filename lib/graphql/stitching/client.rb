@@ -4,20 +4,27 @@ require "json"
 
 module GraphQL
   module Stitching
+    # Client is an out-of-the-box helper that assembles all 
+    # stitching components into a workflow that executes requests.
     class Client
       class ClientError < StitchingError; end
 
+      # @return [Supergraph] composed supergraph that services incoming requests.
       attr_reader :supergraph
 
+      # Builds a new client instance. Either `supergraph` or `locations` configuration is required.
+      # @param supergraph [Supergraph] optional, a pre-composed supergraph that bypasses composer setup.
+      # @param locations [Hash<Symbol, Hash<Symbol, untyped>>] optional, composer configurations for each graph location.
+      # @param composer [Composer] optional, a pre-configured composer instance for use with `locations` configuration.
       def initialize(locations: nil, supergraph: nil, composer: nil)
         @supergraph = if locations && supergraph
           raise ClientError, "Cannot provide both locations and a supergraph."
-        elsif supergraph && !supergraph.is_a?(GraphQL::Stitching::Supergraph)
+        elsif supergraph && !supergraph.is_a?(Supergraph)
           raise ClientError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
         elsif supergraph
           supergraph
         else
-          composer ||= GraphQL::Stitching::Composer.new
+          composer ||= Composer.new
           composer.perform(locations)
         end
 
@@ -27,7 +34,7 @@ module GraphQL
       end
 
       def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)
-        request = GraphQL::Stitching::Request.new(
+        request = Request.new(
           @supergraph,
           query,
           operation_name: operation_name,
@@ -69,7 +76,7 @@ module GraphQL
 
       def load_plan(request)
         if @on_cache_read && plan_json = @on_cache_read.call(request)
-          plan = GraphQL::Stitching::Plan.from_json(JSON.parse(plan_json))
+          plan = Plan.from_json(JSON.parse(plan_json))
 
           # only use plans referencing current resolver versions
           if plan.ops.all? { |op| !op.resolver || @supergraph.resolvers_by_version[op.resolver] }

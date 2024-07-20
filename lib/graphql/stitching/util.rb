@@ -2,6 +2,7 @@
 
 module GraphQL
   module Stitching
+    # General utilities to aid with stitching.
     class Util
       TypeStructure = Struct.new(:list, :null, :name, keyword_init: true) do
         alias_method :list?, :list

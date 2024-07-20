@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
+require_relative "request/skip_include"
+
 module GraphQL
   module Stitching
+    # Request combines a supergraph, GraphQL document, variables, 
+    # variable/fragment definitions, and the selected operation.
+    # It provides the lifecycle of validating, preparing,
+    # planning, and executing upon these inputs.
     class Request
       SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
@@ -162,7 +168,7 @@ module GraphQL
           raise StitchingError, "Plan must be a `GraphQL::Stitching::Plan`." unless new_plan.is_a?(Plan)
           @plan = new_plan
         else
-          @plan ||= GraphQL::Stitching::Planner.new(self).perform
+          @plan ||= Planner.new(self).perform
         end
       end
 
@@ -170,7 +176,7 @@ module GraphQL
       # @param raw [Boolean] specifies the result should be unshaped without pruning or null bubbling. Useful for debugging.
       # @return [Hash] the rendered GraphQL response with "data" and "errors" sections.
       def execute(raw: false)
-        GraphQL::Stitching::Executor.new(self).perform(raw: raw)
+        Executor.new(self).perform(raw: raw)
       end
     end
   end

@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "./planner/step"
+require_relative "planner/step"
 
 module GraphQL
   module Stitching
+    # Planner partitions request selections by best-fit graph locations,
+    # and provides a query plan with sequential execution steps.
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::SUPERGRAPH_LOCATION].freeze
       TYPENAME = "__typename"
@@ -281,7 +283,7 @@ module GraphQL
               parent_selections.push(*resolver.key.export_nodes) if resolver.key
               parent_selections.uniq! do |node|
                 export_node = node.is_a?(GraphQL::Language::Nodes::Field) && Resolver.export_key?(node.alias)
-                export_node ? node.alias : node
+                export_node ? node.alias : node.object_id
               end
 
               # E.2) Add a planner step for each new entrypoint location.

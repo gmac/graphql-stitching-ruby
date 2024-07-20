@@ -40,6 +40,9 @@ module GraphQL
       # @return [String] name of the Mutation type in the composed schema.
       attr_reader :mutation_name
 
+      # @return [String] name of the Subscription type in the composed schema.
+      attr_reader :subscription_name
+
       # @api private
       attr_reader :subgraph_types_by_name_and_location
 
@@ -49,6 +52,7 @@ module GraphQL
       def initialize(
         query_name: "Query",
         mutation_name: "Mutation",
+        subscription_name: "Subscription",
         description_merger: nil,
         deprecation_merger: nil,
         default_value_merger: nil,
@@ -57,6 +61,7 @@ module GraphQL
       )
         @query_name = query_name
         @mutation_name = mutation_name
+        @subscription_name = subscription_name
         @description_merger = description_merger || BASIC_VALUE_MERGER
         @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
@@ -97,7 +102,6 @@ module GraphQL
         # "Typename" => "location" => subgraph_type
         @subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           raise CompositionError, "Location keys must be strings" unless location.is_a?(String)
-          raise CompositionError, "The subscription operation is not supported." if schema.subscription
 
           introspection_types = schema.introspection_system.types.keys
           schema.types.each do |type_name, subgraph_type|
@@ -107,10 +111,13 @@ module GraphQL
               raise CompositionError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
             elsif type_name == @mutation_name && subgraph_type != schema.mutation
               raise CompositionError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
+            elsif type_name == @subscription_name && subgraph_type != schema.subscription
+              raise CompositionError, "Subscription name \"#{@subscription_name}\" is used by non-subscription type in #{location} schema."
             end
 
             type_name = @query_name if subgraph_type == schema.query
             type_name = @mutation_name if subgraph_type == schema.mutation
+            type_name = @subscription_name if subgraph_type == schema.subscription
             @mapped_type_names[subgraph_type.graphql_name] = type_name if subgraph_type.graphql_name != type_name
 
             memo[type_name] ||= {}
@@ -154,6 +161,7 @@ module GraphQL
           orphan_types(schema_types.values.select { |t| t.respond_to?(:kind) && t.kind.object? })
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
+          subscription schema_types[builder.subscription_name]
           directives builder.schema_directives.values
 
           own_orphan_types.clear
@@ -593,7 +601,7 @@ module GraphQL
       # @!scope class
       # @!visibility private
       def select_root_field_locations(schema)
-        [schema.query, schema.mutation].tap(&:compact!).each do |root_type|
+        [schema.query, schema.mutation, schema.subscription].tap(&:compact!).each do |root_type|
           root_type.fields.each do |root_field_name, root_field|
             root_field_locations = @field_map[root_type.graphql_name][root_field_name]
             next unless root_field_locations.length > 1

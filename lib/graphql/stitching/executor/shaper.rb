@@ -105,7 +105,7 @@ module GraphQL::Stitching
         is_root = parent_type == @root_type
 
         case node.name
-        when "__typename"
+        when TYPENAME
           yield(is_root)
           true
         when "__schema", "__type"

@@ -5,10 +5,16 @@ module GraphQL::Stitching
     class ValidateResolvers < BaseValidator
 
       def perform(supergraph, composer)
+        root_types = [
+          supergraph.schema.query,
+          supergraph.schema.mutation,
+          supergraph.schema.subscription,
+        ].tap(&:compact!)
+        
         supergraph.schema.types.each do |type_name, type|
           # objects and interfaces that are not the root operation types
           next unless type.kind.object? || type.kind.interface?
-          next if supergraph.schema.query == type || supergraph.schema.mutation == type
+          next if root_types.include?(type)
           next if type.graphql_name.start_with?("__")
 
           # multiple subschemas implement the type

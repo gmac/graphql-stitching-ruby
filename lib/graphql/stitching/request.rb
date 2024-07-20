@@ -9,7 +9,6 @@ module GraphQL
     # It provides the lifecycle of validating, preparing,
     # planning, and executing upon these inputs.
     class Request
-      SUPPORTED_OPERATIONS = ["query", "mutation"].freeze
       SKIP_INCLUDE_DIRECTIVE = /@(?:skip|include)/
 
       # @return [Supergraph] supergraph instance that resolves the request.
@@ -89,7 +88,6 @@ module GraphQL
         @operation ||= begin
           operation_defs = @document.definitions.select do |d|
             next unless d.is_a?(GraphQL::Language::Nodes::OperationDefinition)
-            next unless SUPPORTED_OPERATIONS.include?(d.operation_type)
             @operation_name ? d.name == @operation_name : true
           end
 
@@ -101,6 +99,21 @@ module GraphQL
 
           operation_defs.first
         end
+      end
+
+      # @return [Boolean] true if operation type is a query
+      def query?
+        operation.operation_type == QUERY_OP
+      end
+
+      # @return [Boolean] true if operation type is a mutation
+      def mutation?
+        operation.operation_type == MUTATION_OP
+      end
+
+      # @return [Boolean] true if operation type is a subscription
+      def subscription?
+        operation.operation_type == SUBSCRIPTION_OP
       end
 
       # @return [String] A string of directives applied to the root operation. These are passed through in all subgraph requests.
@@ -176,7 +189,26 @@ module GraphQL
       # @param raw [Boolean] specifies the result should be unshaped without pruning or null bubbling. Useful for debugging.
       # @return [Hash] the rendered GraphQL response with "data" and "errors" sections.
       def execute(raw: false)
+        add_subscription_update_handler if subscription?
         Executor.new(self).perform(raw: raw)
+      end
+
+      private
+
+      # Adds a handler into context for enriching subscription updates with stitched data
+      def add_subscription_update_handler
+        request = self
+        @context[:stitch_subscription_update] = -> (result) {
+          stitched_result = Executor.new(
+            request,
+            data: result.to_h["data"] || {},
+            errors: result.to_h["errors"] || [],
+            after: request.plan.ops.first.step,
+          ).perform
+
+          result.to_h.merge!(stitched_result.to_h)
+          result
+        }
       end
     end
   end

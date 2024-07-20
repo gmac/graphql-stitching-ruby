@@ -130,8 +130,8 @@ module GraphQL::Stitching
 
       def verify_key(arg, key)
         key_field = value.reduce(Resolver::KeyField.new("", inner: key)) do |field, ns|
-          if ns == Resolver::TYPE_NAME
-            Resolver::KeyField.new(Resolver::TYPE_NAME)
+          if ns == TYPENAME
+            Resolver::KeyField.new(TYPENAME)
           elsif field
             field.inner.find { _1.name == ns }
           end

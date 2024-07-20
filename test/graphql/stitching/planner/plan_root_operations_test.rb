@@ -9,12 +9,14 @@ describe "GraphQL::Stitching::Planner, root operations" do
       type Widget { id:ID! }
       type Query { widget: Widget }
       type Mutation { makeWidget: Widget }
+      type Subscription { watchWidget: Widget }
     |
 
     @sprockets_sdl = %|
       type Sprocket { id:ID! }
       type Query { sprocket: Sprocket }
       type Mutation { makeSprocket: Sprocket }
+      type Subscription { watchSprocket: Sprocket }
     |
 
     @supergraph = compose_definitions({
@@ -102,6 +104,40 @@ describe "GraphQL::Stitching::Planner, root operations" do
       if_type: nil,
       resolver: nil,
     }
+  end
+
+  def test_plans_subscription_operations_for_single_field
+    document = %|
+      subscription {
+        watchWidget { id }
+      }
+    |
+
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
+
+    assert_equal 1, plan.ops.length
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "widgets",
+      operation_type: "subscription",
+      selections: %|{ watchWidget { id } }|,
+      path: [],
+      if_type: nil,
+      resolver: nil,
+    }
+  end
+
+  def test_raises_for_subscription_operations_with_multiple_fields
+    document = %|
+      subscription {
+        a: watchWidget { id }
+        b: watchSprocket { id }
+      }
+    |
+
+    assert_error "Too many root fields" do
+      GraphQL::Stitching::Request.new(@supergraph, document).plan
+    end
   end
 
   def test_plans_root_queries_through_fragments

@@ -5,16 +5,17 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 ![Stitched graph](./docs/images/stitching.png)
 
 **Supports:**
+- All operation types: query, mutation, and subscription.
 - Merged object and abstract types.
-- Multiple and composite keys per merged type.
 - Shared objects, fields, enums, and inputs across locations.
+- Multiple and composite type keys.
 - Combining local and remote schemas.
 - File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 - Tested with all minor versions of `graphql-ruby`.
 
 **NOT Supported:**
 - Computed fields (ie: federation-style `@requires`).
-- Subscriptions, defer/stream.
+- Defer/stream.
 
 This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput federated reverse proxy, consider not using Ruby.
 
@@ -445,6 +446,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 - [Modeling foreign keys for stitching](./docs/mechanics.md##modeling-foreign-keys-for-stitching)
 - [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
 - [Schema composition merge patterns](./docs/composer.md#merge-patterns)
+- [Subscriptions tutorial](./docs/subscriptions.md)
 - [Field selection routing](./docs/mechanics.md#field-selection-routing)
 - [Root selection routing](./docs/mechanics.md#root-selection-routing)
 - [Stitched errors](./docs/mechanics.md#stitched-errors)

@@ -3,7 +3,6 @@
 module GraphQL::Stitching
   class Resolver
     EXPORT_PREFIX = "_export_"
-    TYPE_NAME = "__typename"
 
     class FieldNode
       # GraphQL Ruby changed the argument assigning Field.alias from
@@ -59,8 +58,8 @@ module GraphQL::Stitching
 
     EMPTY_FIELD_SET = KeyFieldSet.new(GraphQL::Stitching::EMPTY_ARRAY)
     TYPENAME_EXPORT_NODE = FieldNode.build(
-      field_alias: "#{EXPORT_PREFIX}#{TYPE_NAME}",
-      field_name: TYPE_NAME,
+      field_alias: "#{EXPORT_PREFIX}#{TYPENAME}",
+      field_name: TYPENAME,
     )
 
     class Key < KeyFieldSet

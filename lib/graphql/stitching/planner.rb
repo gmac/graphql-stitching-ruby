@@ -8,9 +8,6 @@ module GraphQL
     # and provides a query plan with sequential execution steps.
     class Planner
       SUPERGRAPH_LOCATIONS = [Supergraph::SUPERGRAPH_LOCATION].freeze
-      TYPENAME = "__typename"
-      QUERY_OP = "query"
-      MUTATION_OP = "mutation"
       ROOT_INDEX = 0
 
       def initialize(request)
@@ -128,6 +125,7 @@ module GraphQL
               parent_index: ROOT_INDEX,
               parent_type: parent_type,
               selections: selections,
+              operation_type: QUERY_OP,
             )
           end
 
@@ -154,6 +152,22 @@ module GraphQL
               selections: partition.selections,
               operation_type: MUTATION_OP,
             ).index
+          end
+
+        when SUBSCRIPTION_OP
+          parent_type = @supergraph.schema.subscription
+
+          each_field_in_scope(parent_type, @request.operation.selections) do |node|
+            raise StitchingError, "Too many root fields for subscription." unless @steps_by_entrypoint.empty?
+
+            locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
+            add_step(
+              location: locations.first,
+              parent_index: ROOT_INDEX,
+              parent_type: parent_type,
+              selections: [node],
+              operation_type: SUBSCRIPTION_OP,
+            )
           end
 
         else

@@ -4,6 +4,18 @@ require "graphql"
 
 module GraphQL
   module Stitching
+    # scope name of query operations.
+    QUERY_OP = "query"
+    
+    # scope name of mutation operations.
+    MUTATION_OP = "mutation"
+    
+    # scope name of subscription operations.
+    SUBSCRIPTION_OP = "subscription"
+    
+    # introspection typename field.
+    TYPENAME = "__typename"
+
     # @api private
     EMPTY_OBJECT = {}.freeze
 

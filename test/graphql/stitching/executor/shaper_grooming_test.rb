@@ -161,7 +161,7 @@ describe "GraphQL::Stitching::Executor::Shaper, grooming" do
       INTROSPECTION_QUERY,
     )
 
-    raw = schema.execute(query: INTROSPECTION_QUERY).to_h
+    raw = schema.execute(INTROSPECTION_QUERY).to_h
     assert GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 end

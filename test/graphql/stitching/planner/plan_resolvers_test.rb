@@ -291,6 +291,50 @@ describe "GraphQL::Stitching::Planner, resolvers" do
     }
   end
 
+  def test_plans_subscription_resolvers
+    a = %|
+      type Apple { id:ID! flavor:String }
+      type Query { appleA(id:ID!):Apple @stitch(key:"id") }
+      type Subscription { watchApple: Apple }
+    |
+
+    b = %|
+      type Apple { id:ID! color:String }
+      type Query { appleB(id:ID!):Apple @stitch(key:"id") }
+    |
+
+    @supergraph = compose_definitions({ "a" => a, "b" => b })
+
+    plan = GraphQL::Stitching::Request.new(
+      @supergraph,
+      %|subscription { watchApple { id flavor color } }|,
+    ).plan
+
+    assert_equal 2, plan.ops.length
+
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "a",
+      operation_type: "subscription",
+      selections: %|{ watchApple { id flavor _export_id: id _export___typename: __typename } }|,
+      path: [],
+      resolver: nil,
+    }
+
+    assert_keys plan.ops[1].as_json, {
+      after: plan.ops.first.step,
+      location: "b",
+      operation_type: "query",
+      selections: %|{ color }|,
+      path: ["watchApple"],
+      resolver: resolver_version("Apple", {
+        location: "b",
+        field: "appleB",
+        key: "id",
+      }),
+    }
+  end
+
   private
 
   def resolver_version(type_name, criteria)

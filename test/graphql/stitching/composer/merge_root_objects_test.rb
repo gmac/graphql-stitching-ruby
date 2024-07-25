@@ -5,12 +5,13 @@ require "test_helper"
 describe 'GraphQL::Stitching::Composer, merging root objects' do
 
   def test_merges_fields_of_root_scopes
-    a = "type Query { a:String } type Mutation { a:String }"
-    b = "type Query { b:String } type Mutation { b:String }"
+    a = "type Query { a:String } type Mutation { a:String } type Subscription { a:String }"
+    b = "type Query { b:String } type Mutation { b:String } type Subscription { b:String }"
 
     info = compose_definitions({ "a" => a, "b" => b })
     assert_equal ["a","b"], info.schema.types["Query"].fields.keys.sort
     assert_equal ["a","b"], info.schema.types["Mutation"].fields.keys.sort
+    assert_equal ["a","b"], info.schema.types["Subscription"].fields.keys.sort
   end
 
   def test_merges_fields_of_root_scopes_from_custom_names
@@ -35,14 +36,6 @@ describe 'GraphQL::Stitching::Composer, merging root objects' do
     assert_equal ["a","b"], info.schema.types["RootMutation"].fields.keys.sort
     assert_nil info.schema.get_type("Query")
     assert_nil info.schema.get_type("Mutation")
-  end
-
-  def test_errors_for_subscription
-    a = "type Query { a:String } type Mutation { a:String } type Subscription { b:String }"
-
-    assert_error('subscription operation is not supported', CompositionError) do
-      compose_definitions({ "a" => a })
-    end
   end
 
   def test_errors_for_query_type_name_conflict

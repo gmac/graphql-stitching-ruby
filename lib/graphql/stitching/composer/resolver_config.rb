@@ -38,7 +38,7 @@ module GraphQL::Stitching
               memo[field_path] << new(
                 key: key.to_definition,
                 type_name: entity_type.graphql_name,
-                arguments: "representations: { #{key_fields.join(", ")}, __typename: $.__typename }",
+                arguments: "representations: { #{key_fields.join(", ")}, #{TYPENAME}: $.#{TYPENAME} }",
               )
             end
           end

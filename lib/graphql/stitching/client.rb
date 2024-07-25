@@ -33,10 +33,10 @@ module GraphQL
         @on_error = nil
       end
 
-      def execute(query:, variables: nil, operation_name: nil, context: nil, validate: true)
+      def execute(raw_query = nil, query: nil, variables: nil, operation_name: nil, context: nil, validate: true)
         request = Request.new(
           @supergraph,
-          query,
+          raw_query || query, # << for parity with GraphQL Ruby Schema.execute
           operation_name: operation_name,
           variables: variables,
           context: context,
@@ -44,17 +44,17 @@ module GraphQL
 
         if validate
           validation_errors = request.validate
-          return error_result(validation_errors) if validation_errors.any?
+          return error_result(request, validation_errors) if validation_errors.any?
         end
 
         request.prepare!
         load_plan(request)
         request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
-        error_result([e])
+        error_result(request, [e])
       rescue StandardError => e
         custom_message = @on_error.call(request, e) if @on_error
-        error_result([{ "message" => custom_message || "An unexpected error occured." }])
+        error_result(request, [{ "message" => custom_message || "An unexpected error occured." }])
       end
 
       def on_cache_read(&block)
@@ -93,12 +93,12 @@ module GraphQL
         plan
       end
 
-      def error_result(errors)
+      def error_result(request, errors)
         public_errors = errors.map! do |e|
           e.is_a?(Hash) ? e : e.to_h
         end
 
-        { "errors" => public_errors }
+        GraphQL::Query::Result.new(query: request, values: { "errors" => public_errors })
       end
     end
   end

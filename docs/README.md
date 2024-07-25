@@ -15,4 +15,5 @@ Major components include:
 Additional topics:
 
 - [Stitching mechanics](./mechanics.md) - more about building for stitching and how it operates.
+- [Subscriptions](./subscriptions.md) - explore how to stitch realtime event subscriptions.
 - [Federation entities](./federation_entities.md) - more about Apollo Federation compatibility.

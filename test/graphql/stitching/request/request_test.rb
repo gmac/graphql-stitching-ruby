@@ -62,12 +62,6 @@ describe "GraphQL::Stitching::Request" do
     end
   end
 
-  def test_operation_errors_for_invalid_operation_types
-    assert_error "Invalid root operation", GraphQL::ExecutionError do
-      GraphQL::Stitching::Request.new(@supergraph, "subscription { movie }").operation
-    end
-  end
-
   def test_access_operation_directives
     query = %|
       query First @inContext(lang: "EN") { widget { id } }
@@ -251,5 +245,45 @@ describe "GraphQL::Stitching::Request" do
     assert_error "Plan must be a `GraphQL::Stitching::Plan`", GraphQL::Stitching::StitchingError do
       request.plan({})
     end
+  end
+
+  def test_builds_request_context
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ id }")
+    expected = { request: request }
+    assert_equal expected, request.context.to_h
+
+    request = GraphQL::Stitching::Request.new(@supergraph, "{ id }", context: { test: true })
+    expected = { request: request, test: true }
+    assert_equal expected, request.context.to_h
+  end
+
+  def test_identifies_anonymous_query_operations
+    assert GraphQL::Stitching::Request.new(@supergraph, "{ id }").query?
+  end
+
+  def test_identifies_query_operations
+    assert GraphQL::Stitching::Request.new(@supergraph, "query { id }").query?
+  end
+
+  def test_identifies_mutation_operations
+    assert GraphQL::Stitching::Request.new(@supergraph, "mutation { id }").mutation?
+  end
+
+  def test_identifies_subscription_operations
+    assert GraphQL::Stitching::Request.new(@supergraph, "subscription { id }").subscription?
+  end
+
+  def test_compatible_with_graphql_result
+    request = GraphQL::Stitching::Request.new(@supergraph, "query { id }")
+    result = GraphQL::Query::Result.new(query: request, values: { a: 1, b: 2 })
+
+    assert result.query?
+    assert !result.mutation?
+    assert !result.subscription?
+    assert_equal request, result.query
+    assert_equal request.context, result.context
+    assert_equal [:a, :b], result.keys
+    assert_equal [1, 2], result.values
+    assert_equal 1, result[:a]
   end
 end

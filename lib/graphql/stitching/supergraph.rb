@@ -103,7 +103,7 @@ module GraphQL
           executable.execute(
             query: source,
             variables: variables,
-            context: request.context.frozen? ? request.context.dup : request.context,
+            context: request.context.to_h,
             validate: false,
           )
         elsif executable.respond_to?(:call)

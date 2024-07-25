@@ -78,7 +78,7 @@ describe "GraphQL::Stitching::Client" do
       operation_name: "MyStore",
     )
 
-    assert_equal @expected_result, result
+    assert_equal @expected_result, result.to_h
   end
 
   def test_execute_valid_query_via_ast
@@ -90,7 +90,7 @@ describe "GraphQL::Stitching::Client" do
       operation_name: "MyStore",
     )
 
-    assert_equal @expected_result, result
+    assert_equal @expected_result, result.to_h
   end
 
   def test_prepares_requests_before_handling
@@ -161,7 +161,7 @@ describe "GraphQL::Stitching::Client" do
       }
     |
 
-    result = @client.execute(query: queries, operation_name: "SecondBest")
+    result = @client.execute(queries, operation_name: "SecondBest")
 
     expected_result = { "data" => { "storefront" => { "id" => "2" } } }
     assert_equal expected_result, result
@@ -179,7 +179,7 @@ describe "GraphQL::Stitching::Client" do
       }
     |
 
-    result = @client.execute(query: queries)
+    result = @client.execute(queries)
 
     expected_errors = [
       { "message" => "An operation name is required when sending multiple operations." },
@@ -194,7 +194,7 @@ describe "GraphQL::Stitching::Client" do
       query { storefront(id: "1") { id } }
     |
 
-    result = @client.execute(query: queries, operation_name: "Sfoo")
+    result = @client.execute(queries, operation_name: "Sfoo")
 
     expected_errors = [
       { "message" => "Invalid root operation for given name and operation type." },
@@ -209,7 +209,7 @@ describe "GraphQL::Stitching::Client" do
       query BestStorefront { sfoo }}
     |
 
-    result = @client.execute(query: queries)
+    result = @client.execute(queries)
     expected_locs = [{ "line" => 2, "column" => 36 }]
 
     assert_equal 1, result["errors"].length
@@ -227,7 +227,7 @@ describe "GraphQL::Stitching::Client" do
       }
     })
 
-    result = client.execute(query: "query { storefront(id: \"1\") { id } }")
+    result = client.execute("query { storefront(id: \"1\") { id } }")
     assert_equal static_remote_data, result
   end
 
@@ -244,7 +244,7 @@ describe "GraphQL::Stitching::Client" do
       }
     |
 
-    result = client.execute(query: query, variables: { "storefrontID" => "1" })
+    result = client.execute(query, variables: { "storefrontID" => "1" })
 
     expected_result = { "data" => { "storefront" => { "id" => "1" } } }
     assert_equal expected_result, result
@@ -263,11 +263,11 @@ describe "GraphQL::Stitching::Client" do
     @client.on_cache_read { |req| cache[req.digest] }
     @client.on_cache_write { |req, payload| cache[req.digest] = payload.gsub("price", "name price") }
 
-    uncached_result = @client.execute(query: test_query)
+    uncached_result = @client.execute(test_query)
     expected_uncached = { "data" => { "product" => { "price" => 699.99 } } }
     assert_equal expected_uncached, uncached_result
 
-    cached_result = @client.execute(query: test_query)
+    cached_result = @client.execute(test_query)
     expected_cached = { "data" => { "product" => { "name" => "iPhone", "price" => 699.99 } } }
     assert_equal expected_cached, cached_result
   end
@@ -292,7 +292,7 @@ describe "GraphQL::Stitching::Client" do
       nil
     end
 
-    client.execute(query: %|{ product(upc: "1") { price } }|, context: context)
+    client.execute(%|{ product(upc: "1") { price } }|, context: context)
     assert_equal context[:key], read_context
     assert_equal context[:key], write_context
   end
@@ -304,7 +304,7 @@ describe "GraphQL::Stitching::Client" do
       }
     })
 
-    result = client.execute(query: "query { invalidSelection }")
+    result = client.execute("query { invalidSelection }")
     expected_errors = [{
       "message" => "Field 'invalidSelection' doesn't exist on type 'Query'",
       "path" => ["query", "invalidSelection"],
@@ -321,7 +321,7 @@ describe "GraphQL::Stitching::Client" do
       }
     })
 
-    result = client.execute(query: 'query { invalidSelection }', validate: false)
+    result = client.execute('query { invalidSelection }', validate: false)
 
     expected_errors = [{
       "message" => "An unexpected error occured.",
@@ -343,7 +343,7 @@ describe "GraphQL::Stitching::Client" do
     end
 
     result = client.execute(
-      query: 'query { invalidSelection }',
+      query: "query { invalidSelection }",
       context: { request_id: "R2d2c3P0" },
       validate: false
     )

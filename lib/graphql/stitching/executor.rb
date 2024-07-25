@@ -27,10 +27,11 @@ module GraphQL
       # Builds a new executor.
       # @param request [Request] the stitching request to execute.
       # @param nonblocking [Boolean] specifies if the dataloader should use async concurrency.
-      def initialize(request, nonblocking: false)
+      def initialize(request, data: {}, errors: [], after: 0, nonblocking: false)
         @request = request
-        @data = {}
-        @errors = []
+        @data = data
+        @errors = errors
+        @after = after
         @query_count = 0
         @exec_cycles = 0
         @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking)
@@ -47,13 +48,13 @@ module GraphQL
         if @errors.length > 0
           result["errors"] = @errors
         end
-
-        result
+        
+        GraphQL::Query::Result.new(query: @request, values: result)
       end
 
       private
 
-      def exec!(next_steps = [0])
+      def exec!(next_steps = [@after])
         if @exec_cycles > @request.plan.ops.length
           # sanity check... if we've exceeded queue size, then something went wrong.
           raise StitchingError, "Too many execution requests attempted."

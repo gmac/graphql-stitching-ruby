@@ -1,9 +1,9 @@
 class SubscriptionsSchema < GraphQL::Schema
   class StitchedActionCableSubscriptions < GraphQL::Subscriptions::ActionCableSubscriptions
     def execute_update(subscription_id, event, object)
-      super(subscription_id, event, object).tap do |result|
-        result.context[:stitch_subscription_update]&.call(result)
-      end
+      result = super(subscription_id, event, object)
+      result.context[:stitch_subscription_update]&.call(result)
+      result
     end
   end
 

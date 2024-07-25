@@ -88,7 +88,7 @@ class EntitiesSchema < GraphQL::Schema
 end
 ```
 
-These schemas can be composed as normal into a stitching client. The subscriptions schema must be locally-executable while other entity schema(s) may be served from anywhere:
+These schemas can be composed as normal into a stitching client. The subscriptions schema must be locally-executable while the other entity schema(s) may be served from anywhere:
 
 ```ruby
 StitchedSchema = GraphQL::Stitching::Client.new(locations: {
@@ -104,7 +104,7 @@ StitchedSchema = GraphQL::Stitching::Client.new(locations: {
 
 ### Serving stitched subscriptions
 
-Once you've stitched a schema with subscriptions, it gets called as part of three workflows:
+Once you've composed a schema with subscriptions, it gets called as part of three workflows:
 
 1. Controller - handles normal query and mutation requests recieved via HTTP.
 2. Channel - handles subscription-create requests recieved through a socket connection.
@@ -172,7 +172,7 @@ class GraphqlChannel < ApplicationCable::Channel
 end
 ```
 
-What happens behind the scenes here is that stitching filters the `execute` request down to just subscription selections, and passes those through to the subscriptions subschema where they register an event binding. The subscriber response gets stitched while passing back up through the stitching client.
+What happens behind the scenes here is that stitching filters the `execute` request down to just subscription selections, and passes those through to the subscriptions subschema where they register an event binding. The subscriber response gets stitched while passing back out through the stitching client.
 
 #### Plugin
 
@@ -181,9 +181,9 @@ Lastly, update events trigger with the filtered subscriptions selection, so must
 ```ruby
 class StitchedActionCableSubscriptions < GraphQL::Subscriptions::ActionCableSubscriptions
   def execute_update(subscription_id, event, object)
-    super(subscription_id, event, object).tap do |result|
-      result.context[:stitch_subscription_update]&.call(result)
-    end
+    result = super(subscription_id, event, object)
+    result.context[:stitch_subscription_update]&.call(result)
+    result
   end
 end
 

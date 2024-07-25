@@ -69,7 +69,8 @@ class EntitiesSchema < GraphQL::Schema
     end
 
     def posts(ids:)
-      Post.where(id: ids)
+      records_by_id = Post.where(id: ids).index_by(&:id)
+      ids.map { |id| records_by_id[id] }
     end
 
     field :comments, [Comment, null: true] do
@@ -78,7 +79,8 @@ class EntitiesSchema < GraphQL::Schema
     end
 
     def comments(ids:)
-      Comment.where(id: ids)
+      records_by_id = Comment.where(id: ids).index_by(&:id)
+      ids.map { |id| records_by_id[id] }
     end
   end
 
@@ -185,7 +187,7 @@ class StitchedActionCableSubscriptions < GraphQL::Subscriptions::ActionCableSubs
   end
 end
 
-class SubscriptionSchema
+class SubscriptionSchema < GraphQL::Schema
   # switch the plugin on the subscriptions schema to use the patched class... 
   use StitchedActionCableSubscriptions
 end

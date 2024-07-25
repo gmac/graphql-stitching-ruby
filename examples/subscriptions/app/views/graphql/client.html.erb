@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>GraphiQL</title>
+    <style>
+      body {
+        height: 100%;
+        margin: 0;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      #graphiql {
+        height: 100vh;
+      }
+    </style>
+    <!--
+      This GraphiQL example depends on Promise and fetch, which are available in
+      modern browsers, but can be "polyfilled" for older browsers.
+      GraphiQL itself depends on React DOM.
+      If you do not want to rely on a CDN, you can host these files locally or
+      include them directly in your favored resource bundler.
+    -->
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+    ></script>
+    <!--
+      These two files can be found in the npm module, however you may wish to
+      copy them directly into your environment, or perhaps include them in your
+      favored resource bundler.
+     -->
+    <script
+      src="https://unpkg.com/graphiql/graphiql.min.js"
+      type="application/javascript"
+    ></script>
+    <link rel="stylesheet" href="https://unpkg.com/graphiql/graphiql.min.css" />
+    <!-- 
+      These are imports for the GraphIQL Explorer plugin.
+     -->
+    <script
+      src="https://unpkg.com/@graphiql/plugin-explorer/dist/index.umd.js"
+      crossorigin
+    ></script>
+
+    <script 
+      src="https://cdn.jsdelivr.net/npm/actioncable@5.2.8-1/lib/assets/compiled/action_cable.min.js"
+      crossorigin
+    ></script>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@graphiql/plugin-explorer/dist/style.css"
+    />
+  </head>
+
+  <body>
+    <div id="graphiql">Loading...</div>
+    <script>
+      const actionCable = ActionCable.createConsumer();
+      console.log(actionCable);
+
+      function createActionCableFetcher(options) {
+        let currentChannel = null
+        const consumer = options.consumer
+        const url = options.url || "/graphql"
+        const channelName = options.channelName || "GraphqlChannel"
+
+        const subscriptionFetcher = async function*(graphqlParams, fetcherOpts) {
+          let isSubscription = false;
+          let nextPromiseResolve = null;
+
+          if (fetcherOpts.documentAST) {
+            let ops = fetcherOpts.documentAST.definitions.filter(op => op.kind == "OperationDefinition");
+            let op = ops.length < 2 ? ops[0] : ops.find(op => graphqlParams.operationName === op.name.value);
+            isSubscription = op && op.operation === 'subscription';
+          }
+
+          if (isSubscription) {
+            if (currentChannel) { currentChannel.unsubscribe() }
+            currentChannel = consumer.subscriptions.create(channelName,
+              {
+                connected: function() {
+                  if (currentChannel) {
+                    currentChannel.perform("execute", {
+                      query: graphqlParams.query,
+                      operationName: graphqlParams.operationName,
+                      variables: graphqlParams.variables,
+                    })
+                  }
+                },
+
+                received: function(data) {
+                  if (nextPromiseResolve) {
+                    nextPromiseResolve({ value: data.result, done: false })
+                  }
+                }
+              }
+            )
+
+            var iterator = {
+              [Symbol.asyncIterator]() {
+                return {
+                  next() {
+                    return new Promise((resolve, _reject) => {
+                      nextPromiseResolve = resolve
+                    })
+                  },
+                  return() {
+                    if (currentChannel) {
+                      currentChannel.unsubscribe()
+                      currentChannel = null
+                    }
+                    return Promise.resolve({ value: null, done: true })
+                  }
+                }
+              }
+            }
+
+            for await (const payload of iterator) {
+              yield payload
+            }
+          } else {
+            const fetchFn = options.fetch || window.fetch
+            yield fetchFn(url, {
+              method: "POST",
+              body: JSON.stringify({
+                query: graphqlParams.query,
+                operationName: graphqlParams.operationName,
+                variables: graphqlParams.variables,
+              }),
+              headers: {
+                'content-type': 'application/json',
+              },
+              ... options.fetchOptions
+            }).then((r) => r.json())
+            return
+          }
+        }
+
+        return subscriptionFetcher
+      }
+
+      const railsFetcher = createActionCableFetcher({ consumer: actionCable, url: "/graphql" })
+
+      ReactDOM.createRoot(document.getElementById('graphiql')).render(
+        React.createElement(GraphiQL, {
+          fetcher: railsFetcher,
+          defaultEditorToolsVisibility: true,
+          plugins: [GraphiQLPluginExplorer.explorerPlugin()],
+        }),
+      );
+    </script>
+  </body>
+</html>

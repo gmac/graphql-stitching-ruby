@@ -21,6 +21,10 @@ Gemfile.lock
 .ruby-version
 .DS_Store
 
+examples/subscriptions/log/*
+examples/subscriptions/tmp/*
+examples/subscriptions/storage/*
+
 ## Specific to RubyMotion:
 .dat*
 .repl_history

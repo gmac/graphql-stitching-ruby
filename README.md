@@ -5,7 +5,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 ![Stitched graph](./docs/images/stitching.png)
 
 **Supports:**
-- All operation types: query, mutation, and subscription.
+- All operation types: query, mutation, and [subscription](./docs/subscriptions.md).
 - Merged object and abstract types.
 - Shared objects, fields, enums, and inputs across locations.
 - Multiple and composite type keys.

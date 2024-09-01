@@ -35,6 +35,7 @@ module GraphQL
       # A) Group all root selections by their preferred entrypoint locations.
       # A.1) Group query fields by location for parallel execution.
       # A.2) Partition mutation fields by consecutive location for serial execution.
+      # A.3) Permit exactly one subscription field.
       #
       # B) Extract contiguous selections for each entrypoint location.
       # B.1) Selections on interface types that do not belong to the interface at the
@@ -75,7 +76,7 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}")
+        entrypoint = "#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}"
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -107,11 +108,11 @@ module GraphQL
 
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
+        parent_type = @supergraph.schema.root_type_for_operation(@request.operation.operation_type)
+
         case @request.operation.operation_type
         when QUERY_OP
           # A.1) Group query fields by location for parallel execution.
-          parent_type = @supergraph.schema.query
-
           selections_by_location = {}
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
@@ -131,8 +132,6 @@ module GraphQL
 
         when MUTATION_OP
           # A.2) Partition mutation fields by consecutive location for serial execution.
-          parent_type = @supergraph.schema.mutation
-
           partitions = []
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
@@ -155,8 +154,7 @@ module GraphQL
           end
 
         when SUBSCRIPTION_OP
-          parent_type = @supergraph.schema.subscription
-
+          # A.3) Permit exactly one subscription field.
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             raise StitchingError, "Too many root fields for subscription." unless @steps_by_entrypoint.empty?
 

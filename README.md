@@ -458,6 +458,7 @@ This repo includes working examples of stitched schemas running across small Rac
 
 - [Merged types](./examples/merged_types)
 - [File uploads](./examples/file_uploads)
+- [Subscriptions](./examples/subscriptions)
 
 ## Tests
 

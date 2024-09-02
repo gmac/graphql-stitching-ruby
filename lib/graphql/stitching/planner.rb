@@ -76,7 +76,7 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = "#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}"
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}/#")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]

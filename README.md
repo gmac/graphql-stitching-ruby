@@ -35,7 +35,7 @@ require "graphql/stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided [`Client`](./docs/client.md) component that wraps a stitched graph in an executable workflow (with optional query plan caching hooks):
+The [`Client`](./docs/client.md) component builds a stitched graph wrapped in an executable workflow (with optional query plan caching hooks):
 
 ```ruby
 movies_schema = <<~GRAPHQL
@@ -75,7 +75,7 @@ result = client.execute(
 
 Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations via [executables](#executables).
 
-While the `Client` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
+While `Client` is sufficient for most usecases, the library offers several discrete components that can be assembled into tailored workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.

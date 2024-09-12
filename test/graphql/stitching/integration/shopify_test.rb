@@ -1,14 +1,16 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../../schemas/shopify"
+require_relative "../../../schemas/shopify/products"
+require_relative "../../../schemas/shopify/collections"
+require_relative "../../../schemas/shopify/variants"
 
 describe 'GraphQL::Stitching, shopify services' do
   def setup
     @supergraph = compose_definitions({
-      "products" => Schemas::Shopify::ProductsService,
-      "collections" => Schemas::Shopify::CollectionsService,
-      "variants" => Schemas::Shopify::VariantsService,
+      "products" => Schemas::Shopify::ProductsScope,
+      "collections" => Schemas::Shopify::CollectionsScope,
+      "variants" => Schemas::Shopify::VariantsScope,
     })
   end
 
@@ -38,10 +40,16 @@ describe 'GraphQL::Stitching, shopify services' do
       }
     |
 
-    result = plan_and_execute(@supergraph, query, { "ids" => [1, 2, 4, 5, 6].map(&:to_s) }) do |plan|
-      pp plan.as_json
+    ids = ["Product/1", "Product/2", "Product/4", "Product/5", "Product/6"]
+
+    result = plan_and_execute(@supergraph, query, { "ids" => ids }) do |plan|
+      plan = plan.as_json
+      plan[:ops].each do |op|
+        op[:resolver] = @supergraph.resolvers_by_version[op[:resolver]]&.as_json
+      end
+      pp plan
     end
 
-    pp result
+    pp result.to_h
   end
 end

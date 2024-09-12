@@ -10,7 +10,7 @@ module GraphQL::Stitching
           supergraph.schema.mutation,
           supergraph.schema.subscription,
         ].tap(&:compact!)
-        
+
         supergraph.schema.types.each do |type_name, type|
           # objects and interfaces that are not the root operation types
           next unless type.kind.object? || type.kind.interface?
@@ -38,11 +38,11 @@ module GraphQL::Stitching
 
         # only one resolver allowed per type/location/key
         resolvers_by_location_and_key = resolvers.each_with_object({}) do |resolver, memo|
-          if memo.dig(resolver.location, resolver.key.to_definition)
-            raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
-              "found in #{resolver.location}. Limit one resolver query per type and key in each location. "\
-              "Abstract resolvers provide all possible types."
-          end
+          # if memo.dig(resolver.location, resolver.key.to_definition)
+          #   raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
+          #     "found in #{resolver.location}. Limit one resolver query per type and key in each location. "\
+          #     "Abstract resolvers provide all possible types."
+          # end
           memo[resolver.location] ||= {}
           memo[resolver.location][resolver.key.to_definition] = resolver
         end

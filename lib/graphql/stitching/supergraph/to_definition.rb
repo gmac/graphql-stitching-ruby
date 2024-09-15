@@ -32,7 +32,7 @@ module GraphQL::Stitching
           end
 
           key_definitions = locations_by_key.each_with_object({}) do |(key, locations), memo|
-            memo[key] = Resolver.parse_key(key, locations)
+            memo[key] = TypeResolver.parse_key(key, locations)
           end
 
           # Collect/build resolver definitions for each type
@@ -41,13 +41,13 @@ module GraphQL::Stitching
 
             kwargs = directive.arguments.keyword_arguments
             resolver_map[type_name] ||= []
-            resolver_map[type_name] << Resolver.new(
+            resolver_map[type_name] << TypeResolver.new(
               location: kwargs[:location],
               type_name: kwargs.fetch(:type_name, type_name),
               field: kwargs[:field],
               list: kwargs[:list] || false,
               key: key_definitions[kwargs[:key]],
-              arguments: Resolver.parse_arguments_with_type_defs(kwargs[:arguments], kwargs[:argument_types]),
+              arguments: TypeResolver.parse_arguments_with_type_defs(kwargs[:arguments], kwargs[:argument_types]),
             )
           end
 

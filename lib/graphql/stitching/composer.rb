@@ -2,8 +2,8 @@
 
 require_relative "composer/base_validator"
 require_relative "composer/validate_interfaces"
-require_relative "composer/validate_resolvers"
-require_relative "composer/resolver_config"
+require_relative "composer/validate_type_resolvers"
+require_relative "composer/type_resolver_config"
 
 module GraphQL
   module Stitching
@@ -31,7 +31,7 @@ module GraphQL
       # @api private
       COMPOSITION_VALIDATORS = [
         ValidateInterfaces,
-        ValidateResolvers,
+        ValidateTypeResolvers,
       ].freeze
 
       # @return [String] name of the Query type in the composed schema.
@@ -199,8 +199,8 @@ module GraphQL
             raise CompositionError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
-          @resolver_configs.merge!(ResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
-          @resolver_configs.merge!(ResolverConfig.extract_federation_entities(schema, location))
+          @resolver_configs.merge!(TypeResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
+          @resolver_configs.merge!(TypeResolverConfig.extract_federation_entities(schema, location))
 
           schemas[location.to_s] = schema
           executables[location.to_s] = input[:executable] || schema
@@ -546,13 +546,13 @@ module GraphQL
 
             subgraph_field.directives.each do |directive|
               next unless directive.graphql_name == GraphQL::Stitching.stitch_directive
-              resolver_configs << ResolverConfig.from_kwargs(directive.arguments.keyword_arguments)
+              resolver_configs << TypeResolverConfig.from_kwargs(directive.arguments.keyword_arguments)
             end
 
             resolver_configs.each do |config|
               resolver_type_name = if config.type_name
                 if !resolver_type.kind.abstract?
-                  raise CompositionError, "Resolver config may only specify a type name for abstract resolvers."
+                  raise CompositionError, "Type resolver config may only specify a type name for abstract resolvers."
                 elsif !resolver_type.possible_types.find { _1.graphql_name == config.type_name }
                   raise CompositionError, "Type `#{config.type_name}` is not a possible return type for query `#{field_name}`."
                 end
@@ -561,7 +561,7 @@ module GraphQL
                 resolver_type.graphql_name
               end
 
-              key = Resolver.parse_key_with_types(
+              key = TypeResolver.parse_key_with_types(
                 config.key,
                 @subgraph_types_by_name_and_location[resolver_type_name],
               )
@@ -581,11 +581,11 @@ module GraphQL
                 "#{argument.graphql_name}: $.#{key.primitive_name}"
               end
 
-              arguments = Resolver.parse_arguments_with_field(arguments_format, subgraph_field)
+              arguments = TypeResolver.parse_arguments_with_field(arguments_format, subgraph_field)
               arguments.each { _1.verify_key(key) }
 
               @resolver_map[resolver_type_name] ||= []
-              @resolver_map[resolver_type_name] << Resolver.new(
+              @resolver_map[resolver_type_name] << TypeResolver.new(
                 location: location,
                 type_name: resolver_type_name,
                 field: subgraph_field.name,

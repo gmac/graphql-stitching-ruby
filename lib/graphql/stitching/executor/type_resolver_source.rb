@@ -2,7 +2,7 @@
 
 module GraphQL::Stitching
   class Executor
-    class ResolverSource < GraphQL::Dataloader::Source
+    class TypeResolverSource < GraphQL::Dataloader::Source
       def initialize(executor, location)
         @executor = executor
         @location = location
@@ -17,7 +17,7 @@ module GraphQL::Stitching
 
           if op.if_type
             # operations planned around unused fragment conditions should not trigger requests
-            origin_set.select! { _1[Resolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
+            origin_set.select! { _1[TypeResolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
           end
 
           memo[op] = origin_set if origin_set.any?

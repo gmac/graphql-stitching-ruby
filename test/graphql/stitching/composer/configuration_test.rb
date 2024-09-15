@@ -44,21 +44,21 @@ describe 'GraphQL::Stitching::Composer, configuration' do
 
     expected_resolvers = {
       "Product" => [
-        GraphQL::Stitching::Resolver.new(
+        GraphQL::Stitching::TypeResolver.new(
           location: "alpha",
           type_name: "Product",
           list: false,
           field: "productA",
-          key: GraphQL::Stitching::Resolver.parse_key("id"),
-          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
+          key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+          arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
-        GraphQL::Stitching::Resolver.new(
+        GraphQL::Stitching::TypeResolver.new(
           location: "bravo",
           type_name: "Product",
           list: false,
           field: "productB",
-          key: GraphQL::Stitching::Resolver.parse_key("id"),
-          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("key: $.id", "key: ID"),
+          key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+          arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("key: $.id", "key: ID"),
         ),
       ]
     }
@@ -75,7 +75,7 @@ describe 'GraphQL::Stitching::Composer, configuration' do
       type Query { _entities(representations: [_Any!]!): [_Entity]! }
     |
 
-    configs = GraphQL::Stitching::Composer::ResolverConfig.extract_federation_entities(
+    configs = GraphQL::Stitching::Composer::TypeResolverConfig.extract_federation_entities(
       GraphQL::Schema.from_definition(schema),
       "alpha",
     )

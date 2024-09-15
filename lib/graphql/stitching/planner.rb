@@ -217,8 +217,8 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.alias&.start_with?(Resolver::EXPORT_PREFIX)
-              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{Resolver::EXPORT_PREFIX}" is a reserved prefix.)
+            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX)
+              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{TypeResolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
               next
@@ -279,8 +279,8 @@ module GraphQL
 
         # B.4) Add a `__typename` export to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
-        if requires_typename && !locale_selections.include?(Resolver::TYPENAME_EXPORT_NODE)
-          locale_selections << Resolver::TYPENAME_EXPORT_NODE
+        if requires_typename && !locale_selections.include?(TypeResolver::TYPENAME_EXPORT_NODE)
+          locale_selections << TypeResolver::TYPENAME_EXPORT_NODE
         end
 
         if remote_selections
@@ -296,7 +296,7 @@ module GraphQL
               # E.1) Add the key of each resolver query into the prior location's selection set.
               parent_selections.push(*resolver.key.export_nodes) if resolver.key
               parent_selections.uniq! do |node|
-                export_node = node.is_a?(GraphQL::Language::Nodes::Field) && Resolver.export_key?(node.alias)
+                export_node = node.is_a?(GraphQL::Language::Nodes::Field) && TypeResolver.export_key?(node.alias)
                 export_node ? node.alias : node.object_id
               end
 

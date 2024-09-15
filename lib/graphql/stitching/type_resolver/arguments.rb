@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module GraphQL::Stitching
-  class Resolver
+  class TypeResolver
     # Defines a single resolver argument structure
     # @api private
     class Argument
@@ -129,9 +129,9 @@ module GraphQL::Stitching
       end
 
       def verify_key(arg, key)
-        key_field = value.reduce(Resolver::KeyField.new("", inner: key)) do |field, ns|
+        key_field = value.reduce(TypeResolver::KeyField.new("", inner: key)) do |field, ns|
           if ns == TYPENAME
-            Resolver::KeyField.new(TYPENAME)
+            TypeResolver::KeyField.new(TYPENAME)
           elsif field
             field.inner.find { _1.name == ns }
           end
@@ -146,7 +146,7 @@ module GraphQL::Stitching
 
       def build(origin_obj)
         value.each_with_index.reduce(origin_obj) do |obj, (ns, idx)|
-          obj[idx.zero? ? Resolver.export_key(ns) : ns]
+          obj[idx.zero? ? TypeResolver.export_key(ns) : ns]
         end
       end
 
@@ -174,7 +174,7 @@ module GraphQL::Stitching
       # Parses an argument template string into resolver arguments via schema casting.
       # @param template [String] the template string to parse.
       # @param field_def [GraphQL::Schema::FieldDefinition] a field definition providing arguments schema.
-      # @return [[GraphQL::Stitching::Resolver::Argument]] an array of resolver arguments.
+      # @return [[GraphQL::Stitching::TypeResolver::Argument]] an array of resolver arguments.
       def parse_arguments_with_field(template, field_def)
         ast = parse_arg_defs(template)
         args = build_argument_set(ast, field_def.arguments)
@@ -196,7 +196,7 @@ module GraphQL::Stitching
       # Parses an argument template string into resolver arguments via SDL casting.
       # @param template [String] the template string to parse.
       # @param type_defs [String] the type definition string declaring argument types.
-      # @return [[GraphQL::Stitching::Resolver::Argument]] an array of resolver arguments.
+      # @return [[GraphQL::Stitching::TypeResolver::Argument]] an array of resolver arguments.
       def parse_arguments_with_type_defs(template, type_defs)
         type_map = parse_type_defs(type_defs)
         parse_arg_defs(template).map { build_argument(_1, type_struct: type_map[_1.name]) }

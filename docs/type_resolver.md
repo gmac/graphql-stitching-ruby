@@ -1,10 +1,10 @@
-## GraphQL::Stitching::Resolver
+## GraphQL::Stitching::TypeResolver
 
-A `Resolver` contains all information about a root query used by stitching to fetch location-specific variants of a merged type. Specifically, resolvers manage parsed keys and argument structures.
+A `TypeResolver` contains all information about a root query used by stitching to fetch location-specific variants of a merged type. Specifically, resolvers manage parsed keys and argument structures.
 
 ### Arguments
 
-Resolvers configure arguments through a template string of [GraphQL argument literal syntax](https://spec.graphql.org/October2021/#sec-Language.Arguments). This allows sending multiple arguments that intermix stitching keys with complex object shapes and other static values.
+Type resolvers configure arguments through a template string of [GraphQL argument literal syntax](https://spec.graphql.org/October2021/#sec-Language.Arguments). This allows sending multiple arguments that intermix stitching keys with complex object shapes and other static values.
 
 #### Key insertions
 

@@ -168,7 +168,7 @@ module GraphQL
         end
 
         select_root_field_locations(schema)
-        expand_abstract_resolvers(schema)
+        expand_abstract_resolvers(schema, schemas)
 
         supergraph = Supergraph.new(
           schema: schema,
@@ -620,15 +620,18 @@ module GraphQL
 
       # @!scope class
       # @!visibility private
-      def expand_abstract_resolvers(schema)
+      def expand_abstract_resolvers(composed_schema, schemas_by_location)
         @resolver_map.keys.each do |type_name|
-          resolver_type = schema.types[type_name]
-          next unless resolver_type.kind.abstract?
+          next unless composed_schema.get_type(type_name).kind.abstract?
 
-          expanded_types = Util.expand_abstract_type(schema, resolver_type)
-          expanded_types.select { @subgraph_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |expanded_type|
-            @resolver_map[expanded_type.graphql_name] ||= []
-            @resolver_map[expanded_type.graphql_name].push(*@resolver_map[type_name])
+          @resolver_map[type_name].each do |resolver|
+            abstract_type = @subgraph_types_by_name_and_location[type_name][resolver.location]
+            expanded_types = Util.expand_abstract_type(schemas_by_location[resolver.location], abstract_type)
+
+            expanded_types.select { @subgraph_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |impl_type|
+              @resolver_map[impl_type.graphql_name] ||= []
+              @resolver_map[impl_type.graphql_name].push(resolver)
+            end
           end
         end
       end

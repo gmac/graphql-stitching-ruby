@@ -2,23 +2,23 @@
 
 require "test_helper"
 
-describe "GraphQL::Stitching::Executor, ResolverSource" do
+describe "GraphQL::Stitching::Executor, TypeResolverSource" do
   def setup
-    @resolver1 = GraphQL::Stitching::Resolver.new(
+    @resolver1 = GraphQL::Stitching::TypeResolver.new(
       location: "products",
       type_name: "Storefront",
       list: true,
       field: "storefronts",
-      key: GraphQL::Stitching::Resolver.parse_key("id"),
-      arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
+      key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+      arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
     )
-    @resolver2 = GraphQL::Stitching::Resolver.new(
+    @resolver2 = GraphQL::Stitching::TypeResolver.new(
       location: "products",
       type_name: "Product",
       list: false,
       field: "product",
-      key: GraphQL::Stitching::Resolver.parse_key("upc"),
-      arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
+      key: GraphQL::Stitching::TypeResolver.parse_key("upc"),
+      arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
     )
 
     @op1 = GraphQL::Stitching::Plan::Op.new(
@@ -50,7 +50,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
     })
     request = GraphQL::Stitching::Request.new(supergraph, "{ test }")
     executor = GraphQL::Stitching::Executor.new(request)
-    @source = GraphQL::Stitching::Executor::ResolverSource.new(executor, "products")
+    @source = GraphQL::Stitching::Executor::TypeResolverSource.new(executor, "products")
     @origin_sets_by_operation = {
       @op1 => [{ "_export_id" => "7" }, { "_export_id" => "8" }],
       @op2 => [{ "_export_upc" => "abc" }, { "_export_upc" => "xyz" }],
@@ -173,7 +173,7 @@ describe "GraphQL::Stitching::Executor, ResolverSource" do
     mock = GraphQL::Stitching::Executor.new(mock)
     mock.instance_variable_set(:@data, data)
 
-    source = GraphQL::Stitching::Executor::ResolverSource.new(mock, "products")
+    source = GraphQL::Stitching::Executor::TypeResolverSource.new(mock, "products")
     origin_sets_by_operation = {
       @op1 => data["storefronts"],
       @op2 => data["storefronts"].map { _1["product"] },

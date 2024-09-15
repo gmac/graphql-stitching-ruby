@@ -88,7 +88,7 @@ While `Client` is sufficient for most usecases, the library offers several discr
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
 
 ### Merged type resolver queries
 
@@ -249,7 +249,7 @@ type Query {
 }
 ```
 
-See [resolver arguments](./docs/resolver.md#arguments) for full documentation on shaping input.
+See [resolver arguments](./docs/type_resolver.md#arguments) for full documentation on shaping input.
 
 #### Composite type keys
 

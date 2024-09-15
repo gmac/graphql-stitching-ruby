@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "executor/resolver_source"
 require_relative "executor/root_source"
+require_relative "executor/type_resolver_source"
 require_relative "executor/shaper"
 
 module GraphQL
@@ -66,7 +66,7 @@ module GraphQL
             .select { next_steps.include?(_1.after) }
             .group_by { [_1.location, _1.resolver.nil?] }
             .map do |(location, root_source), ops|
-              source_class = root_source ? RootSource : ResolverSource
+              source_class = root_source ? RootSource : TypeResolverSource
               @dataloader.with(source_class, self, location).request_all(ops)
             end
 

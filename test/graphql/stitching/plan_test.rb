@@ -4,13 +4,13 @@ require "test_helper"
 
 describe "GraphQL::Stitching::Plan" do
   def setup
-    @resolver = GraphQL::Stitching::Resolver.new(
+    @resolver = GraphQL::Stitching::TypeResolver.new(
       location: "products",
       type_name: "Storefront",
       list: true,
       field: "storefronts",
-      key: GraphQL::Stitching::Resolver.parse_key("id"),
-      arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
+      key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+      arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
     )
 
     @op = GraphQL::Stitching::Plan::Op.new(

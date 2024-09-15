@@ -84,27 +84,27 @@ describe "GraphQL::Stitching::Supergraph" do
 
   RESOLVERS_MAP = {
     "Manufacturer" => [
-      GraphQL::Stitching::Resolver.new(
+      GraphQL::Stitching::TypeResolver.new(
         location: "manufacturers",
         field: "manufacturer",
-        key: GraphQL::Stitching::Resolver.parse_key("id", FIELDS_MAP.dig("Manufacturer", "id")),
-        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
+        key: GraphQL::Stitching::TypeResolver.parse_key("id", FIELDS_MAP.dig("Manufacturer", "id")),
+        arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
     "Product" => [
-      GraphQL::Stitching::Resolver.new(
+      GraphQL::Stitching::TypeResolver.new(
         location: "products",
         field: "products",
-        key: GraphQL::Stitching::Resolver.parse_key("upc", FIELDS_MAP.dig("Product", "upc")),
-        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
+        key: GraphQL::Stitching::TypeResolver.parse_key("upc", FIELDS_MAP.dig("Product", "upc")),
+        arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("upc: $.upc", "upc: ID"),
       ),
     ],
     "Storefront" => [
-      GraphQL::Stitching::Resolver.new(
+      GraphQL::Stitching::TypeResolver.new(
         location: "storefronts",
         field: "storefronts",
-        key: GraphQL::Stitching::Resolver.parse_key("id", FIELDS_MAP.dig("Storefront", "id")),
-        arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
+        key: GraphQL::Stitching::TypeResolver.parse_key("id", FIELDS_MAP.dig("Storefront", "id")),
+        arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
       ),
     ],
   }

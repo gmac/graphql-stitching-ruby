@@ -118,6 +118,40 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_resolver(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
   end
 
+  def test_only_expands_abstract_resolvers_for_owner_locations
+    a = %|
+      type Apple { id:ID! name:String }
+      type Banana { id:ID! name:String }
+      union Entity = Banana
+      type Query {
+        apple(id:ID!): Apple @stitch(key: "id")
+        _entities(id:ID!):Entity @stitch(key: "id")
+      }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Banana { id:ID! color:String }
+      union Entity = Apple
+      type Query {
+        banana(id:ID!): Banana @stitch(key: "id")
+        _entities(id:ID!):Entity @stitch(key: "id")
+      }
+    |
+
+    supergraph = compose_definitions({ a: a, b: b })
+
+    assert_equal 2, supergraph.resolvers["Entity"].length
+    assert_equal 2, supergraph.resolvers["Apple"].length
+    assert_equal 2, supergraph.resolvers["Banana"].length
+
+    assert_resolver(supergraph, "Entity", location: "a", field: "_entities")
+    assert_resolver(supergraph, "Entity", location: "b", field: "_entities")
+    assert_resolver(supergraph, "Apple", location: "a", field: "apple")
+    assert_resolver(supergraph, "Apple", location: "b", field: "_entities")
+    assert_resolver(supergraph, "Banana", location: "a", field: "_entities")
+    assert_resolver(supergraph, "Banana", location: "b", field: "banana")
+  end
+
   def test_builds_union_resolvers_for_select_typenames
     a = %|
       type Apple { id:ID! name:String }

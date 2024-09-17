@@ -68,6 +68,12 @@ client.on_cache_write do |request, payload|
 end
 ```
 
+All request digests use SHA2 by default. You can swap in [a faster algorithm](https://github.com/Shopify/blake3-rb) and/or add base scoping by reconfiguring the stitching library:
+
+```ruby
+GraphQL::Stitching.digest { |str| Digest::MD5.hexdigest("v2/#{str}") }
+```
+
 Note that inlined input data works against caching, so you should _avoid_ these input literals when possible:
 
 ```graphql

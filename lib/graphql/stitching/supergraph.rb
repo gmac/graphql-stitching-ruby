@@ -4,8 +4,8 @@ require_relative "supergraph/to_definition"
 
 module GraphQL
   module Stitching
-    # Supergraph is the singuar representation of a stitched graph. 
-    # It provides the combined GraphQL schema and delegation maps 
+    # Supergraph is the singuar representation of a stitched graph.
+    # It provides the combined GraphQL schema and delegation maps
     # used to route selections across subgraph locations.
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
@@ -98,7 +98,7 @@ module GraphQL
         puts "RESOLVE: #{location}"
         puts source
         puts variables
-        puts "***"
+        puts "\n\n"
 
         executable = executables[location]
 

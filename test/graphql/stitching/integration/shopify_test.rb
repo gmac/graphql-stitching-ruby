@@ -42,6 +42,6 @@ describe 'GraphQL::Stitching, shopify services' do
       pp plan.as_json
     end
 
-    pp result
+    pp result.to_h
   end
 end

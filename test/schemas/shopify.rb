@@ -96,7 +96,7 @@ module Schemas
 
       class Product < GraphQL::Schema::Object
         field :id, ID, null: false
-        field :title, String, null: false @permission['READ_some']
+        field :title, String, null: false
 
         field :variants, [Variant], null: false
         def variants

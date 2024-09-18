@@ -10,7 +10,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Shared objects, fields, enums, and inputs across locations.
 - Multiple and composite type keys.
 - Combining local and remote schemas.
-- File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
+- [File uploads](./docs/http_executable.md) via multipart forms.
 - Tested with all minor versions of `graphql-ruby`.
 
 **NOT Supported:**

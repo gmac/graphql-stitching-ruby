@@ -75,12 +75,12 @@ module GraphQL
 
       # @return [String] a digest of the original document string. Generally faster but less consistent.
       def digest
-        @digest ||= Digest::SHA2.hexdigest(string)
+        @digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{string}")
       end
 
       # @return [String] a digest of the normalized document string. Slower but more consistent.
       def normalized_digest
-        @normalized_digest ||= Digest::SHA2.hexdigest(normalized_string)
+        @normalized_digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{normalized_string}")
       end
 
       # @return [GraphQL::Language::Nodes::OperationDefinition] The selected root operation for the request.

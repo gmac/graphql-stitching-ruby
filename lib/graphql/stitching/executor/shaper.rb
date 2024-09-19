@@ -23,8 +23,8 @@ module GraphQL::Stitching
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
-        typename ||= raw_object[Resolver::TYPENAME_EXPORT_NODE.alias]
-        raw_object.reject! { |key, _v| Resolver.export_key?(key) }
+        typename ||= raw_object[TypeResolver::TYPENAME_EXPORT_NODE.alias]
+        raw_object.reject! { |key, _v| TypeResolver.export_key?(key) }
 
         selections.each do |node|
           case node

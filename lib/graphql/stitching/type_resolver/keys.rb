@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module GraphQL::Stitching
-  class Resolver
+  class TypeResolver
     EXPORT_PREFIX = "_export_"
 
     class FieldNode

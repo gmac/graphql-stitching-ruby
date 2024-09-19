@@ -166,7 +166,7 @@ module GraphQL
         if key_count.zero?
           # nested root scopes have no resolver keys and just return a location
           goal_locations.each_with_object({}) do |goal_location, memo|
-            memo[goal_location] = [Resolver.new(location: goal_location)]
+            memo[goal_location] = [TypeResolver.new(location: goal_location)]
           end
 
         elsif key_count > 1

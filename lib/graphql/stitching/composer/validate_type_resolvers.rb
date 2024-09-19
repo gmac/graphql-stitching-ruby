@@ -2,7 +2,7 @@
 
 module GraphQL::Stitching
   class Composer
-    class ValidateResolvers < BaseValidator
+    class ValidateTypeResolvers < BaseValidator
 
       def perform(supergraph, composer)
         root_types = [

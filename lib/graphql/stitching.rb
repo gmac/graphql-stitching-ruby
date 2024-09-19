@@ -27,11 +27,23 @@ module GraphQL
     class ValidationError < CompositionError; end
 
     class << self
+      attr_writer :stitch_directive
+
+      # Proc used to compute digests; uses SHA2 by default.
+      # @returns [Proc] proc used to compute digests.
+      def digest(&block)
+        if block_given?
+          @digest = block
+        else
+          @digest ||= ->(str) { Digest::SHA2.hexdigest(str) }
+        end
+      end
+
+      # Name of the directive used to mark type resolvers.
+      # @returns [String] name of the type resolver directive.
       def stitch_directive
         @stitch_directive ||= "stitch"
       end
-
-      attr_writer :stitch_directive
 
       # Names of stitching directives to omit from the composed supergraph.
       # @returns [Array<String>] list of stitching directive names.
@@ -50,6 +62,6 @@ require_relative "stitching/http_executable"
 require_relative "stitching/plan"
 require_relative "stitching/planner"
 require_relative "stitching/request"
-require_relative "stitching/resolver"
+require_relative "stitching/type_resolver"
 require_relative "stitching/util"
 require_relative "stitching/version"

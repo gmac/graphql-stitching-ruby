@@ -16,7 +16,7 @@ module GraphQL::Stitching
         parent_type:,
         index:,
         after: nil,
-        operation_type: "query",
+        operation_type: QUERY_OP,
         selections: [],
         variables: {},
         path: [],

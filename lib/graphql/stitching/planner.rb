@@ -35,6 +35,7 @@ module GraphQL
       # A) Group all root selections by their preferred entrypoint locations.
       # A.1) Group query fields by location for parallel execution.
       # A.2) Partition mutation fields by consecutive location for serial execution.
+      # A.3) Permit exactly one subscription field.
       #
       # B) Extract contiguous selections for each entrypoint location.
       # B.1) Selections on interface types that do not belong to the interface at the
@@ -75,7 +76,7 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}")
+        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}/#")
         path.each { entrypoint << "/#{_1}" }
 
         step = @steps_by_entrypoint[entrypoint]
@@ -107,11 +108,11 @@ module GraphQL
 
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
+        parent_type = @supergraph.schema.root_type_for_operation(@request.operation.operation_type)
+
         case @request.operation.operation_type
         when QUERY_OP
           # A.1) Group query fields by location for parallel execution.
-          parent_type = @supergraph.schema.query
-
           selections_by_location = {}
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
@@ -131,8 +132,6 @@ module GraphQL
 
         when MUTATION_OP
           # A.2) Partition mutation fields by consecutive location for serial execution.
-          parent_type = @supergraph.schema.mutation
-
           partitions = []
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
@@ -155,8 +154,7 @@ module GraphQL
           end
 
         when SUBSCRIPTION_OP
-          parent_type = @supergraph.schema.subscription
-
+          # A.3) Permit exactly one subscription field.
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             raise StitchingError, "Too many root fields for subscription." unless @steps_by_entrypoint.empty?
 
@@ -217,8 +215,8 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.alias&.start_with?(Resolver::EXPORT_PREFIX)
-              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{Resolver::EXPORT_PREFIX}" is a reserved prefix.)
+            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX)
+              raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{TypeResolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
               next
@@ -279,8 +277,8 @@ module GraphQL
 
         # B.4) Add a `__typename` export to abstracts and types that implement
         # fragments so that resolved type information is available during execution.
-        if requires_typename && !locale_selections.include?(Resolver::TYPENAME_EXPORT_NODE)
-          locale_selections << Resolver::TYPENAME_EXPORT_NODE
+        if requires_typename && !locale_selections.include?(TypeResolver::TYPENAME_EXPORT_NODE)
+          locale_selections << TypeResolver::TYPENAME_EXPORT_NODE
         end
 
         if remote_selections
@@ -296,7 +294,7 @@ module GraphQL
               # E.1) Add the key of each resolver query into the prior location's selection set.
               parent_selections.push(*resolver.key.export_nodes) if resolver.key
               parent_selections.uniq! do |node|
-                export_node = node.is_a?(GraphQL::Language::Nodes::Field) && Resolver.export_key?(node.alias)
+                export_node = node.is_a?(GraphQL::Language::Nodes::Field) && TypeResolver.export_key?(node.alias)
                 export_node ? node.alias : node.object_id
               end
 

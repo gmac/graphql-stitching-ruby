@@ -2,7 +2,7 @@
 
 module GraphQL::Stitching
   class Composer
-    class ResolverConfig
+    class TypeResolverConfig
       ENTITY_TYPENAME = "_Entity"
       ENTITIES_QUERY = "_entities"
 
@@ -30,7 +30,7 @@ module GraphQL::Stitching
             entity_type.directives.each do |directive|
               next unless directive.graphql_name == "key"
 
-              key = Resolver.parse_key(directive.arguments.keyword_arguments.fetch(:fields))
+              key = TypeResolver.parse_key(directive.arguments.keyword_arguments.fetch(:fields))
               key_fields = key.map { "#{_1.name}: $.#{_1.name}" }
               field_path = "#{location}._entities"
 

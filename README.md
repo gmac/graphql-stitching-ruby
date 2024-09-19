@@ -10,7 +10,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Shared objects, fields, enums, and inputs across locations.
 - Multiple and composite type keys.
 - Combining local and remote schemas.
-- File uploads via [multipart form spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
+- [File uploads](./docs/http_executable.md) via multipart forms.
 - Tested with all minor versions of `graphql-ruby`.
 
 **NOT Supported:**
@@ -35,7 +35,7 @@ require "graphql/stitching"
 
 ## Usage
 
-The quickest way to start is to use the provided [`Client`](./docs/client.md) component that wraps a stitched graph in an executable workflow (with optional query plan caching hooks):
+The [`Client`](./docs/client.md) component builds a stitched graph wrapped in an executable workflow (with optional query plan caching hooks):
 
 ```ruby
 movies_schema = <<~GRAPHQL
@@ -75,7 +75,7 @@ result = client.execute(
 
 Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations via [executables](#executables).
 
-While the `Client` constructor is an easy quick start, the library also has several discrete components that can be assembled into custom workflows:
+While `Client` is sufficient for most usecases, the library offers several discrete components that can be assembled into tailored workflows:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
@@ -88,7 +88,7 @@ While the `Client` constructor is an easy quick start, the library also has seve
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
 
 ### Merged type resolver queries
 
@@ -249,7 +249,7 @@ type Query {
 }
 ```
 
-See [resolver arguments](./docs/resolver.md#arguments) for full documentation on shaping input.
+See [resolver arguments](./docs/type_resolver.md#arguments) for full documentation on shaping input.
 
 #### Composite type keys
 
@@ -458,6 +458,7 @@ This repo includes working examples of stitched schemas running across small Rac
 
 - [Merged types](./examples/merged_types)
 - [File uploads](./examples/file_uploads)
+- [Subscriptions](./examples/subscriptions)
 
 ## Tests
 

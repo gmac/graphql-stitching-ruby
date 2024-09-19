@@ -40,7 +40,7 @@ module GraphQL::Stitching
           end
 
           if filtered_selections.none?
-            filtered_selections << Resolver::TYPENAME_EXPORT_NODE
+            filtered_selections << TypeResolver::TYPENAME_EXPORT_NODE
           end
 
           if changed

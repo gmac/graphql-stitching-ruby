@@ -10,21 +10,21 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
 
     expected_resolvers_map = {
       "Test" => [
-        GraphQL::Stitching::Resolver.new(
+        GraphQL::Stitching::TypeResolver.new(
           location: "a",
           type_name: "Test",
           list: false,
           field: "a",
-          key: GraphQL::Stitching::Resolver.parse_key("id"),
-          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
+          key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+          arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("id: $.id", "id: ID"),
         ),
-        GraphQL::Stitching::Resolver.new(
+        GraphQL::Stitching::TypeResolver.new(
           location: "b",
           type_name: "Test",
           list: true,
           field: "b",
-          key: GraphQL::Stitching::Resolver.parse_key("id"),
-          arguments: GraphQL::Stitching::Resolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
+          key: GraphQL::Stitching::TypeResolver.parse_key("id"),
+          arguments: GraphQL::Stitching::TypeResolver.parse_arguments_with_type_defs("ids: $.id", "ids: [ID]"),
         ),
       ],
     }
@@ -116,6 +116,40 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
     assert_resolver(supergraph, "Fruit", location: "a", key: "id", field: "fruit", arg: "id")
     assert_resolver(supergraph, "Apple", location: "a", key: "id", field: "fruit", arg: "id")
     assert_resolver(supergraph, "Apple", location: "b", key: "id", field: "a", arg: "id")
+  end
+
+  def test_only_expands_abstract_resolvers_for_owner_locations
+    a = %|
+      type Apple { id:ID! name:String }
+      type Banana { id:ID! name:String }
+      union Entity = Banana
+      type Query {
+        apple(id:ID!): Apple @stitch(key: "id")
+        _entities(id:ID!):Entity @stitch(key: "id")
+      }
+    |
+    b = %|
+      type Apple { id:ID! color:String }
+      type Banana { id:ID! color:String }
+      union Entity = Apple
+      type Query {
+        banana(id:ID!): Banana @stitch(key: "id")
+        _entities(id:ID!):Entity @stitch(key: "id")
+      }
+    |
+
+    supergraph = compose_definitions({ a: a, b: b })
+
+    assert_equal 2, supergraph.resolvers["Entity"].length
+    assert_equal 2, supergraph.resolvers["Apple"].length
+    assert_equal 2, supergraph.resolvers["Banana"].length
+
+    assert_resolver(supergraph, "Entity", location: "a", field: "_entities")
+    assert_resolver(supergraph, "Entity", location: "b", field: "_entities")
+    assert_resolver(supergraph, "Apple", location: "a", field: "apple")
+    assert_resolver(supergraph, "Apple", location: "b", field: "_entities")
+    assert_resolver(supergraph, "Banana", location: "a", field: "_entities")
+    assert_resolver(supergraph, "Banana", location: "b", field: "banana")
   end
 
   def test_builds_union_resolvers_for_select_typenames
@@ -222,8 +256,8 @@ describe 'GraphQL::Stitching::Composer, merging resolver queries' do
       conditions << (b.location == location)
       conditions << (b.field == field) if field
       conditions << (b.arguments.first.name == arg) if arg
-      conditions << (b.arguments.first.value == GraphQL::Stitching::Resolver::KeyArgumentValue.new(key)) if key
-      conditions << (b.key == GraphQL::Stitching::Resolver.parse_key(key)) if key
+      conditions << (b.arguments.first.value == GraphQL::Stitching::TypeResolver::KeyArgumentValue.new(key)) if key
+      conditions << (b.key == GraphQL::Stitching::TypeResolver.parse_key(key)) if key
       conditions.all?
     end
     assert resolver, "No resolver found for #{[location, type_name, key, field, arg].join(".")}"

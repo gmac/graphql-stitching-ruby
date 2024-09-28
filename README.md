@@ -6,9 +6,8 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 
 **Supports:**
 - All operation types: query, mutation, and [subscription](./docs/subscriptions.md).
-- Merged object and abstract types.
+- Merged object and abstract types joining though multiple keys.
 - Shared objects, fields, enums, and inputs across locations.
-- Multiple and composite type keys.
 - Combining local and remote schemas.
 - [File uploads](./docs/http_executable.md) via multipart forms.
 - Tested with all minor versions of `graphql-ruby`.
@@ -17,7 +16,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`).
 - Defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput federated reverse proxy, consider not using Ruby.
+This Ruby implementation is designed as a generic library to join basic spec-compliant GraphQL schemas using their existing types and fields in a [DIY](https://dictionary.cambridge.org/us/dictionary/english/diy) capacity. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If you require exceptionally high throughput or managed deployments, consider more opinionated frameworks such as [Apollo Federation](https://www.apollographql.com/docs/federation/).
 
 ## Getting started
 

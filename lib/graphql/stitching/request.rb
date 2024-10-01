@@ -141,7 +141,7 @@ module GraphQL
       # Validates the request using the combined supergraph schema.
       # @return [Array<GraphQL::ExecutionError>] an array of static validation errors
       def validate
-        result = @supergraph.static_validator.validate(@query)
+        result = @supergraph.schema.static_validator.validate(@query)
         result[:errors]
       end
 

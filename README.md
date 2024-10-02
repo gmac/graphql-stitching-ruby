@@ -87,7 +87,7 @@ While `Client` is sufficient for most usecases, the library offers several discr
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To achieve this, schemas are designed around [merged type keys](./docs/mechanics.md#modeling-foreign-keys-for-stitching), and then stitching must know how to cross-reference and fetch each variant of a type from its source location using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
 
 ### Merged type resolver queries
 
@@ -153,7 +153,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#argument-shapes) later).
 
-Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) and/or [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain no exclusive data:
+Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no exclusive data:
 
 ```graphql
 type Product {

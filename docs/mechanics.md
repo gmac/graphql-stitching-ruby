@@ -94,7 +94,7 @@ class GraphQlController
 end
 ```
 
-This process assures that composition always happens before deployment where failures can be detected. Hot reloading of the supergraph can also be accommodated by uploading the composed schema to a sync location (cloud storage, etc) that is polled by the application runtime. When the schema changes, load it into a new stitching client and swap that into the application.
+This process assures that composition always happens before deployment where failures can be detected. Use CI to verify that the repo's supergraph output is always up to date. Hot reloading of the supergraph can also be accommodated by uploading the composed schema to a sync location (cloud storage, etc) that is polled by the application runtime. When the schema changes, load it into a new stitching client and swap that into the application.
 
 ### Field selection routing
 

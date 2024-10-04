@@ -4,7 +4,7 @@ Stitching is an interesting prospect for subscriptions because socket-based inte
 
 ### Composing a subscriptions schema
 
-For simplicity, subscription resolvers should exist together in a single schema (multiple schemas with subscriptions probably aren't worth the confusion). This subscriptions schema may provide basic entity types that will merge with other locations. For example, here's a bare-bones subscriptions schema:
+For simplicity, subscription resolvers are best kept together in a single schema (multiple schemas with subscriptions probably aren't worth the confusion). This subscriptions schema may provide basic entity types that will merge with other locations. For example, here's a bare-bones subscriptions schema:
 
 ```ruby
 class SubscriptionSchema < GraphQL::Schema
@@ -122,7 +122,7 @@ class GraphqlController < ApplicationController
   def execute
     result = StitchedSchema.execute(
       params[:query],
-      context: {}, 
+      context: {},
       variables: params[:variables],
       operation_name: params[:operationName],
     )
@@ -164,7 +164,7 @@ class GraphqlChannel < ApplicationCable::Channel
 
   def unsubscribed
     @subscription_ids.each { |sid|
-      # Go directly through the subscriptions subschema 
+      # Go directly through the subscriptions subschema
       # when managing/triggering subscriptions:
       SubscriptionSchema.subscriptions.delete_subscription(sid)
     }
@@ -172,7 +172,7 @@ class GraphqlChannel < ApplicationCable::Channel
 end
 ```
 
-What happens behind the scenes here is that stitching filters the `execute` request down to just subscription selections, and passes those through to the subscriptions subschema where they register an event binding. The subscriber response gets stitched while passing back out through the stitching client.
+What happens behind the scenes here is that stitching filters the `execute` request down to just subscription selections, and passes those through to the subscriptions subschema where they register an event binding. The subscriber response gets stitched while passing back out through the stitching client. The `unsubscribed` method works directly with the subschema where subscriptions are managed.
 
 #### Plugin
 
@@ -188,7 +188,7 @@ class StitchedActionCableSubscriptions < GraphQL::Subscriptions::ActionCableSubs
 end
 
 class SubscriptionSchema < GraphQL::Schema
-  # switch the plugin on the subscriptions schema to use the patched class... 
+  # switch the plugin on the subscriptions schema to use the patched class...
   use StitchedActionCableSubscriptions
 end
 ```
@@ -200,7 +200,7 @@ Subscription update events are triggered as normal directly through the subscrip
 ```ruby
 class Comment < ApplicationRecord
   after_create :trigger_subscriptions
-  
+
   def trigger_subscriptions
     SubscriptionsSchema.subscriptions.trigger(:comment_added_to_post, { post_id: post_id }, self)
   end

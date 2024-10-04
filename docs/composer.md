@@ -10,6 +10,7 @@ A `Composer` may be constructed with optional settings that tune how it builds a
 composer = GraphQL::Stitching::Composer.new(
   query_name: "Query",
   mutation_name: "Mutation",
+  subscription_name: "Subscription",
   description_merger: ->(values_by_location, info) { values_by_location.values.join("\n") },
   deprecation_merger: ->(values_by_location, info) { values_by_location.values.first },
   default_value_merger: ->(values_by_location, info) { values_by_location.values.first },
@@ -23,6 +24,8 @@ Constructor arguments:
 - **`query_name:`** _optional_, the name of the root query type in the composed schema; `Query` by default. The root query types from all location schemas will be merged into this type, regardless of their local names.
 
 - **`mutation_name:`** _optional_, the name of the root mutation type in the composed schema; `Mutation` by default. The root mutation types from all location schemas will be merged into this type, regardless of their local names.
+
+- **`subscription_name:`** _optional_, the name of the root subscription type in the composed schema; `Subscription` by default. The root subscription types from all location schemas will be merged into this type, regardless of their local names.
 
 - **`description_merger:`** _optional_, a [value merger function](#value-merger-functions) for merging element description strings from across locations.
 
@@ -98,16 +101,15 @@ Location settings have top-level keys that specify arbitrary location names, eac
 
 The strategy used to merge source schemas into the combined schema is based on each element type:
 
+- Arguments of fields, directives, and `InputObject` types intersect for each parent element across locations (an element's arguments must appear in all locations):
+  - Arguments must share a value type, and the strictest nullability across locations is used.
+  - Composition fails if argument intersection would eliminate a non-null argument.
+
 - `Object` and `Interface` types merge their fields and directives together:
   - Common fields across locations must share a value type, and the weakest nullability is used.
-  - Field and directive arguments merge using the same rules as `InputObject`.
   - Objects with unique fields across locations must implement [`@stitch` accessors](../README.md#merged-types).
   - Shared object types without `@stitch` accessors must contain identical fields.
   - Merged interfaces must remain compatible with all underlying implementations.
-
-- `InputObject` types intersect arguments from across locations (arguments must appear in all locations):
-  - Arguments must share a value type, and the strictest nullability across locations is used.
-  - Composition fails if argument intersection would eliminate a non-null argument.
 
 - `Enum` types merge their values based on how the enum is used:
   - Enums used anywhere as an argument will intersect their values (common values across all locations).
@@ -118,7 +120,6 @@ The strategy used to merge source schemas into the combined schema is based on e
 - `Scalar` types are added for all scalar names across all locations.
 
 - `Directive` definitions are added for all distinct names across locations:
-  - Arguments merge using the same rules as `InputObject`.
   - Stitching directives (both definitions and assignments) are omitted.
 
 Note that the structure of a composed schema may change based on new schema additions and/or element usage (ie: changing input object arguments in one service may cause the intersection of arguments to change). Therefore, it's highly recommended that you use a [schema comparator](https://github.com/xuorig/graphql-schema_comparator) to flag regressions across composed schema versions.

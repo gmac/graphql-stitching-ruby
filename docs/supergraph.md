@@ -9,17 +9,17 @@ A Supergraph is designed to be composed, cached, and restored. Calling `to_defin
 ```ruby
 supergraph_sdl = supergraph.to_definition
 
-# stash this composed schema in a cache...
-$cache.set("cached_supergraph_sdl", supergraph_sdl)
-
-# or, write the composed schema as a file into your repo...
+# write the composed schema as a file into your repo...
 File.write("supergraph/schema.graphql", supergraph_sdl)
+
+# or, stash this composed schema in a cache...
+$cache.set("cached_supergraph_sdl", supergraph_sdl)
 ```
 
 To restore a Supergraph, call `from_definition` providing the cached SDL string and a hash of executables keyed by their location names:
 
 ```ruby
-supergraph_sdl = $cache.get("cached_supergraph_sdl")
+supergraph_sdl = File.read("supergraph/schema.graphql")
 
 supergraph = GraphQL::Stitching::Supergraph.from_definition(
   supergraph_sdl,

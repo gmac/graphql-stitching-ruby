@@ -65,6 +65,6 @@ It's perfectly fine to mix and match schemas that implement an `_entities` query
 
 ### Federation features that will most definitly break
 
-- `@external` fields will confuse the stitching query planner.
+- `@external` fields will confuse the stitching query planner (as the fields aren't natively resolvable at the location).
 - `@requires` fields will not be sent any dependencies.
 - No support for Apollo composition directives.

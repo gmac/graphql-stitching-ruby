@@ -1,14 +1,13 @@
 ## GraphQL Stitching for Ruby
 
-GraphQL stitching composes a single schema from multiple underlying GraphQL resources, then smartly proxies portions of incoming requests to their respective locations in dependency order and returns the merged results. This allows an entire location graph to be queried through one combined GraphQL surface area.
+GraphQL stitching composes a single schema from multiple underlying GraphQL resources, then smartly proxies portions of incoming requests to their respective locations in dependency order and returns the merged results. This allows an entire graph of locations to be queried through one combined GraphQL surface area.
 
 ![Stitched graph](./docs/images/stitching.png)
 
 **Supports:**
 - All operation types: query, mutation, and [subscription](./docs/subscriptions.md).
-- Merged object and abstract types.
+- Merged object and abstract types joining though multiple keys.
 - Shared objects, fields, enums, and inputs across locations.
-- Multiple and composite type keys.
 - Combining local and remote schemas.
 - [File uploads](./docs/http_executable.md) via multipart forms.
 - Tested with all minor versions of `graphql-ruby`.
@@ -17,7 +16,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Computed fields (ie: federation-style `@requires`).
 - Defer/stream.
 
-This Ruby implementation is a sibling to [GraphQL Tools](https://the-guild.dev/graphql/stitching) (JS) and [Bramble](https://movio.github.io/bramble/) (Go), and its capabilities fall somewhere in between them. GraphQL stitching is similar in concept to [Apollo Federation](https://www.apollographql.com/docs/federation/), though more generic. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is to build a purely high-throughput federated reverse proxy, consider not using Ruby.
+This Ruby implementation is designed as a generic library to join basic spec-compliant GraphQL schemas using their existing types and fields in a [DIY](https://dictionary.cambridge.org/us/dictionary/english/diy) capacity. The opportunity here is for a Ruby application to stitch its local schemas together or onto remote sources without requiring an additional proxy service running in another language. If your goal is a purely high-throughput federation gateway with managed schema deployments, consider more opinionated frameworks such as [Apollo Federation](https://www.apollographql.com/docs/federation/).
 
 ## Getting started
 
@@ -88,7 +87,7 @@ While `Client` is sufficient for most usecases, the library offers several discr
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this merging of types, stitching must know how to cross-reference and fetch each variant of a type from its source location using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To facilitate this, schemas should be designed around [merged type keys](./docs/mechanics.md#modeling-foreign-keys-for-stitching) that stitching can cross-reference and fetch across locations using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
 
 ### Merged type resolver queries
 
@@ -154,7 +153,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#argument-shapes) later).
 
-Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) and/or [foreign key types](./docs/mechanics.md##modeling-foreign-keys-for-stitching) that contain no exclusive data:
+Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no exclusive data:
 
 ```graphql
 type Product {

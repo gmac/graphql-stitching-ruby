@@ -10,7 +10,7 @@ module GraphQL::Stitching
       end
 
       def fetch(ops)
-        origin_sets_by_operation = ops.each_with_object({}) do |op, memo|
+        origin_sets_by_operation = ops.each_with_object({}.compare_by_identity) do |op, memo|
           origin_set = op.path.reduce([@executor.data]) do |set, path_segment|
             set.flat_map { |obj| obj && obj[path_segment] }.tap(&:compact!)
           end

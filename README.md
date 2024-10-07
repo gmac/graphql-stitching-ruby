@@ -133,13 +133,13 @@ type Image {
 
 ### Merged type resolver queries
 
-Types merge through resolver queries identified by a `@stitch` directive:
+Each location that provides a unique variant of a type must provide at least one _resolver query_ for accessing the type. These are root queries identified by a `@stitch` directive:
 
 ```graphql
 directive @stitch(key: String!, arguments: String) repeatable on FIELD_DEFINITION
 ```
 
-This directive (or [static configuration](#sdl-based-schemas)) is applied to root queries where a merged type may be accessed in each location, and a `key` argument specifies a field needed from other locations to be used as a query argument.
+This directive (or [static configuration](#sdl-based-schemas)) tells where to fetch the type from, and a `key` argument specifies a field needed from other locations to be used as a query argument.
 
 ```ruby
 products_schema = <<~GRAPHQL
@@ -195,7 +195,7 @@ type Query {
 * The `@stitch` directive is applied to a root query where the merged type may be accessed. The merged type identity is inferred from the field return.
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it may be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#argument-shapes) later).
 
-Each location that provides a unique variant of a type must provide at least one resolver query for the type. The exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no exclusive data:
+Merged types must have resolver queries in each of their possible locations. The one exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no unique data, such as foreign keys:
 
 ```graphql
 type Product {
@@ -203,7 +203,7 @@ type Product {
 }
 ```
 
-The above representation of a `Product` type contains nothing but a key that is available in other locations. Therefore, this representation will never require an inbound request to fetch it, and its resolver query may be omitted.
+This key-only representation will never require an inbound request to fetch it, and therefore its resolver query may be omitted.
 
 #### List queries
 

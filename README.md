@@ -87,7 +87,49 @@ While `Client` is sufficient for most usecases, the library offers several discr
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this, schemas should be designed around [merged type keys](./docs/mechanics.md#modeling-foreign-keys-for-stitching) that stitching can cross-reference and fetch across locations using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To facilitate this, schemas should be designed around [merged type keys](#merged-type-keys) that stitching can cross-reference and fetch across locations using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+
+### Merged type keys
+
+Foreign keys in a GraphQL schema frequently look like the `Product.imageId` field here:
+
+```graphql
+# -- Products schema:
+
+type Product {
+  id: ID!
+  imageId: ID!
+}
+
+# -- Images schema:
+
+type Image {
+  id: ID!
+  url: String!
+}
+```
+
+However, this design does not lend itself to merging types across locations. A simple schema refactor makes this foreign key more expressive as an entity type, and turns the key into an _object_ that will merge with analogous objects in other locations:
+
+```graphql
+# -- Products schema:
+
+type Product {
+  id: ID!
+  image: Image!
+}
+
+type Image {
+  id: ID!
+}
+
+# -- Images schema:
+
+type Image {
+  id: ID!
+  url: String!
+}
+```
 
 ### Merged type resolver queries
 
@@ -442,7 +484,6 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 ## Additional topics
 
-- [Modeling foreign keys for stitching](./docs/mechanics.md##modeling-foreign-keys-for-stitching)
 - [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
 - [Schema composition merge patterns](./docs/composer.md#merge-patterns)
 - [Subscriptions tutorial](./docs/subscriptions.md)

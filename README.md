@@ -133,13 +133,13 @@ type Image {
 
 ### Merged type resolver queries
 
-Each location that provides a unique variant of a type must provide at least one _resolver query_ for accessing the type. Type resolvers are root queries identified by a `@stitch` directive:
+Each location that provides a unique variant of a type must provide at least one _resolver query_ for accessing it. Type resolvers are root queries identified by a `@stitch` directive:
 
 ```graphql
 directive @stitch(key: String!, arguments: String) repeatable on FIELD_DEFINITION
 ```
 
-This directive tells stitching how to cross-reference and fetch type variants from across locations, for example:
+This directive tells stitching how to cross-reference and fetch types from across locations, for example:
 
 ```ruby
 products_schema = <<~GRAPHQL
@@ -192,10 +192,10 @@ type Query {
 }
 ```
 
-* The `@stitch` directive marks a root query where the merged type may be accessed. The merged type identity is inferred from the field return. This marker can also be provided as [static configuration](#sdl-based-schemas).
+* The `@stitch` directive marks a root query where the merged type may be accessed. The merged type identity is inferred from the field return. This identifier can also be provided as [static configuration](#sdl-based-schemas).
 * The `key: "id"` parameter indicates that an `{ id }` must be selected from prior locations so it can be submitted as an argument to this query. The query argument used to send the key is inferred when possible ([more on arguments](#argument-shapes) later).
 
-Merged types must have a resolver query in each of their possible locations. The one exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no unique data, such as foreign keys:
+Merged types must have a resolver query in each of their possible locations. The one exception to this requirement are [outbound-only types](./docs/mechanics.md#outbound-only-merged-types) that contain no exclusive data, such as foreign keys:
 
 ```graphql
 type Product {
@@ -203,7 +203,7 @@ type Product {
 }
 ```
 
-The above type variant contains nothing but a key field that is available in other locations. Therefore, this variant will never require an inbound request to fetch it, and its resolver query may be omitted from this location.
+The above type contains nothing but a key field that is available in other locations. Therefore, this variant will never require an inbound request to fetch it, and its resolver query may be omitted from this location.
 
 #### List queries
 

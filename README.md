@@ -299,7 +299,6 @@ Resolver keys may make composite selections for multiple key fields and/or neste
 ```graphql
 interface FieldOwner {
   id: ID!
-  type: String!
 }
 type CustomField {
   owner: FieldOwner!
@@ -314,8 +313,8 @@ input CustomFieldLookup {
 
 type Query {
   customFields(lookups: [CustomFieldLookup!]!): [CustomField]! @stitch(
-    key: "owner { id type } key",
-    arguments: "lookups: { ownerId: $.owner.id, ownerType: $.owner.type, key: $.key }"
+    key: "owner { id __typename } key",
+    arguments: "lookups: { ownerId: $.owner.id, ownerType: $.owner.__typename, key: $.key }"
   )
 }
 ```

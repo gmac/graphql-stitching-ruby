@@ -13,11 +13,9 @@ jobs:
       matrix:
         include:
           - gemfile: Gemfile
+            ruby: 3.3
+          - gemfile: gemfiles/graphql_2.3.0.gemfile
             ruby: 3.2
-          - gemfile: Gemfile
-            ruby: 3.1
-          - gemfile: Gemfile
-            ruby: 2.7
           - gemfile: gemfiles/graphql_2.2.0.gemfile
             ruby: 3.1
           - gemfile: gemfiles/graphql_2.1.0.gemfile
@@ -25,7 +23,7 @@ jobs:
           - gemfile: gemfiles/graphql_2.0.0.gemfile
             ruby: 3.1
           - gemfile: gemfiles/graphql_1.13.9.gemfile
-            ruby: 3.1
+            ruby: 2.7
 
     steps:
     - uses: actions/checkout@v2

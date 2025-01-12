@@ -64,7 +64,7 @@ module GraphQL::Stitching
             return nil if result.nil?
 
           else
-            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
+            raise DocumentError.new("selection node type")
           end
         end
 

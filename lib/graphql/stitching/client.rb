@@ -7,8 +7,6 @@ module GraphQL
     # Client is an out-of-the-box helper that assembles all 
     # stitching components into a workflow that executes requests.
     class Client
-      class ClientError < StitchingError; end
-
       # @return [Supergraph] composed supergraph that services incoming requests.
       attr_reader :supergraph
 
@@ -18,9 +16,9 @@ module GraphQL
       # @param composer [Composer] optional, a pre-configured composer instance for use with `locations` configuration.
       def initialize(locations: nil, supergraph: nil, composer: nil)
         @supergraph = if locations && supergraph
-          raise ClientError, "Cannot provide both locations and a supergraph."
+          raise ArgumentError, "Cannot provide both locations and a supergraph."
         elsif supergraph && !supergraph.is_a?(Supergraph)
-          raise ClientError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
+          raise ArgumentError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
         elsif supergraph
           supergraph
         else
@@ -58,17 +56,17 @@ module GraphQL
       end
 
       def on_cache_read(&block)
-        raise ClientError, "A cache read block is required." unless block_given?
+        raise ArgumentError, "A cache read block is required." unless block_given?
         @on_cache_read = block
       end
 
       def on_cache_write(&block)
-        raise ClientError, "A cache write block is required." unless block_given?
+        raise ArgumentError, "A cache write block is required." unless block_given?
         @on_cache_write = block
       end
 
       def on_error(&block)
-        raise ClientError, "An error handler block is required." unless block_given?
+        raise ArgumentError, "An error handler block is required." unless block_given?
         @on_error = block
       end
 

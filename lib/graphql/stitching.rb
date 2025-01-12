@@ -25,6 +25,11 @@ module GraphQL
     class StitchingError < StandardError; end
     class CompositionError < StitchingError; end
     class ValidationError < CompositionError; end
+    class DocumentError < StandardError
+      def initialize(element)
+        super("Invalid #{element} encountered in document")
+      end
+    end
 
     class << self
       attr_writer :stitch_directive

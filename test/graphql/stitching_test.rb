@@ -7,14 +7,16 @@ describe "GraphQL::Stitching" do
     expected_sha = "f5a163f364ac65dfd8ef60edb3ba39d6c2b44bccc289af3ced96b06e3f25df59"
     expected_md5 = "fec9ff7a551c37ef692994407710fa54"
 
-    fn = GraphQL::Stitching.digest
-    assert_equal expected_sha, new_type_resolver.version
+    GraphQL::Stitching.stub_const(:VERSION, "1.5.1") do
+      fn = GraphQL::Stitching.digest
+      assert_equal expected_sha, new_type_resolver.version
 
-    GraphQL::Stitching.digest { |str| Digest::MD5.hexdigest(str) }
-    assert_equal expected_md5, new_type_resolver.version
+      GraphQL::Stitching.digest { |str| Digest::MD5.hexdigest(str) }
+      assert_equal expected_md5, new_type_resolver.version
 
-    GraphQL::Stitching.digest(&fn)
-    assert_equal expected_sha, new_type_resolver.version
+      GraphQL::Stitching.digest(&fn)
+      assert_equal expected_sha, new_type_resolver.version
+    end
   end
 
   private

@@ -20,7 +20,7 @@ module GraphQL
       def perform
         build_root_entrypoints
         expand_abstract_resolvers
-        Plan.new(ops: steps.map(&:to_plan_op))
+        Plan.new(ops: steps.map!(&:to_plan_op))
       end
 
       def steps
@@ -76,9 +76,7 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = String.new("#{parent_index}/#{location}/#{parent_type.graphql_name}/#{resolver&.key&.to_definition}/#")
-        path.each { entrypoint << "/#{_1}" }
-
+        entrypoint = [parent_index, location, parent_type.graphql_name, resolver&.key&.to_definition, "#", *path].join("/")
         step = @steps_by_entrypoint[entrypoint]
         next_index = step ? parent_index : @planning_index += 1
 
@@ -156,7 +154,7 @@ module GraphQL
         when SUBSCRIPTION_OP
           # A.3) Permit exactly one subscription field.
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
-            raise StitchingError, "Too many root fields for subscription." unless @steps_by_entrypoint.empty?
+            raise DocumentError.new("root field") unless @steps_by_entrypoint.empty?
 
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
             add_step(
@@ -169,7 +167,7 @@ module GraphQL
           end
 
         else
-          raise StitchingError, "Invalid operation type."
+          raise DocumentError.new("operation type")
         end
       end
 
@@ -189,7 +187,7 @@ module GraphQL
             each_field_in_scope(parent_type, fragment.selections, &block)
 
           else
-            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
+            raise DocumentError.new("selection node type")
           end
         end
       end
@@ -271,7 +269,7 @@ module GraphQL
             end
 
           else
-            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
+            raise DocumentError.new("selection node type")
           end
         end
 
@@ -333,7 +331,7 @@ module GraphQL
         end
 
         if expanded_selections
-          @request.warden.possible_types(parent_type).each do |possible_type|
+          @supergraph.schema.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)

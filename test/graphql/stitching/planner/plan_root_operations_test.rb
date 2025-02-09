@@ -135,7 +135,7 @@ describe "GraphQL::Stitching::Planner, root operations" do
       }
     |
 
-    assert_error "Too many root fields" do
+    assert_error "Invalid root field encountered in document" do
       GraphQL::Stitching::Request.new(@supergraph, document).plan
     end
   end

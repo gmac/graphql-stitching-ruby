@@ -6,3 +6,4 @@ gemspec
 gem 'pry'
 gem 'pry-byebug'
 gem 'warning'
+gem 'minitest-stub-const'

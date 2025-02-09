@@ -64,7 +64,7 @@ module GraphQL::Stitching
             return nil if result.nil?
 
           else
-            raise StitchingError, "Unexpected node of type #{node.class.name} in selection set."
+            raise DocumentError.new("selection node type")
           end
         end
 
@@ -118,7 +118,7 @@ module GraphQL::Stitching
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
 
-        type.kind.abstract? && @request.warden.possible_types(type).any? do |t|
+        type.kind.abstract? && @supergraph.schema.possible_types(type).any? do |t|
           t.graphql_name == typename
         end
       end

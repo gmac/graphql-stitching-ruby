@@ -135,12 +135,14 @@ describe "GraphQL::Stitching::Request" do
       }
     |
 
-    request = GraphQL::Stitching::Request.new(@supergraph, string)
     expected = "9f3c5afb51b7155611921d0e8537c8556b8d757ac90b63d85ea52964d18076d0"
     expected_normalized = "71369fe5ee8f33e15b049991a294e6eeeb6e743310c339877f770fa8beb29f21"
-
-    assert_equal expected, request.digest
-    assert_equal expected_normalized, request.normalized_digest
+    
+    GraphQL::Stitching.stub_const(:VERSION, "1.5.1") do
+      request = GraphQL::Stitching::Request.new(@supergraph, string)
+      assert_equal expected, request.digest
+      assert_equal expected_normalized, request.normalized_digest
+    end
   end
 
   def test_prepare_variables_collects_variable_defaults

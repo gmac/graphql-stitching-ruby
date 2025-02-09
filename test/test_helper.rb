@@ -14,6 +14,7 @@ Bundler.require(:default, :test)
 
 require 'minitest/pride'
 require 'minitest/autorun'
+require 'minitest/stub_const'
 require 'graphql/stitching'
 
 CompositionError = GraphQL::Stitching::CompositionError

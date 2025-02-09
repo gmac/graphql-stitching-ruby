@@ -403,8 +403,13 @@ module GraphQL
             next
           end
 
-          # Getting double args sometimes on auto-generated connection types... why?
-          next if owner.arguments.any? { _1.first == argument_name }
+          # Getting double args sometimes... why?
+          begin
+            next if owner.arguments(GraphQL::Query::NullContext.instance, false).key?(argument_name)
+          rescue ArgumentError
+            # pre- graphql v2.4.5
+            next if owner.arguments.key?(argument_name)
+          end
 
           kwargs = {}
           default_values_by_location = arguments_by_location.each_with_object({}) do |(location, argument), memo|

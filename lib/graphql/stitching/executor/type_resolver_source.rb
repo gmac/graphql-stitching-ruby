@@ -86,7 +86,7 @@ module GraphQL::Stitching
           end
         end
 
-        doc = String.new("query") # << resolver fulfillment always uses query
+        doc = String.new(QUERY_OP) # << resolver fulfillment always uses query
 
         if operation_name
           doc << " #{operation_name}"

@@ -26,9 +26,6 @@ module GraphQL
       # @return [Hash] contextual object passed through resolver flows.
       attr_reader :context
 
-      # @return [GraphQL::Schema::Warden] a visibility warden for this request.
-      attr_reader :warden
-
       # Creates a new supergraph request.
       # @param supergraph [Supergraph] supergraph instance that resolves the request.
       # @param document [String, GraphQL::Language::Nodes::Document] the request string or parsed AST.
@@ -58,7 +55,6 @@ module GraphQL
         @variables = variables || {}
 
         @query = GraphQL::Query.new(@supergraph.schema, document: @document, context: context)
-        @warden = @query.warden
         @context = @query.context
         @context[:request] = self
       end

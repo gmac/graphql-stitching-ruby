@@ -331,7 +331,7 @@ module GraphQL
         end
 
         if expanded_selections
-          @request.warden.possible_types(parent_type).each do |possible_type|
+          @supergraph.schema.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)

@@ -41802,7 +41802,7 @@ type Product implements HasEvents & HasMetafieldDefinitions & HasMetafields & Ha
   ): EventConnection!
 
   """
-  Metafield extensions on the Product type.
+  Projected metafield extensions.
   """
   extensions: ProductExtensions!
 
@@ -43185,7 +43185,7 @@ type ProductEdge {
 }
 
 """
-Metafield extensions of the Product type.
+Projected metafield extensions for the Product type.
 """
 type ProductExtensions {
   """
@@ -43211,12 +43211,12 @@ type ProductExtensions {
   """
   Great related taco
   """
-  tacoPairing: String
+  tacoPairing: TacoMetaobject
 
   """
   
   """
-  thing: String
+  thing: Boolean
 }
 
 """
@@ -64939,6 +64939,56 @@ type SuggestedReturnRefund {
   The sum of the taxes being refunded in shop and presentment currencies. The value must be positive.
   """
   totalTax: MoneyBag!
+}
+
+type TacoFillingMetaobject {
+  name: String
+}
+
+type TacoFillingMetaobjectConnection {
+  edges: [TacoFillingMetaobjectEdge!]!
+  nodes: [TacoFillingMetaobject!]!
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a connection.
+"""
+type TacoFillingMetaobjectEdge {
+  """
+  A cursor for use in pagination.
+  """
+  cursor: String!
+
+  """
+  The item at the end of the edge.
+  """
+  node: TacoFillingMetaobject
+}
+
+"""
+
+"""
+type TacoMetaobject {
+  """
+  
+  """
+  name: String
+
+  """
+  
+  """
+  protein: TacoFillingMetaobject
+
+  """
+  
+  """
+  rating: Boolean
+
+  """
+  
+  """
+  toppings(after: String, before: String, first: Int, last: Int): TacoFillingMetaobjectConnection
 }
 
 """

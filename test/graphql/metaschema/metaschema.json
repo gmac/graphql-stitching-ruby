@@ -224,7 +224,17 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "min",
+                                    "value": "1"
+                                },
+                                {
+                                    "name": "max",
+                                    "value": "25"
+                                }
+                            ]
                         },
                         {
                             "key": "integer",
@@ -232,7 +242,17 @@
                             "required": false,
                             "type": {
                                 "name": "number_integer"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "min",
+                                    "value": "1"
+                                },
+                                {
+                                    "name": "max",
+                                    "value": "10"
+                                }
+                            ]
                         },
                         {
                             "key": "rating",
@@ -240,7 +260,17 @@
                             "required": false,
                             "type": {
                                 "name": "rating"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "scale_min",
+                                    "value": "1.0"
+                                },
+                                {
+                                    "name": "scale_max",
+                                    "value": "10.0"
+                                }
+                            ]
                         },
                         {
                             "key": "taco_filling",
@@ -248,7 +278,13 @@
                             "required": false,
                             "type": {
                                 "name": "metaobject_reference"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "metaobject_definition_id",
+                                    "value": "gid://shopify/MetaobjectDefinition/40173590"
+                                }
+                            ]
                         }
                     ],
                     "metaobjects": {
@@ -294,7 +330,8 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "hex",
@@ -302,7 +339,8 @@
                             "required": true,
                             "type": {
                                 "name": "color"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "pantone",
@@ -310,7 +348,8 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": []
                         }
                     ],
                     "metaobjects": {
@@ -351,7 +390,8 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "weight",
@@ -359,7 +399,8 @@
                             "required": false,
                             "type": {
                                 "name": "weight"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "score",
@@ -367,7 +408,8 @@
                             "required": false,
                             "type": {
                                 "name": "number_integer"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "ratio",
@@ -375,7 +417,8 @@
                             "required": false,
                             "type": {
                                 "name": "number_decimal"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "managed",
@@ -383,7 +426,8 @@
                             "required": false,
                             "type": {
                                 "name": "date_time"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "at",
@@ -391,7 +435,8 @@
                             "required": false,
                             "type": {
                                 "name": "date"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "size",
@@ -399,7 +444,8 @@
                             "required": false,
                             "type": {
                                 "name": "dimension"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "volume",
@@ -407,7 +453,8 @@
                             "required": false,
                             "type": {
                                 "name": "volume"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "boolean",
@@ -415,7 +462,8 @@
                             "required": false,
                             "type": {
                                 "name": "boolean"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "value",
@@ -423,7 +471,8 @@
                             "required": false,
                             "type": {
                                 "name": "money"
-                            }
+                            },
+                            "validations": []
                         }
                     ],
                     "metaobjects": {
@@ -499,7 +548,8 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": []
                         }
                     ],
                     "metaobjects": {
@@ -530,7 +580,8 @@
                             "required": false,
                             "type": {
                                 "name": "single_line_text_field"
-                            }
+                            },
+                            "validations": []
                         },
                         {
                             "key": "protein",
@@ -538,7 +589,13 @@
                             "required": false,
                             "type": {
                                 "name": "metaobject_reference"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "metaobject_definition_id",
+                                    "value": "gid://shopify/MetaobjectDefinition/40173590"
+                                }
+                            ]
                         },
                         {
                             "key": "toppings",
@@ -546,7 +603,13 @@
                             "required": false,
                             "type": {
                                 "name": "list.metaobject_reference"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "metaobject_definition_id",
+                                    "value": "gid://shopify/MetaobjectDefinition/40173590"
+                                }
+                            ]
                         },
                         {
                             "key": "rating",
@@ -554,7 +617,17 @@
                             "required": false,
                             "type": {
                                 "name": "rating"
-                            }
+                            },
+                            "validations": [
+                                {
+                                    "name": "scale_min",
+                                    "value": "0.0"
+                                },
+                                {
+                                    "name": "scale_max",
+                                    "value": "1.0"
+                                }
+                            ]
                         }
                     ],
                     "metaobjects": {
@@ -667,11 +740,11 @@
     },
     "extensions": {
         "cost": {
-            "requestedQueryCost": 115,
-            "actualQueryCost": 35,
+            "requestedQueryCost": 126,
+            "actualQueryCost": 38,
             "throttleStatus": {
                 "maximumAvailable": 2000.0,
-                "currentlyAvailable": 1965,
+                "currentlyAvailable": 1962,
                 "restoreRate": 100.0
             }
         }

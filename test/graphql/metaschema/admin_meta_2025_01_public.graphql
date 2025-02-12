@@ -51933,6 +51933,11 @@ type QueryRoot {
 }
 
 """
+A rating value.
+"""
+scalar RatingMetatype
+
+"""
 The record of the line items and transactions that were refunded to a customer,
 along with restocking instructions for refunded line items.
 """
@@ -64983,7 +64988,7 @@ type TacoMetaobject {
   """
   
   """
-  rating: Boolean
+  rating: RatingMetatype
 
   """
   

@@ -36,8 +36,6 @@ describe "GraphQL::Metaschemas" do
       File.write("#{__dir__}/metaschema/admin_meta_2025_01_public.graphql", new_schema.to_definition)
     end
 
-    FIXME_MISSING_TYPE = GraphQL::Schema::BUILT_IN_TYPES["Boolean"]
-
     def type_for_metafield_definition(field_def)
       metafield_type = field_def.dig("type", "name")
       list = metafield_type.start_with?("list")
@@ -45,7 +43,7 @@ describe "GraphQL::Metaschemas" do
       when "boolean"
         @schema_types["Boolean"]
       when "color", "list.color"
-        type = @schema_types["ColorMetatype"] || build_color_metatype
+        type = build_color_metatype
         list ? type.to_list_type : type
       when "collection_reference", "list.collection_reference"
         list ? @schema_types["CollectionConnection"] : @schema_types["Collection"]
@@ -60,10 +58,10 @@ describe "GraphQL::Metaschemas" do
         type = @schema_types["Date"]
         list ? type.to_list_type : type
       when "dimension", "list.dimension"
-        type = @schema_types["DimensionMetatype"] || build_dimension_metatype
+        type = build_dimension_metatype
         list ? type.to_list_type : type
       when "file_reference", "list.file_reference"
-        FIXME_MISSING_TYPE
+        GraphQL::Schema::BUILT_IN_TYPES["Boolean"] # fixme
       when "id"
         @schema_types["ID"]
       when "json"
@@ -83,7 +81,7 @@ describe "GraphQL::Metaschemas" do
           raise "invalid metaobject_reference for #{field_def["key"]}"
         end
       when "mixed_reference", "list.mixed_reference"
-        FIXME_MISSING_TYPE
+        GraphQL::Schema::BUILT_IN_TYPES["Boolean"] # fixme
       when "money"
         @schema_types["MoneyV2"]
       when "multi_line_text_field"
@@ -103,10 +101,10 @@ describe "GraphQL::Metaschemas" do
       when "product_taxonomy_value_reference", "list.product_taxonomy_value_reference"
         list ? @schema_types["TaxonomyValueConnection"] : @schema_types["TaxonomyValue"]
       when "rating", "list.rating"
-        type = @schema_types["RatingMetatype"] || build_rating_metatype
+        type = build_rating_metatype
         list ? type.to_list_type : type
       when "rich_text_field"
-        FIXME_MISSING_TYPE
+        GraphQL::Schema::BUILT_IN_TYPES["Boolean"] # fixme
       when "single_line_text_field", "list.single_line_text_field"
         type = @schema_types["String"]
         list ? type.to_list_type : type
@@ -116,7 +114,7 @@ describe "GraphQL::Metaschemas" do
       when "variant_reference", "list.variant_reference"
         list ? @schema_types["ProductVariantConnection"] : @schema_types["ProductVariant"]
       when "volume", "list.volume"
-        type = @schema_types["VolumeMetatype"] || build_volume_metatype
+        type = build_volume_metatype
         list ? type.to_list_type : type
       when "weight", "list.weight"
         type = @schema_types["Weight"]
@@ -197,19 +195,35 @@ describe "GraphQL::Metaschemas" do
     end
 
     def build_color_metatype
-      FIXME_MISSING_TYPE
+      type_name = "ColorMetatype"
+      @schema_types[type_name] ||= Class.new(GraphQL::Schema::Scalar) do
+        graphql_name(type_name)
+        description("A hexadecimal color code.")
+      end
     end
 
     def build_dimension_metatype
-      FIXME_MISSING_TYPE
+      type_name = "DimensionMetatype"
+      @schema_types[type_name] ||= Class.new(GraphQL::Schema::Scalar) do
+        graphql_name(type_name)
+        description("A dimensional measurement.")
+      end
     end
 
     def build_rating_metatype
-      FIXME_MISSING_TYPE
+      type_name = "RatingMetatype"
+      @schema_types[type_name] ||= Class.new(GraphQL::Schema::Scalar) do
+        graphql_name(type_name)
+        description("A rating value.")
+      end
     end
 
     def build_volume_metatype
-      FIXME_MISSING_TYPE
+      type_name = "VolumeMetatype"
+      @schema_types[type_name] ||= Class.new(GraphQL::Schema::Scalar) do
+        graphql_name(type_name)
+        description("A volumetric measurement.")
+      end
     end
   end
 

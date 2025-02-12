@@ -36,7 +36,7 @@ describe "GraphQL::Metaschemas" do
       File.write("#{__dir__}/metaschema/admin_meta_2025_01_public.graphql", new_schema.to_definition)
     end
 
-    UNSPECIFIED = GraphQL::Schema::BUILT_IN_TYPES["Boolean"]
+    FIXME_MISSING_TYPE = GraphQL::Schema::BUILT_IN_TYPES["Boolean"]
 
     def type_for_metafield_definition(field_def)
       metafield_type = field_def.dig("type", "name")
@@ -45,7 +45,8 @@ describe "GraphQL::Metaschemas" do
       when "boolean"
         @schema_types["Boolean"]
       when "color", "list.color"
-        UNSPECIFIED
+        type = @schema_types["ColorMetatype"] || build_color_metatype
+        list ? type.to_list_type : type
       when "collection_reference", "list.collection_reference"
         list ? @schema_types["CollectionConnection"] : @schema_types["Collection"]
       when "company_reference", "list.company_reference"
@@ -53,14 +54,16 @@ describe "GraphQL::Metaschemas" do
       when "customer_reference", "list.customer_reference"
         list ? @schema_types["CustomerConnection"] : @schema_types["Customer"]
       when "date_time", "list.date_time"
-        UNSPECIFIED
+        type = @schema_types["DateTime"]
+        list ? type.to_list_type : type
       when "date", "list.date"
-        UNSPECIFIED
+        type = @schema_types["Date"]
+        list ? type.to_list_type : type
       when "dimension", "list.dimension"
         type = @schema_types["DimensionMetatype"] || build_dimension_metatype
         list ? type.to_list_type : type
       when "file_reference", "list.file_reference"
-        UNSPECIFIED
+        FIXME_MISSING_TYPE
       when "id"
         @schema_types["ID"]
       when "json"
@@ -73,17 +76,14 @@ describe "GraphQL::Metaschemas" do
       when "metaobject_reference", "list.metaobject_reference"
         metaobject_id = field_def["validations"].find { _1["name"] == "metaobject_definition_id" }["value"]
         metaobject_def = @metaobject_definitions_by_id[metaobject_id]
-        if metaobject_def && list
+        if metaobject_def
           metaobject_name = name_for_metaobject(metaobject_def)
-          GraphQL::Schema::LateBoundType.new("#{metaobject_name}Connection")
-        elsif metaobject_def
-          metaobject_name = name_for_metaobject(metaobject_def)
-          GraphQL::Schema::LateBoundType.new(metaobject_name)
+          GraphQL::Schema::LateBoundType.new(list ? "#{metaobject_name}Connection" : metaobject_name)
         else
           raise "invalid metaobject_reference for #{field_def["key"]}"
         end
       when "mixed_reference", "list.mixed_reference"
-        UNSPECIFIED
+        FIXME_MISSING_TYPE
       when "money"
         @schema_types["MoneyV2"]
       when "multi_line_text_field"
@@ -106,7 +106,7 @@ describe "GraphQL::Metaschemas" do
         type = @schema_types["RatingMetatype"] || build_rating_metatype
         list ? type.to_list_type : type
       when "rich_text_field"
-        UNSPECIFIED
+        FIXME_MISSING_TYPE
       when "single_line_text_field", "list.single_line_text_field"
         type = @schema_types["String"]
         list ? type.to_list_type : type
@@ -196,16 +196,20 @@ describe "GraphQL::Metaschemas" do
       end
     end
 
+    def build_color_metatype
+      FIXME_MISSING_TYPE
+    end
+
     def build_dimension_metatype
-      UNSPECIFIED
+      FIXME_MISSING_TYPE
     end
 
     def build_rating_metatype
-      UNSPECIFIED
+      FIXME_MISSING_TYPE
     end
 
     def build_volume_metatype
-      UNSPECIFIED
+      FIXME_MISSING_TYPE
     end
   end
 

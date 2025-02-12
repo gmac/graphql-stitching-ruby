@@ -43216,7 +43216,7 @@ type ProductExtensions {
   """
   
   """
-  thing: Boolean
+  thing: Date
 }
 
 """

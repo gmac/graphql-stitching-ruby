@@ -1,0 +1,679 @@
+{
+    "data": {
+        "metafieldDefinitionTypes": [
+            {
+                "name": "boolean",
+                "valueType": "BOOLEAN"
+            },
+            {
+                "name": "color",
+                "valueType": "STRING"
+            },
+            {
+                "name": "date_time",
+                "valueType": "STRING"
+            },
+            {
+                "name": "date",
+                "valueType": "STRING"
+            },
+            {
+                "name": "dimension",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "id",
+                "valueType": "STRING"
+            },
+            {
+                "name": "json",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "language",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.color",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.date_time",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.date",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.dimension",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.number_decimal",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.number_integer",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.rating",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.single_line_text_field",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.url",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.volume",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.weight",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "money",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "multi_line_text_field",
+                "valueType": "STRING"
+            },
+            {
+                "name": "number_decimal",
+                "valueType": "STRING"
+            },
+            {
+                "name": "number_integer",
+                "valueType": "INTEGER"
+            },
+            {
+                "name": "rating",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "rich_text_field",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "single_line_text_field",
+                "valueType": "STRING"
+            },
+            {
+                "name": "url",
+                "valueType": "STRING"
+            },
+            {
+                "name": "link",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "list.link",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "volume",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "weight",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "company_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.company_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "customer_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.customer_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "product_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.product_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "collection_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.collection_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "variant_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.variant_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "file_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.file_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "product_taxonomy_value_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.product_taxonomy_value_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "metaobject_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.metaobject_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "mixed_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.mixed_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "page_reference",
+                "valueType": "STRING"
+            },
+            {
+                "name": "list.page_reference",
+                "valueType": "JSON_STRING"
+            },
+            {
+                "name": "order_reference",
+                "valueType": "STRING"
+            }
+        ],
+        "metaobjectDefinitions": {
+            "nodes": [
+                {
+                    "id": "gid://shopify/MetaobjectDefinition/12714006",
+                    "description": null,
+                    "name": "Wingnut",
+                    "type": "wingnut",
+                    "fieldDefinitions": [
+                        {
+                            "key": "text",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        },
+                        {
+                            "key": "integer",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "number_integer"
+                            }
+                        },
+                        {
+                            "key": "rating",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "rating"
+                            }
+                        },
+                        {
+                            "key": "taco_filling",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "metaobject_reference"
+                            }
+                        }
+                    ],
+                    "metaobjects": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/Metaobject/20152342",
+                                "displayName": "Large",
+                                "fields": [
+                                    {
+                                        "key": "text",
+                                        "value": "Large",
+                                        "type": "single_line_text_field"
+                                    },
+                                    {
+                                        "key": "integer",
+                                        "value": "1",
+                                        "type": "number_integer"
+                                    },
+                                    {
+                                        "key": "rating",
+                                        "value": null,
+                                        "type": "rating"
+                                    },
+                                    {
+                                        "key": "taco_filling",
+                                        "value": "gid://shopify/Metaobject/37912598",
+                                        "type": "metaobject_reference"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "gid://shopify/MetaobjectDefinition/15433750",
+                    "description": null,
+                    "name": "Color",
+                    "type": "color",
+                    "fieldDefinitions": [
+                        {
+                            "key": "name",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        },
+                        {
+                            "key": "hex",
+                            "description": "",
+                            "required": true,
+                            "type": {
+                                "name": "color"
+                            }
+                        },
+                        {
+                            "key": "pantone",
+                            "description": "An matching Pantone color",
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        }
+                    ],
+                    "metaobjects": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/Metaobject/24379414",
+                                "displayName": "Lux Pink",
+                                "fields": [
+                                    {
+                                        "key": "name",
+                                        "value": "Lux Pink",
+                                        "type": "single_line_text_field"
+                                    },
+                                    {
+                                        "key": "hex",
+                                        "value": "#ec00ff",
+                                        "type": "color"
+                                    },
+                                    {
+                                        "key": "pantone",
+                                        "value": null,
+                                        "type": "single_line_text_field"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "gid://shopify/MetaobjectDefinition/17727510",
+                    "description": "",
+                    "name": "gizmo",
+                    "type": "gizmo",
+                    "fieldDefinitions": [
+                        {
+                            "key": "title",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        },
+                        {
+                            "key": "weight",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "weight"
+                            }
+                        },
+                        {
+                            "key": "score",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "number_integer"
+                            }
+                        },
+                        {
+                            "key": "ratio",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "number_decimal"
+                            }
+                        },
+                        {
+                            "key": "managed",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "date_time"
+                            }
+                        },
+                        {
+                            "key": "at",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "date"
+                            }
+                        },
+                        {
+                            "key": "size",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "dimension"
+                            }
+                        },
+                        {
+                            "key": "volume",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "volume"
+                            }
+                        },
+                        {
+                            "key": "boolean",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "boolean"
+                            }
+                        },
+                        {
+                            "key": "value",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "money"
+                            }
+                        }
+                    ],
+                    "metaobjects": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/Metaobject/78149320726",
+                                "displayName": "Sfoo",
+                                "fields": [
+                                    {
+                                        "key": "title",
+                                        "value": "Sfoo",
+                                        "type": "single_line_text_field"
+                                    },
+                                    {
+                                        "key": "weight",
+                                        "value": "{\"value\":234.0,\"unit\":\"POUNDS\"}",
+                                        "type": "weight"
+                                    },
+                                    {
+                                        "key": "score",
+                                        "value": "123",
+                                        "type": "number_integer"
+                                    },
+                                    {
+                                        "key": "ratio",
+                                        "value": "1.5",
+                                        "type": "number_decimal"
+                                    },
+                                    {
+                                        "key": "managed",
+                                        "value": "2025-02-05T22:00:00Z",
+                                        "type": "date_time"
+                                    },
+                                    {
+                                        "key": "at",
+                                        "value": "2025-02-06",
+                                        "type": "date"
+                                    },
+                                    {
+                                        "key": "size",
+                                        "value": "{\"value\":115.0,\"unit\":\"CENTIMETERS\"}",
+                                        "type": "dimension"
+                                    },
+                                    {
+                                        "key": "volume",
+                                        "value": "{\"value\":123.0,\"unit\":\"FLUID_OUNCES\"}",
+                                        "type": "volume"
+                                    },
+                                    {
+                                        "key": "boolean",
+                                        "value": "true",
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "key": "value",
+                                        "value": "{\"amount\":\"50.99\",\"currency_code\":\"USD\"}",
+                                        "type": "money"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "gid://shopify/MetaobjectDefinition/40173590",
+                    "description": null,
+                    "name": "Taco Filling",
+                    "type": "taco_filling",
+                    "fieldDefinitions": [
+                        {
+                            "key": "name",
+                            "description": null,
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        }
+                    ],
+                    "metaobjects": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/Metaobject/37814294",
+                                "displayName": "sfoo",
+                                "fields": [
+                                    {
+                                        "key": "name",
+                                        "value": "sfoo",
+                                        "type": "single_line_text_field"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "gid://shopify/MetaobjectDefinition/40206358",
+                    "description": "",
+                    "name": "Taco",
+                    "type": "taco",
+                    "fieldDefinitions": [
+                        {
+                            "key": "name",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "single_line_text_field"
+                            }
+                        },
+                        {
+                            "key": "protein",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "metaobject_reference"
+                            }
+                        },
+                        {
+                            "key": "toppings",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "list.metaobject_reference"
+                            }
+                        },
+                        {
+                            "key": "rating",
+                            "description": "",
+                            "required": false,
+                            "type": {
+                                "name": "rating"
+                            }
+                        }
+                    ],
+                    "metaobjects": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/Metaobject/38043670",
+                                "displayName": "Al Pastor",
+                                "fields": [
+                                    {
+                                        "key": "name",
+                                        "value": "Al Pastor",
+                                        "type": "single_line_text_field"
+                                    },
+                                    {
+                                        "key": "protein",
+                                        "value": "gid://shopify/Metaobject/37814294",
+                                        "type": "metaobject_reference"
+                                    },
+                                    {
+                                        "key": "toppings",
+                                        "value": "[\"gid://shopify/Metaobject/37814294\"]",
+                                        "type": "list.metaobject_reference"
+                                    },
+                                    {
+                                        "key": "rating",
+                                        "value": "{\"scale_min\":\"0.0\",\"scale_max\":\"1.0\",\"value\":\"1.0\"}",
+                                        "type": "rating"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "productFields": {
+            "nodes": [
+                {
+                    "id": "gid://shopify/MetafieldDefinition/81854486",
+                    "key": "thing",
+                    "description": "",
+                    "type": {
+                        "name": "date"
+                    },
+                    "validations": [],
+                    "ownerType": "PRODUCT"
+                },
+                {
+                    "id": "gid://shopify/MetafieldDefinition/145686550",
+                    "key": "sku",
+                    "description": "The internal SKU associated with this product.",
+                    "type": {
+                        "name": "single_line_text_field"
+                    },
+                    "validations": [],
+                    "ownerType": "PRODUCT"
+                },
+                {
+                    "id": "gid://shopify/MetafieldDefinition/543850518",
+                    "key": "flex_rating",
+                    "description": "",
+                    "type": {
+                        "name": "number_decimal"
+                    },
+                    "validations": [],
+                    "ownerType": "PRODUCT"
+                },
+                {
+                    "id": "gid://shopify/MetafieldDefinition/543883286",
+                    "key": "similar_product",
+                    "description": "",
+                    "type": {
+                        "name": "product_reference"
+                    },
+                    "validations": [],
+                    "ownerType": "PRODUCT"
+                },
+                {
+                    "id": "gid://shopify/MetafieldDefinition/759496726",
+                    "key": "collection_type",
+                    "description": "",
+                    "type": {
+                        "name": "single_line_text_field"
+                    },
+                    "validations": [
+                        {
+                            "name": "choices",
+                            "value": "[\"banana\",\"plantain\"]"
+                        }
+                    ],
+                    "ownerType": "PRODUCT"
+                },
+                {
+                    "id": "gid://shopify/MetafieldDefinition/160280510486",
+                    "key": "taco_pairing",
+                    "description": "Great related taco",
+                    "type": {
+                        "name": "metaobject_reference"
+                    },
+                    "validations": [
+                        {
+                            "name": "metaobject_definition_id",
+                            "value": "gid://shopify/MetaobjectDefinition/40206358"
+                        }
+                    ],
+                    "ownerType": "PRODUCT"
+                }
+            ]
+        }
+    },
+    "extensions": {
+        "cost": {
+            "requestedQueryCost": 115,
+            "actualQueryCost": 35,
+            "throttleStatus": {
+                "maximumAvailable": 2000.0,
+                "currentlyAvailable": 1965,
+                "restoreRate": 100.0
+            }
+        }
+    }
+}

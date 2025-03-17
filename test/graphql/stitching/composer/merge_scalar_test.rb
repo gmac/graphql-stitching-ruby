@@ -12,7 +12,7 @@ describe 'GraphQL::Stitching::Composer, merging scalars' do
       description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", info.schema.types["URL"].description
+    assert_equal "a/b", info.schema.get_type("URL").description
   end
 
   def test_merges_scalar_directives
@@ -32,6 +32,6 @@ describe 'GraphQL::Stitching::Composer, merging scalars' do
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", supergraph.schema.types["Thing"].directives.first.arguments.keyword_arguments[:arg]
+    assert_equal "a/b", supergraph.schema.get_type("Thing").directives.first.arguments.keyword_arguments[:arg]
   end
 end

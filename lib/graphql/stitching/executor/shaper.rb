@@ -14,7 +14,7 @@ module GraphQL::Stitching
       end
 
       def perform!(raw)
-        @root_type = @supergraph.schema.root_type_for_operation(@request.operation.operation_type)
+        @root_type = @request.query.root_type_for_operation(@request.operation.operation_type)
         resolve_object_scope(raw, @root_type, @request.operation.selections, @root_type.graphql_name)
       end
 
@@ -118,7 +118,7 @@ module GraphQL::Stitching
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
 
-        type.kind.abstract? && @supergraph.schema.possible_types(type).any? do |t|
+        type.kind.abstract? && @request.query.possible_types(type).any? do |t|
           t.graphql_name == typename
         end
       end

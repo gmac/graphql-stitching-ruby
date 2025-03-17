@@ -10,7 +10,7 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
 
     info = compose_definitions({ "a" => a, "b" => b })
 
-    assert_equal ["A", "B", "C"], info.schema.types["Thing"].possible_types.map(&:graphql_name).sort
+    assert_equal ["A", "B", "C"], info.schema.get_type("Thing").possible_types.map(&:graphql_name).sort
   end
 
   def test_merges_union_descriptions
@@ -21,7 +21,7 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
       description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", info.schema.types["Thing"].description
+    assert_equal "a/b", info.schema.get_type("Thing").description
   end
 
   def test_merges_union_directives
@@ -43,6 +43,6 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    assert_equal "a/b", supergraph.schema.types["Thing"].directives.first.arguments.keyword_arguments[:arg]
+    assert_equal "a/b", supergraph.schema.get_type("Thing").directives.first.arguments.keyword_arguments[:arg]
   end
 end

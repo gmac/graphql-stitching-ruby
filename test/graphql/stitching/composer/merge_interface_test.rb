@@ -73,7 +73,7 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 
-    assert_equal ["code", "id", "name"], supergraph.schema.types["I"].fields.keys.sort
-    assert_equal ["code", "id", "name"], supergraph.schema.types["T"].fields.keys.sort
+    assert_equal ["code", "id", "name"], supergraph.schema.get_type("I").fields.keys.sort
+    assert_equal ["code", "id", "name"], supergraph.schema.get_type("T").fields.keys.sort
   end
 end

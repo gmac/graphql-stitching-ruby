@@ -132,7 +132,7 @@ module GraphQL
         elsif @upload_types.include?(ast_node.name)
           files_by_path[path.dup] = value
         else
-          type_def = request.supergraph.schema.get_type(ast_node.name)
+          type_def = request.query.get_type(ast_node.name)
           extract_type_node(type_def, value, files_by_path, path) if type_def&.kind&.input_object?
         end
       end

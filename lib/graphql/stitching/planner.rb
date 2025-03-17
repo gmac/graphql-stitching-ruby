@@ -106,7 +106,7 @@ module GraphQL
 
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
-        parent_type = @supergraph.schema.root_type_for_operation(@request.operation.operation_type)
+        parent_type = @request.query.root_type_for_operation(@request.operation.operation_type)
 
         case @request.operation.operation_type
         when QUERY_OP
@@ -331,7 +331,7 @@ module GraphQL
         end
 
         if expanded_selections
-          @supergraph.schema.possible_types(parent_type).each do |possible_type|
+          @request.query.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
             type_name = GraphQL::Language::Nodes::TypeName.new(name: possible_type.graphql_name)

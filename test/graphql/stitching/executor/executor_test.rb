@@ -38,7 +38,7 @@ describe "GraphQL::Stitching::Executor" do
       source,
       operation_name: operation_name,
       variables: variables,
-    ).prepare!.execute
+    ).execute
 
     results
   end

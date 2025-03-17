@@ -49,7 +49,7 @@ describe "GraphQL::Stitching::Request" do
   def test_operation_errors_for_multiple_operations_given_without_operation_name
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
-    assert_error "An operation name is required", GraphQL::ExecutionError do
+    assert_error "No operation selected", GraphQL::ExecutionError do
       GraphQL::Stitching::Request.new(@supergraph, query).operation
     end
   end
@@ -57,7 +57,7 @@ describe "GraphQL::Stitching::Request" do
   def test_operation_errors_for_invalid_operation_names
     query = "query First { widget { id } } query Second { sprocket { id } }"
 
-    assert_error "Invalid root operation", GraphQL::ExecutionError do
+    assert_error "No operation selected", GraphQL::ExecutionError do
       GraphQL::Stitching::Request.new(@supergraph, query, operation_name: "Invalid").operation
     end
   end
@@ -147,13 +147,12 @@ describe "GraphQL::Stitching::Request" do
 
   def test_prepare_variables_collects_variable_defaults
     query = %|
-      query($a: String! = "defaultA", $b: String! = "defaultB") {
+      query($a: String! = "defaultA", $b: String = "defaultB") {
         base(a: $a, b: $b) { id }
       }
     |
 
     request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: { "a" => "yes" })
-    request.prepare!
 
     expected = { "a" => "yes", "b" => "defaultB" }
     assert_equal expected, request.variables
@@ -168,7 +167,6 @@ describe "GraphQL::Stitching::Request" do
 
     variables = { "a" => true, "b" => false, "c" => false }
     request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: variables)
-    request.prepare!
 
     expected = { "a" => true, "b" => false, "c" => false }
     assert_equal expected, request.variables
@@ -183,7 +181,6 @@ describe "GraphQL::Stitching::Request" do
 
     variables = {}
     request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query), variables: variables)
-    request.prepare!
 
     expected = { "b" => false }
     assert_equal expected, request.variables
@@ -200,9 +197,7 @@ describe "GraphQL::Stitching::Request" do
     |
 
     request = GraphQL::Stitching::Request.new(@supergraph, GraphQL.parse(query))
-    request.prepare!
-
-    assert_equal "query { skipKeep { id } includeKeep { id } }", squish_string(request.document.to_query_string)
+    assert_equal "query { skipKeep { id } includeKeep { id } }", squish_string(request.normalized_string)
   end
 
   def test_applies_skip_and_include_directives_via_variables
@@ -219,18 +214,26 @@ describe "GraphQL::Stitching::Request" do
       "yes" => true,
       "no" => false,
     })
-    request.prepare!
 
     expected = "query($yes: Boolean!, $no: Boolean!) { skipKeep { id } includeKeep { id } }"
-    assert_equal expected, squish_string(request.document.to_query_string)
+    assert_equal expected, squish_string(request.normalized_string)
   end
 
-  def test_validates_the_request
-    request1 = GraphQL::Stitching::Request.new(@supergraph, %|{ product(upc: "1") { upc} }|)
+  def test_validates_request_schema
+    request1 = GraphQL::Stitching::Request.new(@supergraph, %|{ product(upc: "1") { upc } }|)
     assert request1.validate.none?
 
     request2 = GraphQL::Stitching::Request.new(@supergraph, %|{ invalidSelection }|)
     assert_equal 1, request2.validate.length
+  end
+
+  def test_validates_request_variables
+    request = GraphQL::Stitching::Request.new(
+      @supergraph, 
+      %|query($upc: ID!){ product(upc: $upc) { upc } }|, 
+      variables: {},
+    )
+    assert_equal "Variable $upc of type ID! was provided invalid value", request.validate.first.message
   end
 
   def test_assigns_a_plan_for_the_request

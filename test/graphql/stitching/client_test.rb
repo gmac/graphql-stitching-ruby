@@ -182,7 +182,7 @@ describe "GraphQL::Stitching::Client" do
     result = @client.execute(queries)
 
     expected_errors = [
-      { "message" => "An operation name is required when sending multiple operations." },
+      { "message" => "An operation name is required" },
     ]
     assert_equal expected_errors, result["errors"]
   end
@@ -197,7 +197,7 @@ describe "GraphQL::Stitching::Client" do
     result = @client.execute(queries, operation_name: "Sfoo")
 
     expected_errors = [
-      { "message" => "Invalid root operation for given name and operation type." },
+      { "message" => 'No operation named "Sfoo"' },
     ]
     assert_equal expected_errors, result["errors"]
   end

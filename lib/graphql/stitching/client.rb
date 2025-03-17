@@ -45,7 +45,6 @@ module GraphQL
           return error_result(request, validation_errors) if validation_errors.any?
         end
 
-        request.prepare!
         load_plan(request)
         request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e

@@ -17,10 +17,9 @@ module GraphQL::Stitching
         field_map = {}
         resolver_map = {}
         possible_locations = {}
-        introspection_types = schema.introspection_system.types.keys
 
         schema.types.each do |type_name, type|
-          next if introspection_types.include?(type_name)
+          next if type.introspection?
 
           # Collect/build key definitions for each type
           locations_by_key = type.directives.each_with_object({}) do |directive, memo|

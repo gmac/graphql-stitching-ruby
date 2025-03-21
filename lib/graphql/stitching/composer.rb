@@ -14,9 +14,7 @@ module GraphQL
       # @api private
       NO_DEFAULT_VALUE = begin
         class T < GraphQL::Schema::Object
-          field(:f, String) do
-            argument(:a, String)
-          end
+          field(:f, String) { _1.argument(:a, String) }
         end
 
         T.get_field("f").get_argument("a").default_value
@@ -103,9 +101,8 @@ module GraphQL
         @subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           raise CompositionError, "Location keys must be strings" unless location.is_a?(String)
 
-          introspection_types = schema.introspection_system.types.keys
           schema.types.each do |type_name, subgraph_type|
-            next if introspection_types.include?(type_name)
+            next if subgraph_type.introspection?
 
             if type_name == @query_name && subgraph_type != schema.query
               raise CompositionError, "Query name \"#{@query_name}\" is used by non-query type in #{location} schema."
@@ -373,6 +370,7 @@ module GraphQL
             deprecation_reason: merge_deprecations(type_name, fields_by_location, field_name: field_name),
             type: Util.unwrap_non_null(type),
             null: !type.non_null?,
+            connection: false,
             camelize: false,
           )
 
@@ -401,14 +399,6 @@ module GraphQL
               raise CompositionError, "Required argument `#{path}` must be defined in all locations." # ...or hidden?
             end
             next
-          end
-
-          # Getting double args sometimes... why?
-          begin
-            next if owner.arguments(GraphQL::Query::NullContext.instance, false).key?(argument_name)
-          rescue ArgumentError
-            # pre- graphql v2.4.5
-            next if owner.arguments.key?(argument_name)
           end
 
           kwargs = {}
@@ -648,9 +638,8 @@ module GraphQL
         writes = []
 
         schemas.each do |schema|
-          introspection_types = schema.introspection_system.types.keys
           schema.types.each_value do |type|
-            next if introspection_types.include?(type.graphql_name)
+            next if type.introspection?
 
             if type.kind.object? || type.kind.interface?
               type.fields.each_value do |field|

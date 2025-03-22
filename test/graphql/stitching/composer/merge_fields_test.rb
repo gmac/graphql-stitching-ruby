@@ -103,6 +103,23 @@ describe 'GraphQL::Stitching::Composer, merging object and interface fields' do
     end
   end
 
+  def test_merged_fields_permit_relay_connections
+    a = %|
+      type AppleConnection { edges: [AppleEdge!]! nodes: [Apple!]! } 
+      type AppleEdge { cursor: String! node: Apple! } 
+      type Apple { id: ID! } 
+      type Query { apple(first: Int, last: Int, before: String, after: String): AppleConnection }
+    |
+    b = %|
+      type BananaConnection { edges: [BananaEdge!]! nodes: [Banana!]! } 
+      type BananaEdge { cursor: String! node: Banana! } 
+      type Banana { id: ID! } 
+      type Query { banana(first: Int, last: Int, before: String, after: String): BananaConnection }
+    |
+
+    assert compose_definitions({ "a" => a, "b" => b })
+  end
+
   def test_creates_delegation_map
     a = %{type Test { id: ID!, a: String c: String } type Query { a(id: ID!):Test @stitch(key: "id") }}
     b = %{type Test { id: ID!, b: String c: String } type Query { b(id: ID!):Test @stitch(key: "id") }}

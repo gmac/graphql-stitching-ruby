@@ -31,8 +31,11 @@ module GraphQL::Stitching
           when GraphQL::Language::Nodes::Field
             field_name = node.alias || node.name
 
-            next if introspection_field?(parent_type, node) do |is_root_typename|
-              raw_object[field_name] = @root_type.graphql_name if is_root_typename
+            if @request.query.get_field(parent_type, node.name).introspection?
+              if node.name == TYPENAME && parent_type == @root_type
+                raw_object[field_name] = @root_type.graphql_name
+              end
+              next
             end
 
             node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
@@ -98,21 +101,6 @@ module GraphQL::Stitching
         return nil if contains_null && next_node_type.non_null?
 
         resolved_list
-      end
-
-      def introspection_field?(parent_type, node)
-        return false unless node.name.start_with?("__")
-        is_root = parent_type == @root_type
-
-        case node.name
-        when TYPENAME
-          yield(is_root)
-          true
-        when "__schema", "__type"
-          is_root && @request.operation.operation_type == "query"
-        else
-          false
-        end
       end
 
       def typename_in_type?(typename, type)

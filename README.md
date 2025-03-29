@@ -74,7 +74,7 @@ result = client.execute(
 
 Schemas provided in [location settings](./docs/composer.md#performing-composition) may be class-based schemas with local resolvers (locally-executable schemas), or schemas built from SDL strings (schema definition language parsed using `GraphQL::Schema.from_definition`) and mapped to remote locations via [executables](#executables).
 
-While `Client` is sufficient for most usecases, the library offers several discrete components that can be assembled into tailored workflows:
+A Client bundles up the component parts of stitching, which are worth familiarizing with:
 
 - [Composer](./docs/composer.md) - merges and validates many schemas into one supergraph.
 - [Supergraph](./docs/supergraph.md) - manages the combined schema, location routing maps, and executable resources. Can be exported, cached, and rehydrated.
@@ -87,7 +87,7 @@ While `Client` is sufficient for most usecases, the library offers several discr
 
 ![Merging types](./docs/images/merging.png)
 
-To facilitate this, schemas should be designed around [merged type keys](#merged-type-keys) that stitching can cross-reference and fetch across locations using [type resolver queries](#merged-type-resolver-queries). For those in an Apollo ecosystem, there's also _limited_ support for merging types though a [federation `_entities` protocol](./docs/federation_entities.md).
+To facilitate this, schemas should be designed around **merged type keys** that stitching can cross-reference and fetch across locations using **type resolver queries** (discussed below). For those in an Apollo ecosystem, there's also _limited_ support for merging types though [federation `_entities`](./docs/federation_entities.md).
 
 ### Merged type keys
 

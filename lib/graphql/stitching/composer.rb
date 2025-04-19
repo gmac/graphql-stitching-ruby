@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "composer/base_validator"
-require_relative "composer/supergraph_directives"
 require_relative "composer/validate_interfaces"
 require_relative "composer/validate_type_resolvers"
 require_relative "composer/type_resolver_config"
@@ -23,6 +22,9 @@ module GraphQL
 
       # @api private
       BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
+      
+      # @api private
+      VISIBILITY_PROFILES_MERGER = ->(values_by_location, _info) { values_by_location.values.reduce(:&) }
 
       # @api private
       BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
@@ -52,6 +54,7 @@ module GraphQL
         query_name: "Query",
         mutation_name: "Mutation",
         subscription_name: "Subscription",
+        visibility_profiles: [],
         description_merger: nil,
         deprecation_merger: nil,
         default_value_merger: nil,
@@ -71,6 +74,7 @@ module GraphQL
         @resolver_map = {}
         @resolver_configs = {}
         @mapped_type_names = {}
+        @visibility_profiles = Set.new(visibility_profiles)
         @subgraph_directives_by_name_and_location = nil
         @subgraph_types_by_name_and_location = nil
         @schema_directives = nil
@@ -85,9 +89,9 @@ module GraphQL
 
         directives_to_omit = [
           GraphQL::Stitching.stitch_directive,
-          KeyDirective.graphql_name,
-          ResolverDirective.graphql_name,
-          SourceDirective.graphql_name,
+          Directives::SupergraphKey.graphql_name,
+          Directives::SupergraphResolver.graphql_name,
+          Directives::SupergraphSource.graphql_name,
         ]
 
         # "directive_name" => "location" => subgraph_directive
@@ -181,6 +185,10 @@ module GraphQL
         expand_abstract_resolvers(schema, schemas)
         apply_supergraph_directives(schema, @resolver_map, @field_map)
 
+        if (visibility_def = schema.directives[GraphQL::Stitching.visibility_directive])
+          visibility_def.get_argument("profiles").default_value(@visibility_profiles.to_a.sort)
+        end
+
         supergraph = Supergraph.from_definition(schema, executables: executables)
 
         COMPOSITION_VALIDATORS.each do |validator_class|
@@ -237,7 +245,7 @@ module GraphQL
 
         builder = self
 
-        Class.new(GraphQL::Schema::Scalar) do
+        Class.new(GraphQL::Stitching::Supergraph::ScalarType) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_directives(type_name, types_by_location, self)
@@ -264,7 +272,7 @@ module GraphQL
           end
         end
 
-        Class.new(GraphQL::Schema::Enum) do
+        Class.new(GraphQL::Stitching::Supergraph::EnumType) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_directives(type_name, types_by_location, self)
@@ -286,7 +294,7 @@ module GraphQL
       def build_object_type(type_name, types_by_location)
         builder = self
 
-        Class.new(GraphQL::Schema::Object) do
+        Class.new(GraphQL::Stitching::Supergraph::ObjectType) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
 
@@ -306,7 +314,7 @@ module GraphQL
         builder = self
 
         Module.new do
-          include GraphQL::Schema::Interface
+          include GraphQL::Stitching::Supergraph::InterfaceType
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
 
@@ -325,7 +333,7 @@ module GraphQL
       def build_union_type(type_name, types_by_location)
         builder = self
 
-        Class.new(GraphQL::Schema::Union) do
+        Class.new(GraphQL::Stitching::Supergraph::UnionType) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
 
@@ -340,7 +348,7 @@ module GraphQL
       def build_input_object_type(type_name, types_by_location)
         builder = self
 
-        Class.new(GraphQL::Schema::InputObject) do
+        Class.new(GraphQL::Stitching::Supergraph::InputObjectType) do
           graphql_name(type_name)
           description(builder.merge_descriptions(type_name, types_by_location))
           builder.build_merged_arguments(type_name, types_by_location, self)
@@ -451,6 +459,7 @@ module GraphQL
         end
 
         directives_by_name_location.each do |directive_name, directives_by_location|
+          kwarg_merger = @directive_kwarg_merger
           directive_class = @schema_directives[directive_name]
           next unless directive_class
 
@@ -467,8 +476,20 @@ module GraphQL
             end
           end
 
+          if directive_class.graphql_name == GraphQL::Stitching.visibility_directive
+            unless GraphQL::Stitching.supports_visibility?
+              raise CompositionError, "Using `@#{GraphQL::Stitching.visibility_directive}` directive " \
+                "for schema visibility controls requires GraphQL Ruby v#{GraphQL::Stitching::MIN_VISIBILITY_VERSION} or later."
+            end
+
+            if (profiles = kwarg_values_by_name_location["profiles"])
+              @visibility_profiles.merge(profiles.each_value.reduce(&:|))
+              kwarg_merger = VISIBILITY_PROFILES_MERGER
+            end
+          end
+
           kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
-            memo[kwarg_name.to_sym] = @directive_kwarg_merger.call(kwarg_values_by_location, {
+            memo[kwarg_name.to_sym] = kwarg_merger.call(kwarg_values_by_location, {
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
@@ -693,8 +714,8 @@ module GraphQL
   
             keys_for_type.each do |key, locations|
               locations.each do |location|
-                schema_directives[KeyDirective.graphql_name] ||= KeyDirective
-                type.directive(KeyDirective, key: key, location: location)
+                schema_directives[Directives::SupergraphKey.graphql_name] ||= Directives::SupergraphKey
+                type.directive(Directives::SupergraphKey, key: key, location: location)
               end
             end
   
@@ -710,8 +731,8 @@ module GraphQL
                 type_name: (resolver.type_name if resolver.type_name != type_name),
               }
   
-              schema_directives[ResolverDirective.graphql_name] ||= ResolverDirective
-              type.directive(ResolverDirective, **params.tap(&:compact!))
+              schema_directives[Directives::SupergraphResolver.graphql_name] ||= Directives::SupergraphResolver
+              type.directive(Directives::SupergraphResolver, **params.tap(&:compact!))
             end
           end
   
@@ -737,8 +758,8 @@ module GraphQL
   
             # Apply source directives to annotate the possible locations of each field
             locations_for_field.each do |location|
-              schema_directives[SourceDirective.graphql_name] ||= SourceDirective
-              field.directive(SourceDirective, location: location)
+              schema_directives[Directives::SupergraphSource.graphql_name] ||= Directives::SupergraphSource
+              field.directive(Directives::SupergraphSource, location: location)
             end
           end
         end

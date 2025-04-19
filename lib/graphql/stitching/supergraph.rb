@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "supergraph/types"
 require_relative "supergraph/from_definition"
 
 module GraphQL
@@ -21,7 +22,7 @@ module GraphQL
       attr_reader :memoized_introspection_types
       attr_reader :locations_by_type_and_field
 
-      def initialize(schema:, fields: {}, resolvers: {}, executables: {})
+      def initialize(schema:, fields: {}, resolvers: {}, visibility_profiles: [], executables: {})
         @schema = schema
         @resolvers = resolvers
         @resolvers_by_version = nil
@@ -49,7 +50,12 @@ module GraphQL
           end
         end.freeze
 
-        @schema.use(GraphQL::Schema::AlwaysVisible)
+        if visibility_profiles.any?
+          profiles = visibility_profiles.each_with_object({ nil => {} }) { |p, m| m[p.to_s] = {} }
+          @schema.use(GraphQL::Schema::Visibility, profiles: profiles)
+        else
+          @schema.use(GraphQL::Schema::AlwaysVisible)
+        end
       end
 
       def to_definition

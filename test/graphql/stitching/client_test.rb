@@ -355,4 +355,24 @@ describe "GraphQL::Stitching::Client" do
     assert_nil result["data"]
     assert_equal expected_errors, result["errors"]
   end
+
+  def test_passes_composer_options_through_to_composition
+    client = GraphQL::Stitching::Client.new(
+      locations: { products: { schema: Schemas::Example::Products } },
+      composer_options: { query_name: "SuperQuery" },
+    )
+
+    assert_equal "SuperQuery", client.supergraph.schema.query.graphql_name
+  end
+
+  def test_errors_for_composer_options_given_with_precomposed_supergraph
+    supergraph = compose_definitions({ "a" => Schemas::Example::Products })
+
+    assert_error "Cannot provide composer options with a pre-built supergraph" do
+      GraphQL::Stitching::Client.new(
+        supergraph: supergraph,
+        composer_options: { query_name: "SuperQuery" },
+      )
+    end
+  end
 end

@@ -14,6 +14,8 @@ jobs:
         include:
           - gemfile: Gemfile
             ruby: 3.3
+          - gemfile: gemfiles/graphql_2.4.0.gemfile
+            ruby: 3.2
           - gemfile: gemfiles/graphql_2.3.0.gemfile
             ruby: 3.2
           - gemfile: gemfiles/graphql_2.2.0.gemfile

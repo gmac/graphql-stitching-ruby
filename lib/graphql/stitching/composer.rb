@@ -13,11 +13,11 @@ module GraphQL
     class Composer
       # @api private
       NO_DEFAULT_VALUE = begin
-        class T < GraphQL::Schema::Object
+        t = Class.new(GraphQL::Schema::Object) do
           field(:f, String) { _1.argument(:a, String) }
         end
 
-        T.get_field("f").get_argument("a").default_value
+        t.get_field("f").get_argument("a").default_value
       end
 
       # @api private

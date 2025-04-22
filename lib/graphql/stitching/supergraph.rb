@@ -20,8 +20,6 @@ module GraphQL
 
       def initialize(schema:, fields: {}, resolvers: {}, executables: {})
         @schema = schema
-        @schema.use(GraphQL::Schema::AlwaysVisible)
-
         @resolvers = resolvers
         @resolvers_by_version = nil
         @fields_by_type_and_location = nil

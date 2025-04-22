@@ -33,7 +33,9 @@ describe "GraphQL::Stitching::HttpExecutable" do
   DummyFile = Struct.new(:tempfile)
 
   def setup
-    @supergraph = GraphQL::Stitching::Supergraph.new(schema: UploadSchema)
+    @supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: Class.new(UploadSchema),
+    )
   end
 
   def test_extract_multipart_form

@@ -43,11 +43,14 @@ describe "GraphQL::Stitching::Executor, TypeResolverSource" do
       variables: { "currency" => "Currency!" },
       resolver: @resolver2.version,
     )
-
-    supergraph = GraphQL::Stitching::Supergraph.new(schema: GraphQL::Schema, resolvers: {
-      "Storefront" => [@resolver1],
-      "Product" => [@resolver2],
-    })
+    
+    supergraph = GraphQL::Stitching::Supergraph.new(
+      schema: Class.new(GraphQL::Schema), 
+      resolvers: {
+        "Storefront" => [@resolver1],
+        "Product" => [@resolver2],
+      }
+    )
     request = GraphQL::Stitching::Request.new(supergraph, "{ test }")
     executor = GraphQL::Stitching::Executor.new(request)
     @source = GraphQL::Stitching::Executor::TypeResolverSource.new(executor, "products")
@@ -166,7 +169,7 @@ describe "GraphQL::Stitching::Executor, TypeResolverSource" do
       ]
     }
 
-    sg = GraphQL::Stitching::Supergraph.new(schema: GraphQL::Schema)
+    sg = GraphQL::Stitching::Supergraph.new(schema: Class.new(GraphQL::Schema))
     mock = GraphQL::Stitching::Request.new(sg, "{}")
     mock.plan(GraphQL::Stitching::Plan.new(ops: []))
 

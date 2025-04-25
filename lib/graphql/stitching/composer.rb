@@ -83,9 +83,16 @@ module GraphQL
 
         schemas, executables = prepare_locations_input(locations_input)
 
+        directives_to_omit = [
+          GraphQL::Stitching.stitch_directive,
+          KeyDirective.graphql_name,
+          ResolverDirective.graphql_name,
+          SourceDirective.graphql_name,
+        ]
+
         # "directive_name" => "location" => subgraph_directive
         @subgraph_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
+          (schema.directives.keys - schema.default_directives.keys - directives_to_omit).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
           end
@@ -174,12 +181,7 @@ module GraphQL
         expand_abstract_resolvers(schema, schemas)
         apply_supergraph_directives(schema, @resolver_map, @field_map)
 
-        supergraph = Supergraph.new(
-          schema: schema,
-          fields: @field_map,
-          resolvers: @resolver_map,
-          executables: executables,
-        )
+        supergraph = Supergraph.from_definition(schema, executables: executables)
 
         COMPOSITION_VALIDATORS.each do |validator_class|
           validator_class.new.perform(supergraph, self)
@@ -713,9 +715,23 @@ module GraphQL
             end
           end
   
-          next unless type.kind.fields?
+          next unless type.kind.fields? && !type.introspection?
   
           type.fields.each do |field_name, field|
+            if field.owner != type
+              # make a local copy of fields inherited from an interface
+              # to assure that source attributions reflect the object, not the interface.
+              field = type.field(
+                field.graphql_name,
+                description: field.description,
+                deprecation_reason: field.deprecation_reason,
+                type: Util.unwrap_non_null(field.type),
+                null: !field.type.non_null?,
+                connection: false,
+                camelize: false,
+              )
+            end
+            
             locations_for_field = locations_by_type_and_field.dig(type_name, field_name)
             next if locations_for_field.nil?
   

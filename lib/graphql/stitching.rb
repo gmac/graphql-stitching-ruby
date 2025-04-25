@@ -49,12 +49,6 @@ module GraphQL
       def stitch_directive
         @stitch_directive ||= "stitch"
       end
-
-      # Names of stitching directives to omit from the composed supergraph.
-      # @returns [Array<String>] list of stitching directive names.
-      def stitching_directive_names
-        [stitch_directive]
-      end
     end
   end
 end

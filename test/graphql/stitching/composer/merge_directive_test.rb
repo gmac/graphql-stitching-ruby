@@ -54,7 +54,7 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     assert_equal "a/b", directives.find { _1.graphql_name == "fizz" }.arguments.keyword_arguments[:arg]
   end
 
-  def test_omits_stitching_directives
+  def test_omits_stitching_directives_and_includes_supergraph_directives
     a = %|
       directive @stitch(key: String!) repeatable on FIELD_DEFINITION
       type Test { id: ID! a: String }
@@ -71,8 +71,11 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
       directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
     })
 
-    assert_nil supergraph.schema.directives["stitch"]
-    assert_equal 0, supergraph.schema.types["Query"].fields["testA"].directives.length
-    assert_equal 0, supergraph.schema.types["Query"].fields["testB"].directives.length
+    assert !supergraph.schema.directives.key?("stitch")
+    assert supergraph.schema.directives.key?("key")
+    assert supergraph.schema.directives.key?("resolver")
+    assert supergraph.schema.directives.key?("source")
+    assert_equal ["source"], supergraph.schema.query.get_field("testA").directives.map(&:graphql_name)
+    assert_equal ["source"], supergraph.schema.query.get_field("testB").directives.map(&:graphql_name)
   end
 end

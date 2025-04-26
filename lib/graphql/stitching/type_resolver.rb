@@ -65,6 +65,10 @@ module GraphQL
           argument_types: arguments.map(&:to_type_definition).join(", "),
         }.tap(&:compact!)
       end
+
+      def inspect
+        as_json.to_json
+      end
     end
   end
 end

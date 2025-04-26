@@ -111,7 +111,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_fields_by_type_and_location
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
     )
@@ -124,7 +124,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_locations_by_type
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
     )
@@ -137,7 +137,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_possible_keys_for_type_and_location
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
     )
@@ -149,7 +149,7 @@ describe "GraphQL::Stitching::Supergraph" do
 
   def test_adds_supergraph_location_for_expected_introspection_types
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
     )
@@ -166,7 +166,7 @@ describe "GraphQL::Stitching::Supergraph" do
     executable3 = Proc.new { true }
 
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
       executables: {
@@ -188,7 +188,7 @@ describe "GraphQL::Stitching::Supergraph" do
     executable3 = Proc.new { true }
 
     supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: ComposedSchema,
+      schema: Class.new(ComposedSchema),
       fields: FIELDS_MAP.dup,
       resolvers: RESOLVERS_MAP,
       executables: {
@@ -207,7 +207,7 @@ describe "GraphQL::Stitching::Supergraph" do
   def test_rejects_invalid_executables_with_error
     assert_error "Invalid executable provided for location" do
       GraphQL::Stitching::Supergraph.new(
-        schema: ComposedSchema,
+        schema: Class.new(ComposedSchema),
         fields: FIELDS_MAP.dup,
         resolvers: RESOLVERS_MAP,
         executables: {

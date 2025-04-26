@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "composer/base_validator"
+require_relative "composer/supergraph_directives"
 require_relative "composer/validate_interfaces"
 require_relative "composer/validate_type_resolvers"
 require_relative "composer/type_resolver_config"
@@ -82,9 +83,16 @@ module GraphQL
 
         schemas, executables = prepare_locations_input(locations_input)
 
+        directives_to_omit = [
+          GraphQL::Stitching.stitch_directive,
+          KeyDirective.graphql_name,
+          ResolverDirective.graphql_name,
+          SourceDirective.graphql_name,
+        ]
+
         # "directive_name" => "location" => subgraph_directive
         @subgraph_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          (schema.directives.keys - schema.default_directives.keys - GraphQL::Stitching.stitching_directive_names).each do |directive_name|
+          (schema.directives.keys - schema.default_directives.keys - directives_to_omit).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
           end
@@ -154,25 +162,26 @@ module GraphQL
 
         builder = self
         schema = Class.new(GraphQL::Schema) do
+          object_types = schema_types.values.select { |t| t.respond_to?(:kind) && t.kind.object? }
           add_type_and_traverse(schema_types.values, root: false)
-          orphan_types(schema_types.values.select { |t| t.respond_to?(:kind) && t.kind.object? })
+          orphan_types(object_types)
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
           subscription schema_types[builder.subscription_name]
           directives builder.schema_directives.values
+
+          object_types.each do |t|
+            t.interfaces.each { _1.orphan_types(t) }
+          end
 
           own_orphan_types.clear
         end
 
         select_root_field_locations(schema)
         expand_abstract_resolvers(schema, schemas)
+        apply_supergraph_directives(schema, @resolver_map, @field_map)
 
-        supergraph = Supergraph.new(
-          schema: schema,
-          fields: @field_map,
-          resolvers: @resolver_map,
-          executables: executables,
-        )
+        supergraph = Supergraph.from_definition(schema, executables: executables)
 
         COMPOSITION_VALIDATORS.each do |validator_class|
           validator_class.new.perform(supergraph, self)
@@ -669,6 +678,72 @@ module GraphQL
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end
+      end
+
+      def apply_supergraph_directives(schema, resolvers_by_type_name, locations_by_type_and_field)
+        schema_directives = {}
+        schema.types.each do |type_name, type|
+          if resolvers_for_type = resolvers_by_type_name.dig(type_name)
+            # Apply key directives for each unique type/key/location
+            # (this allows keys to be composite selections and/or omitted from the supergraph schema)
+            keys_for_type = resolvers_for_type.each_with_object({}) do |resolver, memo|
+              memo[resolver.key.to_definition] ||= Set.new
+              memo[resolver.key.to_definition].merge(resolver.key.locations)
+            end
+  
+            keys_for_type.each do |key, locations|
+              locations.each do |location|
+                schema_directives[KeyDirective.graphql_name] ||= KeyDirective
+                type.directive(KeyDirective, key: key, location: location)
+              end
+            end
+  
+            # Apply resolver directives for each unique query resolver
+            resolvers_for_type.each do |resolver|
+              params = {
+                location: resolver.location,
+                field: resolver.field,
+                list: resolver.list? || nil,
+                key: resolver.key.to_definition,
+                arguments: resolver.arguments.map(&:to_definition).join(", "),
+                argument_types: resolver.arguments.map(&:to_type_definition).join(", "),
+                type_name: (resolver.type_name if resolver.type_name != type_name),
+              }
+  
+              schema_directives[ResolverDirective.graphql_name] ||= ResolverDirective
+              type.directive(ResolverDirective, **params.tap(&:compact!))
+            end
+          end
+  
+          next unless type.kind.fields? && !type.introspection?
+  
+          type.fields.each do |field_name, field|
+            if field.owner != type
+              # make a local copy of fields inherited from an interface
+              # to assure that source attributions reflect the object, not the interface.
+              field = type.field(
+                field.graphql_name,
+                description: field.description,
+                deprecation_reason: field.deprecation_reason,
+                type: Util.unwrap_non_null(field.type),
+                null: !field.type.non_null?,
+                connection: false,
+                camelize: false,
+              )
+            end
+            
+            locations_for_field = locations_by_type_and_field.dig(type_name, field_name)
+            next if locations_for_field.nil?
+  
+            # Apply source directives to annotate the possible locations of each field
+            locations_for_field.each do |location|
+              schema_directives[SourceDirective.graphql_name] ||= SourceDirective
+              field.directive(SourceDirective, location: location)
+            end
+          end
+        end
+        
+        schema_directives.each_value { |directive_class| schema.directive(directive_class) }
       end
     end
   end

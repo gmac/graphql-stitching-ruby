@@ -47,13 +47,13 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       {
         buyable(id: "1") {
           id
-          ... on Product {
-            _export_id: id
-            _export___typename: __typename
-          }
           ... on Bundle {
             name
             price
+          }
+          ... on Product {
+            _export_id: id
+            _export___typename: __typename
           }
           _export___typename: __typename
         }
@@ -65,7 +65,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     assert_keys plan.ops[0].as_json, {
       after: 0,
       location: "b",
-      selections: squish_string(expected_root_selection),
+      selections: SortedSelectionMatcher.new(expected_root_selection),
       path: [],
       if_type: nil,
       resolver: nil,
@@ -115,13 +115,13 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       {
         buyable(id: "1") {
           id
-          ... on Product {
-            _export_id: id
-            _export___typename: __typename
-          }
           ... on Bundle {
             name
             price
+          }
+          ... on Product {
+            _export_id: id
+            _export___typename: __typename
           }
           _export___typename: __typename
         }
@@ -132,7 +132,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
       assert_equal 2, plan.ops.length
-      assert_equal squish_string(expected_root_selection), plan.ops.first.selections
+      assert SortedSelectionMatcher.new(expected_root_selection).match?(plan.ops.first.selections)
     end
   end
 
@@ -152,8 +152,8 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       {
         buyable(id: \"1\") {
           id
-          ... on Product { _export_id: id _export___typename: __typename }
           ... on Bundle { name price }
+          ... on Product { _export_id: id _export___typename: __typename }
           _export___typename: __typename
         }
       }
@@ -162,7 +162,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
     plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
 
     assert_equal 2, plan.ops.length
-    assert_equal squish_string(expected_root_selection), plan.ops.first.selections
+    assert SortedSelectionMatcher.new(expected_root_selection).match?(plan.ops.first.selections)
   end
 
   def test_retains_interface_selections_appropraite_to_the_location

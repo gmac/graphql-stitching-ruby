@@ -6,7 +6,7 @@ require_relative "../../../schemas/example"
 describe "GraphQL::Stitching::Request" do
   def setup
     @supergraph = GraphQL::Stitching::Supergraph.new(
-      schema: Schemas::Example::Products,
+      schema: Class.new(Schemas::Example::Products),
     )
   end
 

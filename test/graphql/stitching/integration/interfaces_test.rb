@@ -166,8 +166,8 @@ describe 'GraphQL::Stitching, merged interfaces' do
       },
     }
 
-    assert_equal expected_result, result1
-    assert_equal expected_result, result2
+    assert_equal expected_result, result1.to_h
+    assert_equal expected_result, result2.to_h
   end
 
   def test_merges_within_interface_fragments
@@ -200,6 +200,6 @@ describe 'GraphQL::Stitching, merged interfaces' do
       },
     }
 
-    assert_equal expected_result, result
+    assert_equal expected_result, result.to_h
   end
 end

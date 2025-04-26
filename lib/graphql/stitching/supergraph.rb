@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "supergraph/to_definition"
+require_relative "supergraph/from_definition"
 
 module GraphQL
   module Stitching
@@ -16,7 +16,10 @@ module GraphQL
       # @return [Hash<String, Executable>] a map of executable resources by location.
       attr_reader :executables
 
-      attr_reader :resolvers, :locations_by_type_and_field
+      attr_reader :resolvers
+      attr_reader :memoized_schema_types
+      attr_reader :memoized_introspection_types
+      attr_reader :locations_by_type_and_field
 
       def initialize(schema:, fields: {}, resolvers: {}, executables: {})
         @schema = schema
@@ -24,15 +27,14 @@ module GraphQL
         @resolvers_by_version = nil
         @fields_by_type_and_location = nil
         @locations_by_type = nil
-        @memoized_introspection_types = nil
+        @memoized_introspection_types = @schema.introspection_system.types
+        @memoized_schema_types = @schema.types
         @memoized_schema_fields = {}
-        @memoized_schema_types = nil
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
-        @static_validator = nil
 
         # add introspection types into the fields mapping
-        @locations_by_type_and_field = memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
+        @locations_by_type_and_field = @memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
           next unless type.kind.fields?
 
           memo[type_name] = type.fields.keys.each_with_object({}) do |field_name, m|
@@ -46,6 +48,12 @@ module GraphQL
             memo[location.to_s] = executable
           end
         end.freeze
+
+        @schema.use(GraphQL::Schema::AlwaysVisible)
+      end
+
+      def to_definition
+        @schema.to_definition
       end
 
       def resolvers_by_version
@@ -62,17 +70,9 @@ module GraphQL
         @executables.keys.reject { _1 == SUPERGRAPH_LOCATION }
       end
 
-      def memoized_introspection_types
-        @memoized_introspection_types ||= schema.introspection_system.types
-      end
-
-      def memoized_schema_types
-        @memoized_schema_types ||= @schema.types
-      end
-
       def memoized_schema_fields(type_name)
         @memoized_schema_fields[type_name] ||= begin
-          fields = memoized_schema_types[type_name].fields
+          fields = @memoized_schema_types[type_name].fields
           @schema.introspection_system.dynamic_fields.each do |field|
             fields[field.name] ||= field # adds __typename
           end

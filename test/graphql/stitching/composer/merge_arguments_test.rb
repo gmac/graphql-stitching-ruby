@@ -68,8 +68,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
   end
 
   def test_merged_object_arguments_must_have_matching_list_structures
-    a = "input Test { arg:[[String!]] } type Query { test:Test }"
-    b = "input Test { arg:[String!] } type Query { test:Test }"
+    a = "input Test { arg:[[String!]] } type Query { test(arg:Test):String }"
+    b = "input Test { arg:[String!] } type Query { test(arg:Test):String }"
 
     assert_error('Cannot compose mixed list structures at `Test.arg`.', CompositionError) do
       compose_definitions({ "a" => a, "b" => b })
@@ -129,8 +129,8 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
   end
 
   def test_intersects_optional_arguments
-    a = "input Test { arg1:String arg2:String } type Query { test(arg1:Test, arg2:String):String }"
-    b = "input Test { arg3:String arg2:String } type Query { test(arg3:Test, arg2:String):String }"
+    a = "input Test { arg1:String arg2:String } type Query { test(arg1:Test, arg2:Test):String }"
+    b = "input Test { arg3:String arg2:String } type Query { test(arg3:Test, arg2:Test):String }"
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
     assert_equal ["arg2"], supergraph.schema.types["Test"].arguments.keys.sort

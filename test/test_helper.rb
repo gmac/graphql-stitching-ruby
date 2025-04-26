@@ -21,6 +21,64 @@ CompositionError = GraphQL::Stitching::CompositionError
 ValidationError = GraphQL::Stitching::ValidationError
 STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
 
+class Matcher
+  def match?(value)
+    true
+  end
+end
+
+class SortedSelectionMatcher < Matcher
+  NODE_ORDER = [
+    GraphQL::Language::Nodes::Field, 
+    GraphQL::Language::Nodes::InlineFragment, 
+    GraphQL::Language::Nodes::FragmentSpread,
+  ].freeze
+
+  attr_reader :source
+
+  def initialize(source)
+    @printer = GraphQL::Language::Printer.new
+    source = GraphQL.parse(source) if source.is_a?(String)
+    source = sort_node_selections(source.definitions.first)
+    @source = @printer.print(source)
+  end
+
+  def match?(other)
+    other = GraphQL.parse(other) if other.is_a?(String)
+    other = sort_node_selections(other.definitions.first)
+    @source == @printer.print(other)
+  end
+
+  private
+
+  def sort_node_selections(node)
+    selections = node.selections.sort do |a, b|
+      if a.class == b.class
+        case a
+        when GraphQL::Language::Nodes::Field
+          an = [a.alias, a.name].tap(&:compact!).join("-")
+          bn = [b.alias, b.name].tap(&:compact!).join("-")
+          an <=> bn
+        when GraphQL::Language::Nodes::InlineFragment
+          (a.type&.name).to_s <=> (b.type&.name).to_s
+        when GraphQL::Language::Nodes::FragmentSpread
+          a.name <=> b.name
+        end
+      else
+        NODE_ORDER.index(a.class) - NODE_ORDER.index(b.class)
+      end
+    end
+
+    selections = selections.map do |node|
+      next node unless node.respond_to?(:selections) && node.selections.any?
+      
+      sort_node_selections(node)
+    end
+
+    node.merge(selections: selections)
+  end
+end
+
 def squish_string(str)
   str.gsub(/\s+/, " ").strip
 end
@@ -102,6 +160,8 @@ def assert_keys(actual, expected)
     if ex_val.is_a?(Hash)
       assert val.is_a?(Hash), "expected a hash for #{key}"
       assert_keys(val, ex_val)
+    elsif ex_val.is_a?(Matcher)
+      assert ex_val.match?(val)
     elsif ex_val.nil?
       assert_nil val
     else

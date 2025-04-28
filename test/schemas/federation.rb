@@ -2,13 +2,6 @@
 
 module Schemas
   module Federation
-    class StitchField < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     class FederationKey < GraphQL::Schema::Directive
       graphql_name "key"
       locations OBJECT
@@ -180,17 +173,17 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :gadgets, [Gadget, null: true], null: false do
-          directive StitchField, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
         field :sprockets, [Sprocket, null: true], null: false do
-          directive StitchField, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
         field :widgets, [Widget, null: true], null: false do
-          directive StitchField, key: "upc"
+          directive GraphQL::Stitching::Directives::Stitch, key: "upc"
           argument :upcs, [ID], required: true
         end
 

@@ -358,20 +358,12 @@ type Query {
 
 #### Class-based schemas
 
-The `@stitch` directive can be added to class-based schemas with a directive class:
+The `@stitch` directive can be added to class-based schemas with a directive definition provided by the library:
 
 ```ruby
-class StitchingResolver < GraphQL::Schema::Directive
-  graphql_name "stitch"
-  locations FIELD_DEFINITION
-  repeatable true
-  argument :key, String, required: true
-  argument :arguments, String, required: false
-end
-
 class Query < GraphQL::Schema::Object
   field :product, Product, null: false do
-    directive StitchingResolver, key: "id"
+    directive GraphQL::Stitching::Directives::Stitch, key: "id"
     argument :id, ID, required: true
   end
 end

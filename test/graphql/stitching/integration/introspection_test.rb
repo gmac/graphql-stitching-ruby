@@ -2,7 +2,6 @@
 
 require "test_helper"
 require_relative "../../../schemas/example"
-require_relative "../../../schemas/introspection"
 
 describe 'GraphQL::Stitching, introspection' do
   def setup
@@ -14,7 +13,7 @@ describe 'GraphQL::Stitching, introspection' do
   end
 
   def test_performs_full_introspection
-    result = plan_and_execute(@supergraph, INTROSPECTION_QUERY)
+    result = plan_and_execute(@supergraph, GraphQL::Introspection::INTROSPECTION_QUERY)
 
     introspection_types = result.dig("data", "__schema", "types").map { _1["name"] }
     expected_types = ["Manufacturer", "Product", "Query", "Storefront"]

@@ -2,13 +2,6 @@
 
 module Schemas
   module Example
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     PRODUCTS = [
       { upc: '1', name: 'iPhone', price: 699.99, manufacturer_id: '1' },
       { upc: '2', name: 'Apple Watch', price: 399.99, manufacturer_id: '1' },
@@ -56,7 +49,7 @@ module Schemas
 
       class RootQuery < GraphQL::Schema::Object
         field :product, Product, null: false do
-          directive Resolver, key: "upc"
+          directive GraphQL::Stitching::Directives::Stitch, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -65,7 +58,7 @@ module Schemas
         end
 
         field :manufacturer, Manufacturer, null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -122,7 +115,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :manufacturer, Manufacturer, null: true do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 

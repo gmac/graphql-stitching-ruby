@@ -2,13 +2,6 @@
 
 module Schemas
   module Conditionals
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     FRUITS = [
       { id: '1', extension_id: '11', __typename: 'Apple' },
       { id: '2', extension_id: '22', __typename: 'Banana' },
@@ -22,7 +15,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :apple_extension, AppleExtension, null: true do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -42,7 +35,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :banana_extension, BananaExtension, null: true do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 

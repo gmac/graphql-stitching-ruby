@@ -2,13 +2,6 @@
 
 module Schemas
   module MultipleKeys
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     PRODUCTS = [
       { id: '1', upc: 'xyz', name: 'iPhone', location: 'Toronto', edition: 'Spring' },
     ].freeze
@@ -23,7 +16,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :storefronts_product_by_id, Product, null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -46,7 +39,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :products_product_by_id, Product, null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -55,7 +48,7 @@ module Schemas
         end
 
         field :products_product_by_upc, Product, null: false do
-          directive Resolver, key: "upc"
+          directive GraphQL::Stitching::Directives::Stitch, key: "upc"
           argument :upc, ID, required: true
         end
 
@@ -77,7 +70,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :catalogs_product_by_upc, Product, null: false do
-          directive Resolver, key: "upc"
+          directive GraphQL::Stitching::Directives::Stitch, key: "upc"
           argument :upc, ID, required: true
         end
 

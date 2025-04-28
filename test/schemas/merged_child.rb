@@ -2,14 +2,6 @@
 
 module Schemas
   module MergedChild
-    class StitchingResolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String, required: true
-      argument :arguments, String, required: false
-      repeatable true
-    end
-
     AUTHOR = {
       id: "1",
       name: "Frank Herbert",
@@ -40,7 +32,7 @@ module Schemas
         end
 
         field :book, Book, null: true do
-          directive StitchingResolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -60,7 +52,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :book, Book, null: true do
-          directive StitchingResolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 

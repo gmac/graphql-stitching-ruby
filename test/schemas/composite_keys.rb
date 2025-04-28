@@ -2,14 +2,6 @@
 
 module Schemas
   module CompositeKeys
-    class StitchingResolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String, required: true
-      argument :arguments, String, required: false
-      repeatable true
-    end
-
     PAGES = [
       {
         id: '1',
@@ -51,7 +43,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :pages_by_id, [Page, null: true], null: false do
-          directive StitchingResolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -78,7 +70,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :pages_by_sku, [Page, null: true], null: false do
-          directive StitchingResolver, key: "sku"
+          directive GraphQL::Stitching::Directives::Stitch, key: "sku"
           argument :skus, [ID], required: true
         end
 
@@ -115,7 +107,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :pages_by_handle, [Page, null: true], null: false do
-          directive StitchingResolver, key: "handle scope", arguments: "keys: { handle: $.handle, scope: $.scope }"
+          directive GraphQL::Stitching::Directives::Stitch, key: "handle scope", arguments: "keys: { handle: $.handle, scope: $.scope }"
           argument :keys, [PageHandleKey], required: true
         end
 
@@ -153,7 +145,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :pages_by_owner, [Page, null: true], null: false do
-          directive StitchingResolver, key: "owner { id type }", arguments: "keys: { id: $.owner.id, type: $.owner.type }"
+          directive GraphQL::Stitching::Directives::Stitch, key: "owner { id type }", arguments: "keys: { id: $.owner.id, type: $.owner.type }"
           argument :keys, [PageOwnerKey], required: true
         end
 

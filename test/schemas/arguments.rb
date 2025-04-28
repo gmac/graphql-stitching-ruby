@@ -2,14 +2,6 @@
 
 module Schemas
   module Arguments
-    class StitchingResolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String, required: true
-      argument :arguments, String, required: false
-      repeatable true
-    end
-
     DIRECTORS = [
       { id: "1", name: "Steven Spielberg" },
       { id: "2", name: "Christopher Nolan" },
@@ -78,7 +70,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :movies, [Movie, null: true], null: false do
-          directive StitchingResolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -133,7 +125,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :movies2, [Movie, null: true], null: false do
-          directive StitchingResolver, key: "id", arguments: "ids: $.id, status: STREAMING"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id", arguments: "ids: $.id, status: STREAMING"
           argument :ids, [ID], required: true
           argument :status, MovieStatus, required: true
         end
@@ -144,7 +136,7 @@ module Schemas
         end
 
         field :director, Director, null: false do
-          directive StitchingResolver, key: "id", arguments: "key: { subkey: { id: $.id } }"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id", arguments: "key: { subkey: { id: $.id } }"
           argument :key, ComplexKey, required: true
         end
 
@@ -153,7 +145,7 @@ module Schemas
         end
 
         field :studios, [Studio, null: true], null: false do
-          directive StitchingResolver, key: "id", arguments: "keys: { subkey: { id: $.id } }"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id", arguments: "keys: { subkey: { id: $.id } }"
           argument :keys, [ScalarKey], required: true
         end
 
@@ -162,7 +154,7 @@ module Schemas
         end
 
         field :genres, [Genre, null: true], null: false do
-          directive StitchingResolver, key: "id", arguments: "keys: $.id, prefix: 'action'"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id", arguments: "keys: $.id, prefix: 'action'"
           argument :keys, [ID], required: true
           argument :prefix, String, required: false
         end

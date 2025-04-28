@@ -2,13 +2,6 @@
 
 module Schemas
   module Mutations
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     RECORDS = []
 
     class << self
@@ -34,7 +27,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :recordA, Record, null: true do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -68,7 +61,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :recordB, Record, null: true do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 

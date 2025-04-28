@@ -2,7 +2,6 @@
 
 require "test_helper"
 require_relative "../../../schemas/example"
-require_relative "../../../schemas/introspection"
 
 describe "GraphQL::Stitching::Planner, introspection" do
   def setup
@@ -14,7 +13,7 @@ describe "GraphQL::Stitching::Planner, introspection" do
   def test_plans_full_introspection_query
     plan = GraphQL::Stitching::Request.new(
       @supergraph,
-      INTROSPECTION_QUERY,
+      GraphQL::Introspection::INTROSPECTION_QUERY,
       operation_name: "IntrospectionQuery",
     ).plan
 

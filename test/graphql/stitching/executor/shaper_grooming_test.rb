@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../../schemas/introspection"
 
 describe "GraphQL::Stitching::Executor::Shaper, grooming" do
   def test_prunes_stitching_fields
@@ -158,10 +157,10 @@ describe "GraphQL::Stitching::Executor::Shaper, grooming" do
     schema = GraphQL::Schema.from_definition(schema_sdl)
     request = GraphQL::Stitching::Request.new(
       supergraph_from_schema(schema),
-      INTROSPECTION_QUERY,
+      GraphQL::Introspection::INTROSPECTION_QUERY,
     )
 
-    raw = schema.execute(INTROSPECTION_QUERY).to_h
+    raw = schema.execute(GraphQL::Introspection::INTROSPECTION_QUERY).to_h
     assert GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 end

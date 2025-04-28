@@ -2,13 +2,6 @@
 
 module Schemas
   module Shareables
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     # ShareableA
 
     class ShareableA < GraphQL::Schema
@@ -31,7 +24,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :gadget_a, Gadget, null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 
@@ -65,7 +58,7 @@ module Schemas
 
       class Query < GraphQL::Schema::Object
         field :gadget_b, Gadget, null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
 

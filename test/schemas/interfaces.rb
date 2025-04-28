@@ -2,13 +2,6 @@
 
 module Schemas
   module Interfaces
-    class Resolver < GraphQL::Schema::Directive
-      graphql_name "stitch"
-      locations FIELD_DEFINITION
-      argument :key, String
-      repeatable true
-    end
-
     PRODUCTS = [
       { id: '1', name: 'iPhone', price: 699.99, __typename: 'Product' },
       { id: '2', name: 'Apple Watch', price: 399.99, __typename: 'Product' },
@@ -66,7 +59,7 @@ module Schemas
         end
 
         field :products_buyables, [Buyable, null: true], null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -75,7 +68,7 @@ module Schemas
         end
 
         field :products_split, [Split, null: true], null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -149,7 +142,7 @@ module Schemas
         end
 
         field :bundles_buyables, [Buyable, null: true], null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 
@@ -158,7 +151,7 @@ module Schemas
         end
 
         field :bundles_split, [Split, null: true], null: false do
-          directive Resolver, key: "id"
+          directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :ids, [ID], required: true
         end
 

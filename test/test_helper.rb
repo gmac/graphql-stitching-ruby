@@ -20,7 +20,7 @@ require 'graphql/stitching'
 CompositionError = GraphQL::Stitching::CompositionError
 ValidationError = GraphQL::Stitching::ValidationError
 STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
-VISIBILITY_DEFINITION = "directive @visibility(profiles: [String!]!) on OBJECT | INTERFACE | UNION | INPUT_OBJECT | ENUM | SCALAR | FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE\n"
+VISIBILITY_DEFINITION = "directive @visibility(profiles: [String!]!) on ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | INPUT_OBJECT | INTERFACE | OBJECT | SCALAR | UNION\n"
 
 class Matcher
   def match?(value)

@@ -165,4 +165,14 @@ type Query {
 }
 ```
 
-In this example, hiding the `Widget` type will also hide the `Query.widget` field that returns it.
+In this example, hiding the `Widget` type will also hide the `Query.widget` field that returns it. You can review materialized visibility profiles by printing their respective schemas:
+
+```ruby
+public_schema = client.supergraph.to_definition(visibility_profile: "public")
+File.write("schemas/supergraph_public.graphql", public_schema)
+
+private_schema = client.supergraph.to_definition(visibility_profile: "private")
+File.write("schemas/supergraph_private.graphql", private_schema)
+```
+
+It's helpful to commit these outputs to your repo where you can monitor their diffs during the PR process.

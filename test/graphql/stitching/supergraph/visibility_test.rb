@@ -24,6 +24,37 @@ describe "GraphQL::Stitching::Supergraph visibility controls" do
     assert_equal ["", "private", "public"], profiles.sort
   end
 
+  def test_to_definition_prints_specific_profile
+    schema_sdl = %|
+      #{visibility_definition_with_profiles(["public", "private"])}
+      type Query { 
+        a: String
+        b: String @visibility(profiles: ["private"])
+        c: String @visibility(profiles: [])
+      }
+    |
+
+    expected_public = %|
+      #{visibility_definition_with_profiles(["public", "private"])}
+      type Query { 
+        a: String
+      }
+    |
+
+    expected_private = %|
+      #{visibility_definition_with_profiles(["public", "private"])}
+      type Query { 
+        a: String
+        b: String @visibility(profiles: ["private"])
+      }
+    |
+
+    supergraph = GraphQL::Stitching::Supergraph.from_definition(schema_sdl, executables: @exec)
+    assert_equal squish_string(schema_sdl), squish_string(supergraph.to_definition)
+    assert_equal squish_string(expected_public), squish_string(supergraph.to_definition(visibility_profile: "public"))
+    assert_equal squish_string(expected_private), squish_string(supergraph.to_definition(visibility_profile: "private"))
+  end
+
   def test_controls_field_visibility
     schema_sdl = %|
       #{visibility_definition_with_profiles(["public", "private"])}
@@ -337,7 +368,7 @@ describe "GraphQL::Stitching::Supergraph visibility controls" do
   def visibility_definition_with_profiles(profiles)
     VISIBILITY_DEFINITION.sub(
       %|@visibility(profiles: [String!]!)|, 
-      %|@visibility(profiles: [String!]! = #{profiles.to_json})|,
+      %|@visibility(profiles: [String!]! = #{profiles.to_json.gsub!(%|","|, %|", "|)})|,
     )
   end
 

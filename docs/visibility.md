@@ -41,7 +41,7 @@ type Query {
 }
 ```
 
-When composing a stitching client, the names of all possible visibility profiles that the supergraph responds to should be specified in composer options:
+When composing a stitching client, the names of all possible visibility profiles that the supergraph should respond to must be specified in composer options:
 
 ```ruby
 client = GraphQL::Stitching::Client.new(
@@ -61,20 +61,20 @@ client = GraphQL::Stitching::Client.new(
 )
 ```
 
-The client can then execute requests with a `visibility_profile` parameter in context that specifies the name of any profile the supergraph was composed with, or nil:
+The client can then execute requests with a `visibility_profile` parameter in context that specifies the name of any profile the supergraph was composed with:
 
 ```ruby
 query = %|{
   featuredProduct {
     title  # always visible
     price  # always visible
-    msrp   # only visible to internal and nil profiles
-    id     # only visible to nil profile
+    msrp   # only visible to "private" or without profile
+    id     # only visible without profile
   }
 }|
 
 result = client.execute(query, context: { 
-  visibility_profile: "public", # << or private, or nil
+  visibility_profile: "public", # << or "private"
 })
 ```
 
@@ -82,7 +82,7 @@ The `visibility_profile` parameter will select which visibility distribution to 
 
 - Using `visibility_profile: "public"` will say the `msrp` field does not exist (because it is restricted to "private").
 - Using `visibility_profile: "private"` will accesses the `msrp` field as usual. 
-- Using `visibility_profile: nil` will access the entire graph without any visibility constraints.
+- Providing no profile parameter (or `visibility_profile: nil`) will access the entire graph without any visibility constraints.
 
 The full potential of visibility comes when hiding stitching implementation details, such as the `id` field (which is the stitching key for the Product type). While the `id` field is hidden from all named profiles, it remains operational for the stitching implementation.
 
@@ -105,7 +105,7 @@ end
 
 ## Merging visibilities
 
-Visibility directives merge across schemas into the narrowest constraint possible. Profile sets for an element will intersect into its supergraph constraint:
+Visibility directives merge across schemas into the narrowest constraint possible. Profiles for an element will intersect into its merged supergraph constraint:
 
 ```graphql
 # location 1

@@ -9,6 +9,7 @@ GraphQL stitching composes a single schema from multiple underlying GraphQL reso
 - Merged object and abstract types joining though multiple keys.
 - Shared objects, fields, enums, and inputs across locations.
 - Combining local and remote schemas.
+- [Visibility controls](./docs/visibility.md) for hiding schema elements.
 - [File uploads](./docs/http_executable.md) via multipart forms.
 - Tested with all minor versions of `graphql-ruby`.
 
@@ -171,11 +172,11 @@ GRAPHQL
 client = GraphQL::Stitching::Client.new(locations: {
   products: {
     schema: GraphQL::Schema.from_definition(products_schema),
-    executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3001"),
   },
   catalog: {
     schema: GraphQL::Schema.from_definition(catalog_schema),
-    executable:  GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
+    executable: GraphQL::Stitching::HttpExecutable.new(url: "http://localhost:3002"),
   },
 })
 ```
@@ -477,6 +478,7 @@ The [Executor](./docs/executor.md) component builds atop the Ruby fiber-based im
 
 - [Deploying a stitched schema](./docs/mechanics.md#deploying-a-stitched-schema)
 - [Schema composition merge patterns](./docs/composer.md#merge-patterns)
+- [Visibility controls](./docs/visibility.md)
 - [Subscriptions tutorial](./docs/subscriptions.md)
 - [Field selection routing](./docs/mechanics.md#field-selection-routing)
 - [Root selection routing](./docs/mechanics.md#root-selection-routing)

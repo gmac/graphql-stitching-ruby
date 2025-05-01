@@ -13,16 +13,18 @@ module GraphQL
       # Builds a new client instance. Either `supergraph` or `locations` configuration is required.
       # @param supergraph [Supergraph] optional, a pre-composed supergraph that bypasses composer setup.
       # @param locations [Hash<Symbol, Hash<Symbol, untyped>>] optional, composer configurations for each graph location.
-      # @param composer [Composer] optional, a pre-configured composer instance for use with `locations` configuration.
-      def initialize(locations: nil, supergraph: nil, composer: nil)
+      # @param composer_options [Hash] optional, composer options for configuring composition.
+      def initialize(locations: nil, supergraph: nil, composer_options: {})
         @supergraph = if locations && supergraph
           raise ArgumentError, "Cannot provide both locations and a supergraph."
         elsif supergraph && !supergraph.is_a?(Supergraph)
           raise ArgumentError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
+        elsif supergraph && composer_options.any?
+          raise ArgumentError, "Cannot provide composer options with a pre-built supergraph."
         elsif supergraph
           supergraph
         else
-          composer ||= Composer.new
+          composer = Composer.new(**composer_options)
           composer.perform(locations)
         end
 

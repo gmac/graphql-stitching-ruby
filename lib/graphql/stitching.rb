@@ -32,8 +32,6 @@ module GraphQL
     end
 
     class << self
-      attr_writer :stitch_directive
-
       # Proc used to compute digests; uses SHA2 by default.
       # @returns [Proc] proc used to compute digests.
       def digest(&block)
@@ -48,6 +46,26 @@ module GraphQL
       # @returns [String] name of the type resolver directive.
       def stitch_directive
         @stitch_directive ||= "stitch"
+      end
+
+      attr_writer :stitch_directive
+
+      # Name of the directive used to denote member visibilities.
+      # @returns [String] name of the visibility directive.
+      def visibility_directive
+        @visibility_directive ||= "visibility"
+      end
+
+      attr_writer :visibility_directive
+
+      MIN_VISIBILITY_VERSION = "2.5.3"
+
+      # @returns Boolean true if GraphQL::Schema::Visibility is fully supported
+      def supports_visibility?
+        return @supports_visibility if defined?(@supports_visibility)
+
+        # Requires `Visibility` (v2.4) with nil profile support (v2.5.3)
+        @supports_visibility = Gem::Version.new(GraphQL::VERSION) >= Gem::Version.new(MIN_VISIBILITY_VERSION)
       end
     end
   end

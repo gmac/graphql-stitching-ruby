@@ -20,6 +20,7 @@ require 'graphql/stitching'
 CompositionError = GraphQL::Stitching::CompositionError
 ValidationError = GraphQL::Stitching::ValidationError
 STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
+VISIBILITY_DEFINITION = "directive @visibility(profiles: [String!]!) on OBJECT | INTERFACE | UNION | INPUT_OBJECT | ENUM | SCALAR | FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE\n"
 
 class Matcher
   def match?(value)
@@ -84,15 +85,7 @@ def squish_string(str)
 end
 
 def minimum_graphql_version?(versioning)
-  lib_versioning = GraphQL::VERSION.split(".").map(&:to_i)
-  versioning.split(".").map(&:to_i).each_with_index.any? do |version, i|
-    lib_version = lib_versioning[i] || 0
-    if i == versioning.length - 1
-      return lib_version >= version
-    elsif lib_version > version
-      return true
-    end
-  end
+  Gem::Version.new(GraphQL::VERSION) >= Gem::Version.new(versioning)
 end
 
 def compose_definitions(locations, options={})

@@ -10,17 +10,29 @@ module GraphQL::Stitching
       end
 
       def from_definition(schema, executables:)
-        schema = GraphQL::Schema.from_definition(schema) if schema.is_a?(String)
+        if schema.is_a?(String)
+          schema = if GraphQL::Stitching.supports_visibility?
+            GraphQL::Schema.from_definition(schema, base_types: BASE_TYPES)
+          else
+            GraphQL::Schema.from_definition(schema)
+          end
+        end
+
         field_map = {}
         resolver_map = {}
         possible_locations = {}
+        visibility_profiles = if (visibility_def = schema.directives[GraphQL::Stitching.visibility_directive])
+          visibility_def.get_argument("profiles").default_value
+        else
+          []
+        end
 
         schema.types.each do |type_name, type|
           next if type.introspection?
 
           # Collect/build key definitions for each type
           locations_by_key = type.directives.each_with_object({}) do |directive, memo|
-            next unless directive.graphql_name == Composer::KeyDirective.graphql_name
+            next unless directive.graphql_name == Directives::SupergraphKey.graphql_name
 
             kwargs = directive.arguments.keyword_arguments
             memo[kwargs[:key]] ||= []
@@ -32,10 +44,10 @@ module GraphQL::Stitching
           end
 
           # Collect/build resolver definitions for each type
-          type.directives.each do |directive|
-            next unless directive.graphql_name == Composer::ResolverDirective.graphql_name
+          type.directives.each do |d|
+            next unless d.graphql_name == Directives::SupergraphResolver.graphql_name
 
-            kwargs = directive.arguments.keyword_arguments
+            kwargs = d.arguments.keyword_arguments
             resolver_map[type_name] ||= []
             resolver_map[type_name] << TypeResolver.new(
               location: kwargs[:location],
@@ -52,8 +64,8 @@ module GraphQL::Stitching
           type.fields.each do |field_name, field|
             # Collection locations for each field definition
             field.directives.each do |d|
-              next unless d.graphql_name == Composer::SourceDirective.graphql_name
-
+              next unless d.graphql_name == Directives::SupergraphSource.graphql_name
+              
               location = d.arguments.keyword_arguments[:location]
               field_map[type_name] ||= {}
               field_map[type_name][field_name] ||= []
@@ -74,6 +86,7 @@ module GraphQL::Stitching
           schema: schema,
           fields: field_map,
           resolvers: resolver_map,
+          visibility_profiles: visibility_profiles,
           executables: executables,
         )
       end

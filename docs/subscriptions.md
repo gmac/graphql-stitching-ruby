@@ -1,4 +1,4 @@
-## Stitching subscriptions
+## Subscriptions
 
 Stitching is an interesting prospect for subscriptions because socket-based interactions can be isolated to their own schema/server with very little implementation beyond resolving entity keys. Then, entity data can be stitched onto subscription payloads from other locations.
 

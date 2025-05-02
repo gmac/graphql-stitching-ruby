@@ -57,6 +57,10 @@ module GraphQL
         @context[:request] = self
       end
 
+      def original_document
+        @query.document
+      end
+
       # @return [String] the original document string, or a print of the parsed AST document.
       def string
         with_prepared_document { @string || normalized_string }

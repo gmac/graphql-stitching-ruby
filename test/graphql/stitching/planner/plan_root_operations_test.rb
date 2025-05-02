@@ -225,7 +225,14 @@ describe "GraphQL::Stitching::Planner, root operations" do
     |
 
     supergraph = compose_definitions({ "a" => sdl, "b" => sdl, "c" => sdl }, {
-      root_field_location_selector: ->(_locations, info) { info[:field_name] }
+      root_entrypoints: {
+        "Query.a" => "a", 
+        "Query.b" => "b", 
+        "Query.c" => "c",
+        "Mutation.a" => "a", 
+        "Mutation.b" => "b", 
+        "Mutation.c" => "c",
+      }
     })
 
     ["query", "mutation"].each do |operation_type|

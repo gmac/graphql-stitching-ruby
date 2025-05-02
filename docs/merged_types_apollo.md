@@ -8,7 +8,7 @@ To avoid confusion, using [basic resolver queries](../README.md#merged-type-reso
 
 The following subset of the federation spec is supported:
 
-- `@key(fields: "id")` (repeatable) specifies a key field for an object type. The key `fields` argument may only contain one field selection.
+- `@key(fields: "id")` (repeatable) specifies a key field for an object type.
 - `_Entity` is a union type that must contain all types that implement a `@key`.
 - `_Any` is a scalar that recieves raw JSON objects; each object representation contains a `__typename` and the type's key field.
 - `_entities(representations: [_Any!]!): [_Entity]!` is a root query for local entity types.

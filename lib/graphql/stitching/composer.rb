@@ -27,9 +27,6 @@ module GraphQL
       VISIBILITY_PROFILES_MERGER = ->(values_by_location, _info) { values_by_location.values.reduce(:&) }
 
       # @api private
-      BASIC_ROOT_FIELD_LOCATION_SELECTOR = ->(locations, _info) { locations.last }
-
-      # @api private
       COMPOSITION_VALIDATORS = [
         ValidateInterfaces,
         ValidateTypeResolvers,
@@ -59,7 +56,8 @@ module GraphQL
         deprecation_merger: nil,
         default_value_merger: nil,
         directive_kwarg_merger: nil,
-        root_field_location_selector: nil
+        root_field_location_selector: nil,
+        root_entrypoints: nil
       )
         @query_name = query_name
         @mutation_name = mutation_name
@@ -68,7 +66,8 @@ module GraphQL
         @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
         @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
         @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
-        @root_field_location_selector = root_field_location_selector || BASIC_ROOT_FIELD_LOCATION_SELECTOR
+        @root_field_location_selector = root_field_location_selector
+        @root_entrypoints = root_entrypoints || {}
         
         @field_map = {}
         @resolver_map = {}
@@ -631,11 +630,20 @@ module GraphQL
             root_field_locations = @field_map[root_type.graphql_name][root_field_name]
             next unless root_field_locations.length > 1
 
-            target_location = @root_field_location_selector.call(root_field_locations, {
-              type_name: root_type.graphql_name,
-              field_name: root_field_name,
-            })
-            next unless root_field_locations.include?(target_location)
+            root_field_path = "#{root_type.graphql_name}.#{root_field_name}"
+            target_location = if @root_field_location_selector && @root_entrypoints.empty?
+              Warning.warn("Composer option `root_field_location_selector` is deprecated and will be removed.")
+              @root_field_location_selector.call(root_field_locations, {
+                type_name: root_type.graphql_name,
+                field_name: root_field_name,
+              })
+            else
+              @root_entrypoints[root_field_path] || root_field_locations.last
+            end
+
+            unless root_field_locations.include?(target_location)
+              raise CompositionError, "Invalid `root_entrypoints` configuration: `#{root_field_path}` has no `#{target_location}` location."
+            end
 
             root_field_locations.reject! { _1 == target_location }
             root_field_locations.unshift(target_location)

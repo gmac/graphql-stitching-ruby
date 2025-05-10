@@ -7,6 +7,12 @@ module GraphQL
     # Client is an out-of-the-box helper that assembles all 
     # stitching components into a workflow that executes requests.
     class Client
+      class << self
+        def from_definition(schema, executables:)
+          new(supergraph: Supergraph.from_definition(schema, executables: executables))
+        end
+      end
+      
       # @return [Supergraph] composed supergraph that services incoming requests.
       attr_reader :supergraph
 

@@ -75,4 +75,27 @@ describe 'GraphQL::Stitching::Composer, merging root objects' do
     assert_equal ["a", "b"], delegation_map["Query"]["f"]
     assert_equal ["a", "b"], delegation_map["Mutation"]["f"]
   end
+
+  def test_prioritizes_root_entrypoints_locations
+    a = "type Query { f:String } type Mutation { f:String }"
+    b = "type Query { f:String } type Mutation { f:String }"
+
+    delegation_map = compose_definitions({ "a" => a, "b" => b }, {
+      root_entrypoints: { "Query.f" => "a", "Mutation.f" => "a" },
+    }).fields
+
+    assert_equal ["a", "b"], delegation_map["Query"]["f"]
+    assert_equal ["a", "b"], delegation_map["Mutation"]["f"]
+  end
+
+  def test_errors_for_invalid_root_entrypoints
+    a = "type Query { f:String } type Mutation { f:String }"
+    b = "type Query { f:String } type Mutation { f:String }"
+
+    assert_error("Invalid `root_entrypoints` configuration", CompositionError) do
+      compose_definitions({ "a" => a, "b" => b }, {
+        root_entrypoints: { "Query.f" => "invalid" },
+      })
+    end
+  end
 end

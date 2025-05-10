@@ -1,8 +1,8 @@
 # Visibility
 
-Visibility controls can hide parts of a supergraph from select audiences without compromising stitching operations. Restricted schema elements are hidden from introspection and validate as though they do not exist (which is different from traditional authorization where an element is acknowledged as restricted). Visibility is useful for managing multiple distributions of a schema for different audiences.
+Visibility controls can hide parts of a supergraph from select audiences without compromising stitching operations. Restricted schema elements are hidden from introspection and validate as though they do not exist (which is different from traditional authorization where an element is acknowledged as restricted). Visibility is useful for managing multiple distributions of a schema for different audiences, and provides a flexible analog to Apollo Federation's `@inaccessible` rule.
 
-Under the hood, this system wraps `GraphQL::Schema::Visibility` (with nil profile support) and requires at least GraphQL Ruby v2.5.3.
+Under the hood, this system wraps [GraphQL visibility](https://graphql-ruby.org/authorization/visibility) (specifically, the newer `GraphQL::Schema::Visibility` with nil profile support) and requires at least GraphQL Ruby v2.5.3.
 
 ## Example
 
@@ -41,7 +41,7 @@ type Query {
 }
 ```
 
-When composing a stitching client, the names of all possible visibility profiles that the supergraph should respond to must be specified in composer options:
+When composing a stitching client, the names of all possible visibility profiles that the supergraph should respond to are specified in composer options:
 
 ```ruby
 client = GraphQL::Stitching::Client.new(
@@ -61,7 +61,7 @@ client = GraphQL::Stitching::Client.new(
 )
 ```
 
-The client can then execute requests with a `visibility_profile` parameter in context that specifies the name of any profile the supergraph was composed with:
+The client can then execute requests with a `visibility_profile` parameter in context that specifies one of these names:
 
 ```ruby
 query = %|{
@@ -84,7 +84,7 @@ The `visibility_profile` parameter will select which visibility distribution to 
 - Using `visibility_profile: "private"` will accesses the `msrp` field as usual. 
 - Providing no profile parameter (or `visibility_profile: nil`) will access the entire graph without any visibility constraints.
 
-The full potential of visibility comes when hiding stitching implementation details, such as the `id` field (which is the stitching key for the Product type). While the `id` field is hidden from all named profiles, it remains operational for the stitching implementation.
+The full potential of visibility comes when hiding stitching implementation details, such as the `id` field (which is the stitching key for the Product type). While the `id` field is hidden from all named profiles, it remains operational for use by the stitching implementation.
 
 ## Adding visibility directives
 
@@ -165,4 +165,14 @@ type Query {
 }
 ```
 
-In this example, hiding the `Widget` type will also hide the `Query.widget` field that returns it.
+In this example, hiding the `Widget` type will also hide the `Query.widget` field that returns it. You can review materialized visibility profiles by printing their respective schemas:
+
+```ruby
+public_schema = client.supergraph.to_definition(visibility_profile: "public")
+File.write("schemas/supergraph_public.graphql", public_schema)
+
+private_schema = client.supergraph.to_definition(visibility_profile: "private")
+File.write("schemas/supergraph_private.graphql", private_schema)
+```
+
+It's helpful to commit these outputs to your repo where you can monitor their diffs during the PR process.

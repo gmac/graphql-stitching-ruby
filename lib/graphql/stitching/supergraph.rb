@@ -58,8 +58,10 @@ module GraphQL
         end
       end
 
-      def to_definition
-        @schema.to_definition
+      def to_definition(visibility_profile: nil)
+        @schema.to_definition(context: { 
+          visibility_profile: visibility_profile,
+        }.tap(&:compact!))
       end
 
       def resolvers_by_version

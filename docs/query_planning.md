@@ -1,16 +1,9 @@
 ## Query Planning
 
+
 ### Root selection routing
 
-Root fields should route to the primary locations of their provided types. This assures that the most common data for a type can be resolved via root access and thus avoid unnecessary stitching. Root fields can select their primary locations using the `root_field_location_selector` option in [composer configuration](./composer.md#configuring-composition):
-
-```ruby
-supergraph = GraphQL::Stitching::Composer.new(
-  root_field_location_selector: ->(locations) { locations.find { _1 == "a" } || locations.last },
-).perform({ ... })
-```
-
-It's okay if root field names are repeated across locations. The primary location will be used when routing root selections:
+It's okay if root field names are repeated across locations. The entrypoint location will be used when routing root selections:
 
 ```graphql
 # -- Location A
@@ -21,7 +14,7 @@ type Movie {
 }
 
 type Query {
-  movie(id: ID!): Movie @stitch(key: "id") # shared, primary
+  movie(id: ID!): Movie @stitch(key: "id") # << set as root entrypoint
 }
 
 # -- Location B
@@ -32,7 +25,7 @@ type Movie {
 }
 
 type Query {
-  movie(id: ID!): Movie @stitch(key: "id") # shared
+  movie(id: ID!): Movie @stitch(key: "id")
 }
 
 # -- Request

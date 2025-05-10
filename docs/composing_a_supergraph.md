@@ -186,7 +186,7 @@ client = GraphQL::Stitching::Client.new(
 )
 ```
 
-In the above, selecting the root `product` field will route to the "infos" schema by default. You should bias root fields to their most general-purpose location. This option _only_ applies to root fields where the planner has no starting location bias. Overlapping fields in lower-level positions will always bias towards the current planning location.
+In the above, selecting the root `product` field will route to the "infos" schema by default. You should bias root fields to their most general-purpose location. This option _only_ applies to root fields where the query planner has no starting location bias (learn more about [query planning](./query_planning.md)). Note that [type resolver queries](./merged_types.md#type-resolver-queries) are unaffected by entrypoint bias; a type resolver will always be accessed directly for a location when needed.
 
 ### Schema merge patterns
 

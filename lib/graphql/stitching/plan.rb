@@ -32,10 +32,22 @@ module GraphQL
         end
       end
 
+      Error = Struct.new(
+        :code,
+        :path,
+        keyword_init: true
+      ) do
+        def as_json
+          {
+            code: code,
+            path: path,
+          }
+        end
+      end
+
       class << self
         def from_json(json)
-          ops = json["ops"]
-          ops = ops.map do |op|
+          ops = json["ops"].map do |op|
             Op.new(
               step: op["step"],
               after: op["after"],
@@ -48,18 +60,36 @@ module GraphQL
               resolver: op["resolver"],
             )
           end
-          new(ops: ops)
+
+          errors = json["errors"]&.map do |err|
+            Error.new(
+              code: err["code"],
+              path: err["path"],
+            )
+          end
+
+          new(
+            ops: ops,
+            claims: json["claims"] || EMPTY_ARRAY, 
+            errors: errors || EMPTY_ARRAY,
+          )
         end
       end
 
-      attr_reader :ops
+      attr_reader :ops, :claims, :errors
 
-      def initialize(ops: [])
+      def initialize(ops: EMPTY_ARRAY, claims: nil, errors: nil)
         @ops = ops
+        @claims = claims || EMPTY_ARRAY
+        @errors = errors || EMPTY_ARRAY
       end
 
       def as_json
-        { ops: @ops.map(&:as_json) }
+        {
+          ops: @ops.map(&:as_json),
+          claims: @claims,
+          errors: @errors.map(&:as_json),
+        }.tap(&:compact!)
       end
     end
   end

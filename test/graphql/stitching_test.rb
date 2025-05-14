@@ -22,6 +22,7 @@ describe "GraphQL::Stitching" do
   def test_gets_and_sets_library_directive_names
     stitch_name = GraphQL::Stitching.stitch_directive
     visibility_name = GraphQL::Stitching.visibility_directive
+    authorization_name = GraphQL::Stitching.authorization_directive
 
     begin
       GraphQL::Stitching.stitch_directive = "test"
@@ -29,9 +30,13 @@ describe "GraphQL::Stitching" do
 
       GraphQL::Stitching.visibility_directive = "test"
       assert_equal "test", GraphQL::Stitching.visibility_directive
+
+      GraphQL::Stitching.authorization_directive = "test"
+      assert_equal "test", GraphQL::Stitching.authorization_directive
     ensure
       GraphQL::Stitching.stitch_directive = stitch_name
       GraphQL::Stitching.visibility_directive = visibility_name
+      GraphQL::Stitching.authorization_directive = authorization_name
     end
   end
 

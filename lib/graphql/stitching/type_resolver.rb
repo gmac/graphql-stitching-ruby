@@ -10,6 +10,12 @@ module GraphQL
       extend ArgumentsParser
       extend KeysParser
 
+      class << self
+        # only intended for testing...
+        attr_reader :use_static_version
+        @use_static_version = false
+      end
+
       # location name providing the resolver query.
       attr_reader :location
 
@@ -47,7 +53,11 @@ module GraphQL
       end
 
       def version
-        @version ||= Stitching.digest.call("#{Stitching::VERSION}/#{as_json.to_json}")
+        @version ||= if self.class.use_static_version
+          [location, field, key.to_definition, type_name].join(".")
+        else
+          Stitching.digest.call("#{Stitching::VERSION}/#{as_json.to_json}")
+        end
       end
 
       def ==(other)

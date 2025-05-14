@@ -58,6 +58,14 @@ module GraphQL
 
       attr_writer :visibility_directive
 
+      # Name of the directive used to denote member authorizations.
+      # @returns [String] name of the authorization directive.
+      def authorization_directive
+        @authorization_directive ||= "authorization"
+      end
+
+      attr_writer :authorization_directive
+
       MIN_VISIBILITY_VERSION = "2.5.3"
 
       # @returns Boolean true if GraphQL::Schema::Visibility is fully supported

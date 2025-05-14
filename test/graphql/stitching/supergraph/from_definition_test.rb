@@ -80,4 +80,42 @@ describe "GraphQL::Stitching::Supergraph#from_definition" do
       })
     end
   end
+
+  def test_collects_authorizations
+    alpha = %|
+      #{AUTHORIZATION_DEFINITION}
+      interface I @authorization(scopes: [["s1"]]) { 
+        id:ID!
+      }
+      type T implements I @authorization(scopes: [["s2"]]) { 
+        id:ID! 
+        a:String
+      }
+      type Query { 
+        a(id:ID!):I @stitch(key: "id")
+      }
+    |
+    bravo = %|
+      type T { 
+        id:ID! 
+        b:String
+      }
+      type Query { 
+        b(id:ID!):T @stitch(key: "id")
+      }
+    |
+
+    expected = {
+      "I" => {
+        "id" => [["s1"]],
+      },
+      "T" => {
+        "id" => [["s1", "s2"]],
+        "a" => [["s2"]],
+      },
+    }
+
+    supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
+    assert_equal expected, supergraph.authorizations_by_type_and_field
+  end
 end

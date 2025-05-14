@@ -15,12 +15,17 @@ module GraphQL
         @supergraph = request.supergraph
         @planning_index = ROOT_INDEX
         @steps_by_entrypoint = {}
+        @errors = nil
       end
 
       def perform
         build_root_entrypoints
         expand_abstract_resolvers
-        Plan.new(ops: steps.map!(&:to_plan_op))
+        Plan.new(
+          ops: steps.map!(&:to_plan_op),
+          claims: @request.claims&.to_a || EMPTY_ARRAY,
+          errors: @errors || EMPTY_ARRAY,
+        )
       end
 
       def steps
@@ -102,6 +107,14 @@ module GraphQL
         end
       end
 
+      def add_unauthorized(path)
+        @errors ||= []
+        @errors << Plan::Error.new(
+          code: "unauthorized",
+          path: path,
+        )
+      end
+
       ScopePartition = Struct.new(:location, :selections, keyword_init: true)
 
       # A) Group all root selections by their preferred entrypoint locations.
@@ -175,7 +188,11 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            yield(node)
+            if @request.authorized?(parent_type.graphql_name, node.name)
+              yield(node)
+            else
+              add_unauthorized([node.alias || node.name])
+            end
 
           when GraphQL::Language::Nodes::InlineFragment
             next unless node.type.nil? || parent_type.graphql_name == node.type.name
@@ -217,6 +234,10 @@ module GraphQL
               raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{TypeResolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
+              next
+            elsif !@request.authorized?(parent_type.graphql_name, node.name)
+              requires_typename = true
+              add_unauthorized([*path, node.alias || node.name])
               next
             end
 

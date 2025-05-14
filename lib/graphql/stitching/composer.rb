@@ -4,6 +4,7 @@ require_relative "composer/base_validator"
 require_relative "composer/validate_interfaces"
 require_relative "composer/validate_type_resolvers"
 require_relative "composer/type_resolver_config"
+require_relative "composer/authorization"
 
 module GraphQL
   module Stitching
@@ -11,6 +12,8 @@ module GraphQL
     # representing various graph locations and merges them into one 
     # combined Supergraph that is validated for integrity.
     class Composer
+      include Authorization
+
       # @api private
       NO_DEFAULT_VALUE = begin
         t = Class.new(GraphQL::Schema::Object) do
@@ -60,6 +63,7 @@ module GraphQL
         @resolver_configs = {}
         @mapped_type_names = {}
         @visibility_profiles = Set.new(visibility_profiles)
+        @authorizations_by_type_and_field = {}
         @subgraph_directives_by_name_and_location = nil
         @subgraph_types_by_name_and_location = nil
         @schema_directives = nil
@@ -74,6 +78,7 @@ module GraphQL
 
         directives_to_omit = [
           GraphQL::Stitching.stitch_directive,
+          GraphQL::Stitching.authorization_directive,
           Directives::SupergraphKey.graphql_name,
           Directives::SupergraphResolver.graphql_name,
           Directives::SupergraphSource.graphql_name,
@@ -169,6 +174,7 @@ module GraphQL
         select_root_field_locations(schema)
         expand_abstract_resolvers(schema, schemas)
         apply_supergraph_directives(schema, @resolver_map, @field_map)
+        apply_authorization_directives(schema, @authorizations_by_type_and_field)
 
         if (visibility_def = schema.directives[GraphQL::Stitching.visibility_directive])
           visibility_def.get_argument("profiles").default_value(@visibility_profiles.to_a.sort)
@@ -200,6 +206,10 @@ module GraphQL
 
           @resolver_configs.merge!(TypeResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
           @resolver_configs.merge!(TypeResolverConfig.extract_federation_entities(schema, location))
+
+          if schema.directives[GraphQL::Stitching.authorization_directive]
+            SubgraphAuthorization.new(schema).reverse_merge!(@authorizations_by_type_and_field)
+          end
 
           schemas[location.to_s] = schema
           executables[location.to_s] = input[:executable] || schema
@@ -749,6 +759,24 @@ module GraphQL
         end
         
         schema_directives.each_value { |directive_class| schema.directive(directive_class) }
+      end
+
+      def apply_authorization_directives(schema, authorizations_by_type_and_field)
+        return if authorizations_by_type_and_field.empty?
+
+        schema.types.each_value do |type|
+          authorizations_by_field = authorizations_by_type_and_field[type.graphql_name]
+          next if authorizations_by_field.nil? || !type.kind.fields?
+
+          type.fields.each_value do |field|
+            scopes = authorizations_by_field[field.graphql_name]
+            next if scopes.nil?
+            
+            field.directive(Directives::Authorization, scopes: scopes)
+          end
+        end
+
+        schema.directive(Directives::Authorization)
       end
     end
   end

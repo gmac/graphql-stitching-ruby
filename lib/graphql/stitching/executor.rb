@@ -45,6 +45,16 @@ module GraphQL
           result["data"] = raw ? @data : Shaper.new(@request).perform!(@data)
         end
 
+        @request.plan.errors.each do |error|
+          case error.code
+          when "unauthorized"
+            @errors << {
+              "message" => "Unauthorized access",
+              "path" => error.path,
+            }
+          end
+        end
+
         if @errors.length > 0
           result["errors"] = @errors
         end

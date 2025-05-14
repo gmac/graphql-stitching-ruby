@@ -21,6 +21,7 @@ CompositionError = GraphQL::Stitching::CompositionError
 ValidationError = GraphQL::Stitching::ValidationError
 STITCH_DEFINITION = "directive @stitch(key: String!, arguments: String, typeName: String) repeatable on FIELD_DEFINITION\n"
 VISIBILITY_DEFINITION = "directive @visibility(profiles: [String!]!) on ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | INPUT_OBJECT | INTERFACE | OBJECT | SCALAR | UNION\n"
+AUTHORIZATION_DEFINITION = "directive @authorization(scopes: [[String!]!]!) on ENUM | FIELD_DEFINITION | INTERFACE | OBJECT | SCALAR\n"
 
 class Matcher
   def match?(value)
@@ -127,11 +128,12 @@ def supergraph_from_schema(schema, fields: {}, resolvers: {}, executables: {})
   )
 end
 
-def plan_and_execute(supergraph, query, variables={}, raw: false)
+def plan_and_execute(supergraph, query, variables={}, claims: nil, raw: false)
   request = GraphQL::Stitching::Request.new(
     supergraph,
     query,
     variables: variables,
+    claims: claims,
   )
 
   assert request.valid?, "Expected request to be valid: #{request.validate.map(&:message)}"

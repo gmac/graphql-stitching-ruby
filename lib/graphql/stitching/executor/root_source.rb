@@ -16,7 +16,7 @@ module GraphQL::Stitching
           @executor.request.operation_name,
           @executor.request.operation_directives,
         )
-        query_variables = @executor.request.variables.slice(*op.variables.keys)
+        query_variables = @executor.request.variables.slice(*op.variables.each_key)
         result = @executor.request.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request)
         @executor.query_count += 1
 

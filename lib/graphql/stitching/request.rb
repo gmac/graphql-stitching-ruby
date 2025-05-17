@@ -147,6 +147,11 @@ module GraphQL
         @query.static_errors
       end
 
+      # @return [Boolean] is the request valid?
+      def valid?
+        validate.empty?
+      end
+
       # Gets and sets the query plan for the request. Assigned query plans may pull from a cache,
       # which is useful for redundant GraphQL documents (commonly sent by frontend clients).
       # ```ruby

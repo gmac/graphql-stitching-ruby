@@ -21,11 +21,8 @@ module GraphQL::Stitching
         field_map = {}
         resolver_map = {}
         possible_locations = {}
-        visibility_profiles = if (visibility_def = schema.directives[GraphQL::Stitching.visibility_directive])
-          visibility_def.get_argument("profiles").default_value
-        else
-          []
-        end
+        visibility_definition = schema.directives[GraphQL::Stitching.visibility_directive]
+        visibility_profiles = visibility_definition&.get_argument("profiles")&.default_value || EMPTY_ARRAY
 
         schema.types.each do |type_name, type|
           next if type.introspection?
@@ -75,7 +72,7 @@ module GraphQL::Stitching
           end
         end
 
-        executables = possible_locations.keys.each_with_object({}) do |location, memo|
+        executables = possible_locations.each_key.each_with_object({}) do |location, memo|
           executable = executables[location] || executables[location.to_sym]
           if validate_executable!(location, executable)
             memo[location] = executable

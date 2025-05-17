@@ -24,7 +24,7 @@ module GraphQL
       end
 
       def steps
-        @steps_by_entrypoint.values.sort_by!(&:index)
+        @steps_by_entrypoint.each_value.select { _1.selections.any? }.sort_by!(&:index)
       end
 
       private
@@ -238,6 +238,7 @@ module GraphQL
               selection_set = extract_locale_selections(current_location, field_type, parent_index, node.selections, path, locale_variables)
               path.pop
 
+              next if selection_set.empty?
               locale_selections << node.merge(selections: selection_set)
             end
 
@@ -250,6 +251,7 @@ module GraphQL
             extract_locale_selections(current_location, fragment_type, parent_index, node.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
+              next if selection_set.empty?
               locale_selections << node.merge(selections: selection_set)
               requires_typename = true
             end
@@ -265,6 +267,7 @@ module GraphQL
             extract_locale_selections(current_location, fragment_type, parent_index, fragment.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
+              next if selection_set.empty?
               locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             end
 
@@ -284,7 +287,7 @@ module GraphQL
           remote_selections_by_location = delegate_remote_selections(parent_type, remote_selections)
 
           # D) Create paths routing to new entrypoint locations via resolver queries.
-          routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.keys)
+          routes = @supergraph.route_type_to_locations(parent_type.graphql_name, current_location, remote_selections_by_location.each_key)
 
           # E) Translate resolver pathways into new entrypoints.
           routes.each_value do |route|

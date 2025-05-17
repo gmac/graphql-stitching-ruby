@@ -165,7 +165,7 @@ module GraphQL::Stitching
         if pathed_errors_by_op_index_and_object_id.any?
           pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
             repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "path"))
-            errors_result.concat(pathed_errors_by_object_id.values)
+            errors_result.push(*pathed_errors_by_object_id.each_value)
           end
         end
 

@@ -7,6 +7,7 @@ Gem.path.each do |path|
   # ignore warnings from auto-generated GraphQL lib code.
   Warning.ignore(/.*mismatched indentations.*/)
   Warning.ignore(/.*lib\/graphql\/language\/nodes.rb:.*/)
+  Warning.ignore(/Composer option `[^`]+` is deprecated.*/)
 end
 
 require 'bundler/setup'
@@ -121,6 +122,7 @@ def plan_and_execute(supergraph, query, variables={}, raw: false)
     variables: variables,
   )
 
+  assert request.valid?, "Expected request to be valid: #{request.validate.map(&:message)}"
   plan = request.plan
   executor = GraphQL::Stitching::Executor.new(request)
   result = executor.perform(raw: raw)

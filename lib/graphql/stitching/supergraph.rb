@@ -38,7 +38,7 @@ module GraphQL
         @locations_by_type_and_field = @memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
           next unless type.kind.fields?
 
-          memo[type_name] = type.fields.keys.each_with_object({}) do |field_name, m|
+          memo[type_name] = type.fields.each_key.each_with_object({}) do |field_name, m|
             m[field_name] = [SUPERGRAPH_LOCATION]
           end
         end.freeze
@@ -75,7 +75,7 @@ module GraphQL
       end
 
       def locations
-        @executables.keys.reject { _1 == SUPERGRAPH_LOCATION }
+        @executables.each_key.reject { _1 == SUPERGRAPH_LOCATION }
       end
 
       def memoized_schema_fields(type_name)
@@ -130,7 +130,7 @@ module GraphQL
       # "Type" => ["location1", "location2", ...]
       def locations_by_type
         @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
-          memo[type_name] = fields.values.flatten.uniq
+          memo[type_name] = fields.values.tap(&:flatten!).tap(&:uniq!)
         end
       end
 

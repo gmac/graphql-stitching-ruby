@@ -32,7 +32,7 @@ module GraphQL::Stitching
             field_name = node.alias || node.name
 
             if @request.query.get_field(parent_type, node.name).introspection?
-              if node.name == TYPENAME && parent_type == @root_type
+              if node.name == TYPENAME && parent_type == @root_type && node != TypeResolver::TYPENAME_EXPORT_NODE
                 raw_object[field_name] = @root_type.graphql_name
               end
               next

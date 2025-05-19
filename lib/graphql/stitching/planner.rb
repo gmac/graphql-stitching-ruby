@@ -24,7 +24,7 @@ module GraphQL
       end
 
       def steps
-        @steps_by_entrypoint.each_value.select { _1.selections.any? }.sort_by!(&:index)
+        @steps_by_entrypoint.values.sort_by!(&:index)
       end
 
       private
@@ -213,7 +213,7 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX)
+            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX) && node != TypeResolver::TYPENAME_EXPORT_NODE
               raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{TypeResolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node
@@ -238,7 +238,6 @@ module GraphQL
               selection_set = extract_locale_selections(current_location, field_type, parent_index, node.selections, path, locale_variables)
               path.pop
 
-              next if selection_set.empty?
               locale_selections << node.merge(selections: selection_set)
             end
 
@@ -251,7 +250,6 @@ module GraphQL
             extract_locale_selections(current_location, fragment_type, parent_index, node.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
-              next if selection_set.empty?
               locale_selections << node.merge(selections: selection_set)
               requires_typename = true
             end
@@ -267,7 +265,6 @@ module GraphQL
             extract_locale_selections(current_location, fragment_type, parent_index, fragment.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
-              next if selection_set.empty?
               locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
             end
 

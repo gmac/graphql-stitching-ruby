@@ -51,7 +51,7 @@ describe 'GraphQL::Stitching, introspection' do
       },
     }
 
-    assert_equal expected, result
+    assert_equal expected, result.to_h
   end
 
   def test_performs_type_introspection_with_other_stitching
@@ -83,6 +83,6 @@ describe 'GraphQL::Stitching, introspection' do
       },
     }
 
-    assert_equal expected, result
+    assert_equal expected, result.to_h
   end
 end

@@ -30,10 +30,15 @@ module GraphQL::Stitching
           case node
           when GraphQL::Language::Nodes::Field
             field_name = node.alias || node.name
+            raw_value = raw_object.delete(field_name)
 
             if @request.query.get_field(parent_type, node.name).introspection?
-              if node.name == TYPENAME && parent_type == @root_type && node != TypeResolver::TYPENAME_EXPORT_NODE
-                raw_object[field_name] = @root_type.graphql_name
+              next if TypeResolver.export_key?(field_name)
+
+              raw_object[field_name] = if node.name == TYPENAME && parent_type == @root_type
+                @root_type.graphql_name
+              else
+                raw_value
               end
               next
             end
@@ -42,14 +47,14 @@ module GraphQL::Stitching
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
-              resolve_list_scope(raw_object[field_name], Util.unwrap_non_null(node_type), node.selections)
+              resolve_list_scope(raw_value, Util.unwrap_non_null(node_type), node.selections)
             elsif Util.is_leaf_type?(named_type)
-              raw_object[field_name]
+              raw_value
             else
-              resolve_object_scope(raw_object[field_name], named_type, node.selections)
+              resolve_object_scope(raw_value, named_type, node.selections)
             end
 
-            return nil if raw_object[field_name].nil? && node_type.non_null?
+            return nil if node_type.non_null? && raw_object[field_name].nil?
 
           when GraphQL::Language::Nodes::InlineFragment
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type

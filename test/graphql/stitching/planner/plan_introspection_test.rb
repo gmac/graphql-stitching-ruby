@@ -62,4 +62,13 @@ describe "GraphQL::Stitching::Planner, introspection" do
       ).plan
     end
   end
+
+  def test_errors_for_reserved_typehint_alias
+    assert_error %|Alias "_export___typename" is not allowed because "_export_" is a reserved prefix| do
+      GraphQL::Stitching::Request.new(
+        @supergraph,
+        %|{ a { _export___typename: __typename } }|,
+      ).plan
+    end
+  end
 end

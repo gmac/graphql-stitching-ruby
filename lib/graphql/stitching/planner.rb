@@ -213,7 +213,7 @@ module GraphQL
         input_selections.each do |node|
           case node
           when GraphQL::Language::Nodes::Field
-            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX) && node != TypeResolver::TYPENAME_EXPORT_NODE
+            if node.alias&.start_with?(TypeResolver::EXPORT_PREFIX) && node.object_id != TypeResolver::TYPENAME_EXPORT_NODE.object_id
               raise StitchingError, %(Alias "#{node.alias}" is not allowed because "#{TypeResolver::EXPORT_PREFIX}" is a reserved prefix.)
             elsif node.name == TYPENAME
               locale_selections << node

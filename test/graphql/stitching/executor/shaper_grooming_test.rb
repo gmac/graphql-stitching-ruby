@@ -112,6 +112,64 @@ describe "GraphQL::Stitching::Executor::Shaper, grooming" do
     assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
+  def test_grooms_returned_field_order_to_match_selection
+    schema_sdl = %|
+      type Shop {
+        name: String
+        currency: String
+      }
+      type Product {
+        title: String
+        price: Float
+        parent: Product
+      }
+      type Query {
+        products: [Product]!
+        shop: Shop
+      }
+    |
+    query = %|{
+      products {
+        title
+        price
+        parent {
+          price
+          title
+        }
+      }
+      shop {
+        name
+        currency
+      }
+    }|
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
+    )
+    raw = {
+      "shop" => {
+        "currency" => "USD",
+        "name" => "Dog Haus",
+      },
+      "products" => [
+        {
+          "parent" => { "title" => "Leash set", "price" => 25.99 },
+          "title" => "Collar",
+          "price" => 7.99,
+        },
+        {
+          "parent" => { "title" => "Bowl set", "price" => 19.99 },
+          "title" => "Bowl",
+          "price" => 5.99,
+        },
+      ],
+    }
+
+    expected = %|{"products":[{"title":"Collar","price":7.99,"parent":{"price":25.99,"title":"Leash set"}},{"title":"Bowl","price":5.99,"parent":{"price":19.99,"title":"Bowl set"}}],"shop":{"name":"Dog Haus","currency":"USD"}}|
+
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw).to_json
+  end
+
   def test_renames_root_query_typenames
     schema_sdl = "type Query { field: String }"
     source = %|

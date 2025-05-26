@@ -38,10 +38,9 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
   end
 
   def test_expands_interface_selections_for_target_location
-    plan = GraphQL::Stitching::Request.new(
-      @supergraph,
-      %|{ buyable(id:"1") { id name price } }|,
-    ).plan
+    plan = with_static_resolver_version do
+      GraphQL::Stitching::Request.new(@supergraph, %|{ buyable(id:"1") { id name price } }|).plan
+    end
 
     expected_root_selection = %|
       {
@@ -77,11 +76,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ name price }",
       path: ["buyable"],
       if_type: "Product",
-      resolver: resolver_version("Product", {
-        location: "a",
-        field: "products",
-        key: "id",
-      }),
+      resolver: "a.products.id.Product",
     }
   end
 
@@ -224,7 +219,9 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
 
     @supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c })
 
-    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
+    plan = with_static_resolver_version do
+      GraphQL::Stitching::Request.new(@supergraph, document).plan
+    end
 
     expected_root_selection = %|
       {
@@ -260,10 +257,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Apple",
-      resolver: resolver_version("Apple", {
-        location: "b",
-        key: "id",
-      }),
+      resolver: "b.apple.id.Apple",
     }
 
     assert_keys plan.ops[2].as_json, {
@@ -272,10 +266,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ c }",
       path: ["fruit"],
       if_type: "Apple",
-      resolver: resolver_version("Apple", {
-        location: "c",
-        key: "id",
-      }),
+      resolver: "c.apple.id.Apple",
     }
 
     assert_keys plan.ops[3].as_json, {
@@ -284,19 +275,7 @@ describe "GraphQL::Stitching::Planner, abstract merged types" do
       selections: "{ b }",
       path: ["fruit"],
       if_type: "Banana",
-      resolver: resolver_version("Banana", {
-        location: "b",
-        key: "id",
-      }),
+      resolver: "b.banana.id.Banana",
     }
-  end
-
-  private
-
-  def resolver_version(type_name, criteria)
-    @supergraph.resolvers[type_name].find do |resolver|
-      json = resolver.as_json
-      criteria.all? { |k, v| json[k] == v }
-    end.version
   end
 end

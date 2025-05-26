@@ -77,4 +77,19 @@ describe "Test Helpers" do
     refute matcher.match?(%|{ ...A ...B ...C }|)
     refute matcher.match?(%|{ ...A ... C }|)
   end
+
+  def test_use_static_version_is_false_by_default
+    assert_equal false, GraphQL::Stitching::TypeResolver.use_static_version?
+  end
+
+  def test_use_static_version_is_true_in_helper_block
+    begin
+      with_static_resolver_version do
+        assert_equal true, GraphQL::Stitching::TypeResolver.use_static_version?
+        raise "block interrupt"
+      end
+    rescue
+      assert_equal false, GraphQL::Stitching::TypeResolver.use_static_version?
+    end
+  end
 end

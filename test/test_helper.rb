@@ -135,6 +135,13 @@ def extract_types_of_kind(schema, kind)
   schema.types.values.select { _1.kind.object? && !_1.graphql_name.start_with?("__") }
 end
 
+def with_static_resolver_version
+  GraphQL::Stitching::TypeResolver.instance_variable_set(:@use_static_version, true)
+  yield
+ensure
+  GraphQL::Stitching::TypeResolver.instance_variable_set(:@use_static_version, false)
+end
+
 def assert_error(pattern, klass=nil)
   begin
     yield

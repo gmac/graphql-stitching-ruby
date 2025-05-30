@@ -141,7 +141,8 @@ module GraphQL
           if type_name == @schema.query.graphql_name
             GraphQL::Stitching::EMPTY_ARRAY
           else
-            @resolvers[type_name].map(&:key).uniq(&:to_definition)
+            resolvers = @resolvers[type_name]
+            resolvers ? resolvers.map(&:key).uniq(&:to_definition) : GraphQL::Stitching::EMPTY_ARRAY
           end
         end
       end

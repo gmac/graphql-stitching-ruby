@@ -15,6 +15,7 @@ module GraphQL
         @supergraph = request.supergraph
         @planning_index = ROOT_INDEX
         @steps_by_entrypoint = {}
+        @entrypoint_buffer = String.new(capacity: 256)
       end
 
       def perform
@@ -76,7 +77,14 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = [parent_index, location, parent_type.graphql_name, resolver&.key&.to_definition, "#", *path].join("/")
+        @entrypoint_buffer.clear
+        @entrypoint_buffer << parent_index.to_s << "/" << location << "/" << parent_type.graphql_name
+        if resolver&.key
+          @entrypoint_buffer << "/" << resolver.key.to_definition
+        end
+        @entrypoint_buffer << "/#"
+        path.each { |segment| @entrypoint_buffer << "/" << segment }
+        entrypoint = @entrypoint_buffer.dup
         step = @steps_by_entrypoint[entrypoint]
         next_index = step ? parent_index : @planning_index += 1
 
@@ -102,7 +110,14 @@ module GraphQL
         end
       end
 
-      ScopePartition = Struct.new(:location, :selections, keyword_init: true)
+      class ScopePartition
+        attr_accessor :location, :selections
+
+        def initialize(location:, selections:)
+          @location = location
+          @selections = selections
+        end
+      end
 
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
@@ -131,6 +146,7 @@ module GraphQL
         when MUTATION_OP
           # A.2) Partition mutation fields by consecutive location for serial execution.
           partitions = []
+
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
 
@@ -229,7 +245,8 @@ module GraphQL
 
             # B.3) Collect all variable definitions used within the filtered selection.
             extract_node_variables(node, locale_variables)
-            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
+            schema_fields = @supergraph.memoized_schema_fields(parent_type.graphql_name)
+            field_type = schema_fields[node.name].type.unwrap
 
             if Util.is_leaf_type?(field_type)
               locale_selections << node
@@ -319,18 +336,20 @@ module GraphQL
 
         local_interface_fields = @supergraph.fields_by_type_and_location[parent_type.graphql_name][current_location]
 
-        expanded_selections = nil
-        input_selections = input_selections.filter_map do |node|
+        expanded_selections = []
+        filtered_selections = []
+
+        input_selections.each do |node|
           if node.is_a?(GraphQL::Language::Nodes::Field) && node.name != TYPENAME && !local_interface_fields.include?(node.name)
-            expanded_selections ||= []
             expanded_selections << node
-            nil
           else
-            node
+            filtered_selections << node
           end
         end
 
-        if expanded_selections
+        input_selections = filtered_selections
+
+        if expanded_selections.any?
           @request.query.possible_types(parent_type).each do |possible_type|
             next unless @supergraph.locations_by_type[possible_type.graphql_name].include?(current_location)
 
@@ -367,19 +386,23 @@ module GraphQL
         selections_by_location = {}
 
         # C.1) Distribute unique fields among their required locations.
+        selections_by_location = Hash.new { |h, k| h[k] = [] }
+
         remote_selections.reject! do |node|
           possible_locations = possible_locations_by_field[node.name]
           if possible_locations.length == 1
-            selections_by_location[possible_locations.first] ||= []
             selections_by_location[possible_locations.first] << node
             true
           end
         end
 
         # C.2) Distribute non-unique fields among locations that were added during C.1.
-        if selections_by_location.any? && remote_selections.any?
+        unless selections_by_location.empty? || remote_selections.empty?
+          available_locations = selections_by_location.keys
+
           remote_selections.reject! do |node|
-            used_location = possible_locations_by_field[node.name].find { selections_by_location[_1] }
+            possible_locations = possible_locations_by_field[node.name]
+            used_location = possible_locations.find { |loc| available_locations.include?(loc) }
             if used_location
               selections_by_location[used_location] << node
               true
@@ -388,30 +411,19 @@ module GraphQL
         end
 
         # C.3) Distribute remaining fields among locations weighted by greatest availability.
-        if remote_selections.any?
-          field_count_by_location = remote_selections.each_with_object({}) do |node, memo|
+        unless remote_selections.empty?
+          field_count_by_location = Hash.new(0)
+
+          remote_selections.each do |node|
             possible_locations_by_field[node.name].each do |location|
-              memo[location] ||= 0
-              memo[location] += 1
+              field_count_by_location[location] += 1
             end
           end
 
           remote_selections.each do |node|
             possible_locations = possible_locations_by_field[node.name]
-            preferred_location = possible_locations.first
+            preferred_location = possible_locations.max_by { |loc| field_count_by_location[loc] } || possible_locations.first
 
-            possible_locations.reduce(0) do |max_availability, possible_location|
-              availability = field_count_by_location.fetch(possible_location, 0)
-
-              if availability > max_availability
-                preferred_location = possible_location
-                availability
-              else
-                max_availability
-              end
-            end
-
-            selections_by_location[preferred_location] ||= []
             selections_by_location[preferred_location] << node
           end
         end
@@ -428,16 +440,20 @@ module GraphQL
           next unless resolver_type.kind.abstract?
           next if resolver_type == step.parent_type
 
-          expanded_selections = nil
-          step.selections.reject! do |node|
+          expanded_selections = []
+          remaining_selections = []
+
+          step.selections.each do |node|
             if node.is_a?(GraphQL::Language::Nodes::Field)
-              expanded_selections ||= []
               expanded_selections << node
-              true
+            else
+              remaining_selections << node
             end
           end
 
-          if expanded_selections
+          step.selections.replace(remaining_selections)
+
+          if expanded_selections.any?
             type_name = GraphQL::Language::Nodes::TypeName.new(name: step.parent_type.graphql_name)
             step.selections << GraphQL::Language::Nodes::InlineFragment.new(type: type_name, selections: expanded_selections)
           end

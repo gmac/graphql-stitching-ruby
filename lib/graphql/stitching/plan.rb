@@ -2,21 +2,42 @@
 
 module GraphQL
   module Stitching
-    # Immutable-ish structures representing a query plan.
+    # Immutable structures representing a query plan.
     # May serialize to/from JSON.
     class Plan
-      Op = Struct.new(
-        :step,
-        :after,
-        :location,
-        :operation_type,
-        :selections,
-        :variables,
-        :path,
-        :if_type,
-        :resolver,
-        keyword_init: true
-      ) do
+      class Op
+        attr_reader :step
+        attr_reader :after
+        attr_reader :location
+        attr_reader :operation_type
+        attr_reader :selections
+        attr_reader :variables
+        attr_reader :path
+        attr_reader :if_type
+        attr_reader :resolver
+        
+        def initialize(
+          step:,
+          after:,
+          location:,
+          operation_type:,
+          selections:,
+          variables: nil,
+          path: nil,
+          if_type: nil,
+          resolver: nil
+        )
+          @step = step
+          @after = after
+          @location = location
+          @operation_type = operation_type
+          @selections = selections
+          @variables = variables
+          @path = path
+          @if_type = if_type
+          @resolver = resolver
+        end
+
         def as_json
           {
             step: step,
@@ -29,6 +50,18 @@ module GraphQL
             if_type: if_type,
             resolver: resolver
           }.tap(&:compact!)
+        end
+
+        def ==(other)
+          step == other.step &&
+            after == other.after &&
+            location == other.location &&
+            operation_type == other.operation_type &&
+            selections == other.selections &&
+            variables == other.variables &&
+            path == other.path &&
+            if_type == other.if_type &&
+            resolver == other.resolver
         end
       end
 

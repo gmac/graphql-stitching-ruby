@@ -89,21 +89,26 @@ module GraphQL::Stitching
         doc = String.new(QUERY_OP) # << resolver fulfillment always uses query
 
         if operation_name
-          doc << " #{operation_name}"
+          doc << " " << operation_name
           origin_sets_by_operation.each_key do |op|
-            doc << "_#{op.step}"
+            doc << "_" << op.step.to_s
           end
         end
 
         if variable_defs.any?
-          doc << "(#{variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")})"
+          doc << "("
+          variable_defs.each_with_index do |(k, v), i|
+            doc << "," unless i.zero?
+            doc << "$" << k << ":" << v
+          end
+          doc << ")"
         end
 
         if operation_directives
-          doc << " #{operation_directives} "
+          doc << " " << operation_directives << " "
         end
 
-        doc << "{ #{query_fields.join(" ")} }"
+        doc << "{ " << query_fields.join(" ") << " }"
 
         return doc, variable_defs.keys.tap do |names|
           names.reject! { @variables.key?(_1) }
@@ -132,7 +137,7 @@ module GraphQL::Stitching
       def extract_errors!(origin_sets_by_operation, errors)
         ops = origin_sets_by_operation.keys
         origin_sets = origin_sets_by_operation.values
-        pathed_errors_by_op_index_and_object_id = {}
+        pathed_errors_by_op_index_and_object_id = Hash.new { |h, k| h[k] = {} }
 
         errors_result = errors.each_with_object([]) do |err, memo|
           err.delete("locations")
@@ -151,8 +156,8 @@ module GraphQL::Stitching
               end
 
               if origin_obj
-                by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i] ||= {}
-                by_object_id = by_op_index[origin_obj.object_id] ||= []
+                pathed_errors_by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i]
+                by_object_id = pathed_errors_by_op_index[origin_obj.object_id] ||= []
                 by_object_id << err
                 next
               end
@@ -162,9 +167,9 @@ module GraphQL::Stitching
           memo << err
         end
 
-        if pathed_errors_by_op_index_and_object_id.any?
+        unless pathed_errors_by_op_index_and_object_id.empty?
           pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
-            repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "path"))
+            repath_errors!(pathed_errors_by_object_id, ops[op_index].path)
             errors_result.push(*pathed_errors_by_object_id.each_value)
           end
         end
@@ -180,7 +185,7 @@ module GraphQL::Stitching
         current_path.push(forward_path.shift)
         scope = root[current_path.last]
 
-        if forward_path.any? && scope.is_a?(Array)
+        if !forward_path.empty? && scope.is_a?(Array)
           scope.each_with_index do |element, index|
             inner_elements = element.is_a?(Array) ? element.flatten : [element]
             inner_elements.each do |inner_element|
@@ -190,7 +195,7 @@ module GraphQL::Stitching
             end
           end
 
-        elsif forward_path.any?
+        elsif !forward_path.empty?
           repath_errors!(pathed_errors_by_object_id, forward_path, current_path, scope)
 
         elsif scope.is_a?(Array)

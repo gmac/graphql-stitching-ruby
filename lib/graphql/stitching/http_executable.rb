@@ -80,7 +80,7 @@ module GraphQL
 
         return if files_by_path.none?
 
-        map = {}
+        map = Hash.new { |h, k| h[k] = [] }
         files = files_by_path.values.tap(&:uniq!)
         variables_copy = variables.dup
 
@@ -90,7 +90,6 @@ module GraphQL
           path.each_with_index do |key, i|
             if i == path.length - 1
               file_index = files.index(copy[key]).to_s
-              map[file_index] ||= []
               map[file_index] << "variables.#{path.join(".")}"
               copy[key] = nil
             elsif orig[key].object_id == copy[key].object_id

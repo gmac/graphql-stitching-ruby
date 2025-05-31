@@ -101,7 +101,7 @@ module GraphQL
       
       # @return [String] A string of directives applied to the root operation. These are passed through in all subgraph requests.
       def operation_directives
-        @operation_directives ||= if operation.directives.any?
+        @operation_directives ||= unless operation.directives.empty?
           printer = GraphQL::Language::Printer.new
           operation.directives.map { printer.print(_1) }.join(" ")
         end

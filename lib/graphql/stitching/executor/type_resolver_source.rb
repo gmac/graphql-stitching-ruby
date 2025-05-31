@@ -20,10 +20,10 @@ module GraphQL::Stitching
             origin_set.select! { _1[TypeResolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
           end
 
-          memo[op] = origin_set if origin_set.any?
+          memo[op] = origin_set unless origin_set.empty?
         end
 
-        if origin_sets_by_operation.any?
+        unless origin_sets_by_operation.empty?
           query_document, variable_names = build_document(
             origin_sets_by_operation,
             @executor.request.operation_name,
@@ -51,61 +51,76 @@ module GraphQL::Stitching
       # }"
       def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
-        query_fields = origin_sets_by_operation.map.with_index do |(op, origin_set), batch_index|
+        fields_buffer = String.new
+
+        origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
           resolver = @executor.request.supergraph.resolvers_by_version[op.resolver]
+          fields_buffer << " " unless batch_index.zero?
 
           if resolver.list?
-            arguments = resolver.arguments.map.with_index do |arg, i|
+            fields_buffer << "_" << batch_index.to_s << "_result: " << resolver.field << "("
+
+            resolver.arguments.each_with_index do |arg, i|
+              fields_buffer << "," unless i.zero?
               if arg.key?
                 variable_name = "_#{batch_index}_key_#{i}".freeze
                 @variables[variable_name] = origin_set.map { arg.build(_1) }
                 variable_defs[variable_name] = arg.to_type_signature
-                "#{arg.name}:$#{variable_name}"
+                fields_buffer << arg.name << ":$" << variable_name
               else
-                "#{arg.name}:#{arg.value.print}"
+                fields_buffer << arg.name << ":" << arg.value.print
               end
             end
 
-            "_#{batch_index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
+            fields_buffer << ") " << op.selections
           else
-            origin_set.map.with_index do |origin_obj, index|
-              arguments = resolver.arguments.map.with_index do |arg, i|
+            origin_set.each_with_index do |origin_obj, index|
+              fields_buffer << " " unless index.zero?
+              fields_buffer << "_" << batch_index.to_s << "_" << index.to_s << "_result: " << resolver.field << "("
+
+              resolver.arguments.each_with_index do |arg, i|
+                fields_buffer << "," unless i.zero?
                 if arg.key?
                   variable_name = "_#{batch_index}_#{index}_key_#{i}".freeze
                   @variables[variable_name] = arg.build(origin_obj)
                   variable_defs[variable_name] = arg.to_type_signature
-                  "#{arg.name}:$#{variable_name}"
+                  fields_buffer << arg.name << ":$" << variable_name
                 else
-                  "#{arg.name}:#{arg.value.print}"
+                  fields_buffer << arg.name << ":" << arg.value.print
                 end
               end
 
-              "_#{batch_index}_#{index}_result: #{resolver.field}(#{arguments.join(",")}) #{op.selections}"
+              fields_buffer << ") " << op.selections
             end
           end
         end
 
-        doc = String.new(QUERY_OP) # << resolver fulfillment always uses query
+        doc_buffer = String.new(QUERY_OP) # << resolver fulfillment always uses query
 
         if operation_name
-          doc << " #{operation_name}"
+          doc_buffer << " " << operation_name
           origin_sets_by_operation.each_key do |op|
-            doc << "_#{op.step}"
+            doc_buffer << "_" << op.step.to_s
           end
         end
 
-        if variable_defs.any?
-          doc << "(#{variable_defs.map { |k, v| "$#{k}:#{v}" }.join(",")})"
+        unless variable_defs.empty?
+          doc_buffer << "("
+          variable_defs.each_with_index do |(k, v), i|
+            doc_buffer << "," unless i.zero?
+            doc_buffer << "$" << k << ":" << v
+          end
+          doc_buffer << ")"
         end
 
         if operation_directives
-          doc << " #{operation_directives} "
+          doc_buffer << " " << operation_directives << " "
         end
 
-        doc << "{ #{query_fields.join(" ")} }"
+        doc_buffer << "{ " << fields_buffer << " }"
 
-        return doc, variable_defs.keys.tap do |names|
+        return doc_buffer, variable_defs.keys.tap do |names|
           names.reject! { @variables.key?(_1) }
         end
       end
@@ -120,10 +135,11 @@ module GraphQL::Stitching
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }
           end
 
-          next unless results&.any?
+          next if results.nil? || results.empty?
 
           origin_set.each_with_index do |origin_obj, index|
-            origin_obj.merge!(results[index]) if results[index]
+            result = results[index]
+            origin_obj.merge!(result) if result
           end
         end
       end
@@ -132,7 +148,7 @@ module GraphQL::Stitching
       def extract_errors!(origin_sets_by_operation, errors)
         ops = origin_sets_by_operation.keys
         origin_sets = origin_sets_by_operation.values
-        pathed_errors_by_op_index_and_object_id = {}
+        pathed_errors_by_op_index_and_object_id = Hash.new { |h, k| h[k] = {} }
 
         errors_result = errors.each_with_object([]) do |err, memo|
           err.delete("locations")
@@ -151,8 +167,8 @@ module GraphQL::Stitching
               end
 
               if origin_obj
-                by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i] ||= {}
-                by_object_id = by_op_index[origin_obj.object_id] ||= []
+                pathed_errors_by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i]
+                by_object_id = pathed_errors_by_op_index[origin_obj.object_id] ||= []
                 by_object_id << err
                 next
               end
@@ -162,9 +178,9 @@ module GraphQL::Stitching
           memo << err
         end
 
-        if pathed_errors_by_op_index_and_object_id.any?
+        unless pathed_errors_by_op_index_and_object_id.empty?
           pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
-            repath_errors!(pathed_errors_by_object_id, ops.dig(op_index, "path"))
+            repath_errors!(pathed_errors_by_object_id, ops[op_index].path)
             errors_result.push(*pathed_errors_by_object_id.each_value)
           end
         end
@@ -180,7 +196,7 @@ module GraphQL::Stitching
         current_path.push(forward_path.shift)
         scope = root[current_path.last]
 
-        if forward_path.any? && scope.is_a?(Array)
+        if !forward_path.empty? && scope.is_a?(Array)
           scope.each_with_index do |element, index|
             inner_elements = element.is_a?(Array) ? element.flatten : [element]
             inner_elements.each do |inner_element|
@@ -190,7 +206,7 @@ module GraphQL::Stitching
             end
           end
 
-        elsif forward_path.any?
+        elsif !forward_path.empty?
           repath_errors!(pathed_errors_by_object_id, forward_path, current_path, scope)
 
         elsif scope.is_a?(Array)

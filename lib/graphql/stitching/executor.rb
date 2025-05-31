@@ -79,7 +79,7 @@ module GraphQL
 
       def exec_task(task)
         next_steps = task.load.tap(&:compact!)
-        exec!(next_steps) if next_steps.any?
+        exec!(next_steps) unless next_steps.empty?
       end
     end
   end

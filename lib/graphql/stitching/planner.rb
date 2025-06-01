@@ -11,7 +11,7 @@ module GraphQL
       ROOT_INDEX = 0
 
       class ScopePartition
-        attr_accessor :location, :selections
+        attr_reader :location, :selections
 
         def initialize(location:, selections:)
           @location = location

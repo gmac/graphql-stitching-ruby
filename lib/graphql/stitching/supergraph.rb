@@ -187,7 +187,17 @@ module GraphQL
 
       private
 
-      PathNode = Struct.new(:location, :key, :cost, :resolver, keyword_init: true)
+      class PathNode
+        attr_reader :location, :key, :resolver
+        attr_accessor :cost
+      
+        def initialize(location:, key:, resolver: nil, cost: 0)
+          @location = location
+          @key = key
+          @resolver = resolver
+          @cost = cost
+        end
+      end
 
       # tunes A* search to favor paths with fewest joining locations, ie:
       # favor longer paths through target locations over shorter paths with additional locations.
@@ -196,7 +206,7 @@ module GraphQL
         costs = {}
 
         paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
-          [PathNode.new(location: start_location, key: possible_key, cost: 0)]
+          [PathNode.new(location: start_location, key: possible_key)]
         end
 
         while paths.any?

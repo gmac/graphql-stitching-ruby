@@ -10,6 +10,15 @@ module GraphQL
       SUPERGRAPH_LOCATIONS = [Supergraph::SUPERGRAPH_LOCATION].freeze
       ROOT_INDEX = 0
 
+      class ScopePartition
+        attr_reader :location, :selections
+
+        def initialize(location:, selections:)
+          @location = location
+          @selections = selections
+        end
+      end
+
       def initialize(request)
         @request = request
         @supergraph = request.supergraph
@@ -76,11 +85,15 @@ module GraphQL
         resolver: nil
       )
         # coalesce repeat parameters into a single entrypoint
-        entrypoint = [parent_index, location, parent_type.graphql_name, resolver&.key&.to_definition, "#", *path].join("/")
+        entrypoint = String.new
+        entrypoint << parent_index.to_s << "/" << location << "/" << parent_type.graphql_name
+        entrypoint << "/" << (resolver&.key&.to_s || "") << "/#"
+        path.each { entrypoint << "/" << _1 }
+
         step = @steps_by_entrypoint[entrypoint]
         next_index = step ? parent_index : @planning_index += 1
 
-        if selections.any?
+        unless selections.empty?
           selections = extract_locale_selections(location, parent_type, next_index, selections, path, variables)
         end
 
@@ -102,8 +115,6 @@ module GraphQL
         end
       end
 
-      ScopePartition = Struct.new(:location, :selections, keyword_init: true)
-
       # A) Group all root selections by their preferred entrypoint locations.
       def build_root_entrypoints
         parent_type = @request.query.root_type_for_operation(@request.operation.operation_type)
@@ -111,10 +122,9 @@ module GraphQL
         case @request.operation.operation_type
         when QUERY_OP
           # A.1) Group query fields by location for parallel execution.
-          selections_by_location = {}
+          selections_by_location = Hash.new { |h, k| h[k] = [] }
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
             locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
-            selections_by_location[locations.first] ||= []
             selections_by_location[locations.first] << node
           end
 
@@ -229,7 +239,8 @@ module GraphQL
 
             # B.3) Collect all variable definitions used within the filtered selection.
             extract_node_variables(node, locale_variables)
-            field_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type.unwrap
+            schema_fields = @supergraph.memoized_schema_fields(parent_type.graphql_name)
+            field_type = schema_fields[node.name].type.unwrap
 
             if Util.is_leaf_type?(field_type)
               locale_selections << node
@@ -377,9 +388,11 @@ module GraphQL
         end
 
         # C.2) Distribute non-unique fields among locations that were added during C.1.
-        if selections_by_location.any? && remote_selections.any?
+        if !selections_by_location.empty? && !remote_selections.empty?
+          available_locations = Set.new(selections_by_location.each_key)
+
           remote_selections.reject! do |node|
-            used_location = possible_locations_by_field[node.name].find { selections_by_location[_1] }
+            used_location = possible_locations_by_field[node.name].find { available_locations.include?(_1) }
             if used_location
               selections_by_location[used_location] << node
               true
@@ -388,29 +401,17 @@ module GraphQL
         end
 
         # C.3) Distribute remaining fields among locations weighted by greatest availability.
-        if remote_selections.any?
-          field_count_by_location = remote_selections.each_with_object({}) do |node, memo|
+        if !remote_selections.empty?
+          field_count_by_location = Hash.new(0)
+          remote_selections.each do |node|
             possible_locations_by_field[node.name].each do |location|
-              memo[location] ||= 0
-              memo[location] += 1
+              field_count_by_location[location] += 1
             end
           end
 
           remote_selections.each do |node|
             possible_locations = possible_locations_by_field[node.name]
-            preferred_location = possible_locations.first
-
-            possible_locations.reduce(0) do |max_availability, possible_location|
-              availability = field_count_by_location.fetch(possible_location, 0)
-
-              if availability > max_availability
-                preferred_location = possible_location
-                availability
-              else
-                max_availability
-              end
-            end
-
+            preferred_location = possible_locations.max_by { field_count_by_location[_1] } || possible_locations.first
             selections_by_location[preferred_location] ||= []
             selections_by_location[preferred_location] << node
           end

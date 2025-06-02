@@ -25,7 +25,7 @@ module GraphQL
           raise ArgumentError, "Cannot provide both locations and a supergraph."
         elsif supergraph && !supergraph.is_a?(Supergraph)
           raise ArgumentError, "Provided supergraph must be a GraphQL::Stitching::Supergraph instance."
-        elsif supergraph && composer_options.any?
+        elsif supergraph && !composer_options.empty?
           raise ArgumentError, "Cannot provide composer options with a pre-built supergraph."
         elsif supergraph
           supergraph
@@ -50,7 +50,7 @@ module GraphQL
 
         if validate
           validation_errors = request.validate
-          return error_result(request, validation_errors) if validation_errors.any?
+          return error_result(request, validation_errors) unless validation_errors.empty?
         end
 
         load_plan(request)

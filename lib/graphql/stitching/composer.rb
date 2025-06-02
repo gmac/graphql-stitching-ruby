@@ -423,7 +423,7 @@ module GraphQL
             memo[location] = argument.default_value
           end
 
-          if default_values_by_location.any?
+          unless default_values_by_location.empty?
             kwargs[:default_value] = @default_value_merger.call(default_values_by_location, {
               type_name: type_name,
               field_name: field_name,

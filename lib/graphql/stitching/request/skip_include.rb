@@ -34,7 +34,7 @@ module GraphQL::Stitching
               next nil
             end
 
-            node = render_node(node, variables) if node.selections.any?
+            node = render_node(node, variables) unless node.selections.empty?
             changed ||= node.object_id != original_node.object_id
             node
           end
@@ -51,7 +51,7 @@ module GraphQL::Stitching
         end
 
         def prune_node(node, variables)
-          return node unless node.directives.any?
+          return node if node.directives.empty?
 
           delete_node = false
           filtered_directives = node.directives.reject do |directive|

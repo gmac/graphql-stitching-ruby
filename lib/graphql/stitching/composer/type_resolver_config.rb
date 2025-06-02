@@ -8,7 +8,7 @@ module GraphQL::Stitching
 
       class << self
         def extract_directive_assignments(schema, location, assignments)
-          return EMPTY_OBJECT unless assignments && assignments.any?
+          return EMPTY_OBJECT unless assignments && !assignments.empty?
 
           assignments.each_with_object({}) do |kwargs, memo|
             type = kwargs[:parent_type_name] ? schema.get_type(kwargs[:parent_type_name]) : schema.query

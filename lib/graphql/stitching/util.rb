@@ -4,12 +4,29 @@ module GraphQL
   module Stitching
     # General utilities to aid with stitching.
     class Util
-      TypeStructure = Struct.new(:list, :null, :name, keyword_init: true) do
-        alias_method :list?, :list
-        alias_method :null?, :null
+      class TypeStructure
+        attr_reader :name
+      
+        def initialize(list:, null:, name:)
+          @list = list
+          @null = null
+          @name = name
+        end
+
+        def list?
+          @list
+        end
+        
+        def null?
+          @null
+        end
 
         def non_null?
-          !null
+          !@null
+        end
+
+        def ==(other)
+          @list == other.list? && @null == other.null? && @name == other.name
         end
       end
 

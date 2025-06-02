@@ -21,7 +21,7 @@ module GraphQL::Stitching
         @executor.query_count += 1
 
         if result["data"]
-          if op.path.any?
+          unless op.path.empty?
             # Nested root scopes must expand their pathed origin set
             origin_set = op.path.reduce([@executor.data]) do |set, ns|
               set.flat_map { |obj| obj && obj[ns] }.tap(&:compact!)
@@ -44,24 +44,28 @@ module GraphQL::Stitching
       # Builds root source documents
       # "query MyOperation_1($var:VarType) { rootSelections ... }"
       def build_document(op, operation_name = nil, operation_directives = nil)
-        doc = String.new
-        doc << op.operation_type
+        doc_buffer = String.new
+        doc_buffer << op.operation_type
 
         if operation_name
-          doc << " #{operation_name}_#{op.step}"
+          doc_buffer << " " << operation_name << "_" << op.step.to_s
         end
 
-        if op.variables.any?
-          variable_defs = op.variables.map { |k, v| "$#{k}:#{v}" }.join(",")
-          doc << "(#{variable_defs})"
+        unless op.variables.empty?
+          doc_buffer << "("
+          op.variables.each_with_index do |(k, v), i|
+            doc_buffer << "," unless i.zero?
+            doc_buffer << "$" << k << ":" << v
+          end
+          doc_buffer << ")"
         end
 
         if operation_directives
-          doc << " #{operation_directives} "
+          doc_buffer << " " << operation_directives << " "
         end
 
-        doc << op.selections
-        doc
+        doc_buffer << op.selections
+        doc_buffer
       end
 
       # Format response errors without a document location (because it won't match the request doc),
@@ -69,7 +73,7 @@ module GraphQL::Stitching
       def format_errors!(errors, path)
         errors.each do |err|
           err.delete("locations")
-          err["path"].unshift(*path) if err["path"] && path.any?
+          err["path"].unshift(*path) if err["path"] && !path.empty?
         end
         errors
       end

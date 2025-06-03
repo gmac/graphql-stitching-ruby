@@ -9,7 +9,7 @@ module Schemas
     ].freeze
 
     ORDERS = [
-      { id: "1", shipping_address: "123 Main", product_id: "1", customer: { email: "pete.cat@gmail.com" } },
+      { id: "1", shipping_address: "123 Main", product_id: "1", customer: { email: "pete.cat@gmail.com", phone: "123.456.7890" } },
       { id: "2", shipping_address: "456 Market", product_id: "2", customer: { email: "grumpytoad@gmail.com" } },
     ].freeze
 

@@ -68,7 +68,7 @@ describe 'GraphQL::Stitching, authorizations' do
 
     assert_equal expected, result.to_h
   end
-  
+
   def test_responds_with_error_for_unauthorized_parent_field
     query = %|{
       orderA(id: "1") {
@@ -88,6 +88,33 @@ describe 'GraphQL::Stitching, authorizations' do
         "path" => ["orderA", "customer2"],
         "extensions" => { "code" => "unauthorized" },
       }],
+    }
+
+    assert_equal expected, result.to_h
+  end
+
+  def test_expected_results_with_proper_permissions
+    query = %|{
+      orderA(id: "1") {
+        customer2 {
+          email
+          phone
+          slack
+        }
+      }
+    }|
+
+    result = plan_and_execute(@supergraph, query, claims: ["orders", "customers"])
+    expected = {
+      "data" => { 
+        "orderA" => { 
+          "customer2" => {
+            "email" => "pete.cat@gmail.com",
+            "phone" => "123.456.7890",
+            "slack" => nil,
+          }, 
+        },
+      },
     }
 
     assert_equal expected, result.to_h

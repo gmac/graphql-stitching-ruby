@@ -11,20 +11,85 @@ describe 'GraphQL::Stitching, authorizations' do
     })
   end
 
-  def test_responds_with_error
+  def test_responds_with_errors_for_each_unauthorized_child_field
     query = %|{
       orderA(id: "1") {
         customer1 {
+          phone
+          slack
+        }
+      }
+    }|
+
+    result = plan_and_execute(@supergraph, query, claims: ["orders"])
+    expected = {
+      "data" => { 
+        "orderA" => { 
+          "customer1" => {
+            "phone" => nil,
+            "slack" => nil,
+          },
+        },
+      },
+      "errors" => [{
+        "message" => "Unauthorized access",
+        "path" => ["orderA", "customer1", "phone"],
+        "extensions" => { "code" => "unauthorized" },
+      }, {
+        "message" => "Unauthorized access",
+        "path" => ["orderA", "customer1", "slack"],
+        "extensions" => { "code" => "unauthorized" },
+      }],
+    }
+
+    assert_equal expected, result.to_h
+  end
+
+  def test_errors_of_non_null_child_fields_bubble
+    query = %|{
+      orderA(id: "1") {
+        customer1 {
+          email
+        }
+      }
+    }|
+
+    result = plan_and_execute(@supergraph, query, claims: ["orders"])
+    expected = {
+      "data" => { 
+        "orderA" => { "customer1" => nil },
+      },
+      "errors" => [{
+        "message" => "Unauthorized access",
+        "path" => ["orderA", "customer1", "email"],
+        "extensions" => { "code" => "unauthorized" },
+      }],
+    }
+
+    assert_equal expected, result.to_h
+  end
+  
+  def test_responds_with_error_for_unauthorized_parent_field
+    query = %|{
+      orderA(id: "1") {
+        customer2 {
           phone
         }
       }
     }|
 
-    result = plan_and_execute(@supergraph, query, claims: ["orders"]) do |plan|
-      pp plan.as_json
-    end
+    result = plan_and_execute(@supergraph, query, claims: ["orders"])
+    expected = {
+      "data" => { 
+        "orderA" => { "customer2" => nil },
+      },
+      "errors" => [{
+        "message" => "Unauthorized access",
+        "path" => ["orderA", "customer2"],
+        "extensions" => { "code" => "unauthorized" },
+      }],
+    }
 
-    pp result.to_h
-    assert true
+    assert_equal expected, result.to_h
   end
 end

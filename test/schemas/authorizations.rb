@@ -18,6 +18,7 @@ module Schemas
         directive GraphQL::Stitching::Directives::Authorization, scopes: [["customers"]]
         field :email, String, null: false
         field :phone, String, null: true
+        field :slack, String, null: true
       end
 
       class Product < GraphQL::Schema::Object

@@ -66,6 +66,10 @@ module GraphQL
       end
 
       class Error
+        MESSAGE_BY_CODE = {
+          "unauthorized" => "Unauthorized access",
+        }.freeze
+
         attr_reader :code, :path
         
         def initialize(code:, path:)
@@ -77,6 +81,14 @@ module GraphQL
           {
             code: code,
             path: path,
+          }
+        end
+
+        def to_h
+          {
+            "message" => MESSAGE_BY_CODE[@code],
+            "path" => @path,
+            "extensions" => { "code" => @code },
           }
         end
       end

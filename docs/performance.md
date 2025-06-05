@@ -57,6 +57,34 @@ query($id: ID!) {
 # variables: { "id" => "1" }
 ```
 
+### Subgraph validations
+
+Requests are validated by the supergraph, and should always divide into valid subgraph documents. Therefore, you can skip redundant subgraph validations for requests sent by the supergraph, ex:
+
+```ruby
+exe = GraphQL::Stitching::HttpExecutable.new(
+  url: "http://localhost:3001",
+  headers: { 
+    "Authorization" => "...",
+    "X-Supergraph-Secret" => "<shared-secret>",
+  },
+)
+```
+
+A shared secret allows a subgraph location to trust the supergraph origin, at which time it can disable validations:
+
+```ruby
+def query
+  sg_header = request.headers["X-Supergraph-Secret"]
+  MySchema.execute(
+    query: params[:query],
+    variables: params[:variables],
+    operation_name: params[:operationName],
+    validate: sg_header.nil? || sg_header != Rails.env.credentials.supergraph,
+  )
+end
+```
+
 ### Digests
 
 All computed digests use SHA2 hashing by default. You can swap in [a faster algorithm](https://github.com/Shopify/blake3-rb) and/or add base state by reconfiguring `Stitching.digest`:

@@ -21,7 +21,7 @@ This Ruby implementation is designed as a generic library to join basic spec-com
 
 ## Documentation
 
-1. [Introduction](./docs/introduction.md)
+1. [Introduction](./docs/README.md)
 1. [Composing a supergraph](./docs/composing_a_supergraph.md)
 1. [Merged types](./docs/merged_types.md)
 1. [Executables & file uploads](./docs/executables.md)

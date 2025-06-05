@@ -31,7 +31,7 @@ module GraphQL
       # @param context [Hash, nil] a contextual object passed through resolver flows.
       def initialize(supergraph, source, operation_name: nil, variables: nil, context: nil, claims: nil)
         @supergraph = supergraph
-        @claims = claims&.to_set&.freeze
+        @claims = claims&.sort&.to_set&.freeze
         @prepared_document = nil
         @string = nil
         @digest = nil

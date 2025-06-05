@@ -77,12 +77,12 @@ module GraphQL
 
       # @return [String] a digest of the original document string. Generally faster but less consistent.
       def digest
-        @digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{string}")
+        @digest ||= Stitching.digest.call(digest_base(string))
       end
 
       # @return [String] a digest of the normalized document string. Slower but more consistent.
       def normalized_digest
-        @normalized_digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{normalized_string}")
+        @normalized_digest ||= Stitching.digest.call(digest_base(normalized_string))
       end
 
       # @return [GraphQL::Language::Nodes::OperationDefinition] The selected root operation for the request.
@@ -234,6 +234,13 @@ module GraphQL
           result.to_h.merge!(stitched_result.to_h)
           result
         }
+      end
+
+      def digest_base(content)
+        base = String.new(Stitching::VERSION)
+        base << "/" << content
+        @claims.each { |claim| base << "/" << claim } if @claims
+        base
       end
     end
   end

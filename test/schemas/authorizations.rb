@@ -53,7 +53,7 @@ module Schemas
       end
 
       class Query < GraphQL::Schema::Object
-        field :product_a, Product, null: false do
+        field :product_a, Product, null: true do
           directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true
         end
@@ -62,7 +62,7 @@ module Schemas
           PRODUCTS.find { _1[:id] == id }
         end
 
-        field :order_a, Order, null: false do
+        field :order_a, Order, null: true do
           directive GraphQL::Stitching::Directives::Authorization, scopes: [["orders"]]
           directive GraphQL::Stitching::Directives::Stitch, key: "id"
           argument :id, ID, required: true

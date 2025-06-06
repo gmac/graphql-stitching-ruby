@@ -21,6 +21,7 @@ module GraphQL::Stitching
         field_map = {}
         resolver_map = {}
         possible_locations = {}
+        authorizations = {}
         visibility_definition = schema.directives[GraphQL::Stitching.visibility_directive]
         visibility_profiles = visibility_definition&.get_argument("profiles")&.default_value || EMPTY_ARRAY
 
@@ -59,15 +60,19 @@ module GraphQL::Stitching
           next unless type.kind.fields?
 
           type.fields.each do |field_name, field|
-            # Collection locations for each field definition
             field.directives.each do |d|
-              next unless d.graphql_name == Directives::SupergraphSource.graphql_name
-              
-              location = d.arguments.keyword_arguments[:location]
-              field_map[type_name] ||= {}
-              field_map[type_name][field_name] ||= []
-              field_map[type_name][field_name] << location
-              possible_locations[location] = true
+              case d.graphql_name
+              when Directives::SupergraphSource.graphql_name
+                location = d.arguments.keyword_arguments[:location]
+                field_map[type_name] ||= {}
+                field_map[type_name][field_name] ||= []
+                field_map[type_name][field_name] << location
+                possible_locations[location] = true
+              when Directives::Authorization.graphql_name
+                scopes = d.arguments.keyword_arguments[:scopes]
+                authorizations[type.graphql_name] ||= {}
+                authorizations[type.graphql_name][field.graphql_name] = scopes
+              end
             end
           end
         end
@@ -83,6 +88,7 @@ module GraphQL::Stitching
           schema: schema,
           fields: field_map,
           resolvers: resolver_map,
+          authorizations: authorizations,
           visibility_profiles: visibility_profiles,
           executables: executables,
         )

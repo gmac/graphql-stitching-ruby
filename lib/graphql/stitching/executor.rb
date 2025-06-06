@@ -45,6 +45,10 @@ module GraphQL
           result["data"] = raw ? @data : Shaper.new(@request).perform!(@data)
         end
 
+        @request.plan.errors.each do |err|
+          @errors << err.to_h
+        end
+
         if @errors.length > 0
           result["errors"] = @errors
         end

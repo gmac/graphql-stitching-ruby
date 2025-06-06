@@ -20,14 +20,18 @@ module GraphQL
       # @return [Hash] contextual object passed through resolver flows.
       attr_reader :context
 
+      # @return [Array[String]] authorization claims provided for the request.
+      attr_reader :claims
+
       # Creates a new supergraph request.
       # @param supergraph [Supergraph] supergraph instance that resolves the request.
       # @param source [String, GraphQL::Language::Nodes::Document] the request string or parsed AST.
       # @param operation_name [String, nil] operation name selected for the request.
       # @param variables [Hash, nil] input variables for the request.
       # @param context [Hash, nil] a contextual object passed through resolver flows.
-      def initialize(supergraph, source, operation_name: nil, variables: nil, context: nil)
+      def initialize(supergraph, source, operation_name: nil, variables: nil, context: nil, claims: nil)
         @supergraph = supergraph
+        @claims = claims&.sort&.to_set&.freeze
         @prepared_document = nil
         @string = nil
         @digest = nil
@@ -73,12 +77,12 @@ module GraphQL
 
       # @return [String] a digest of the original document string. Generally faster but less consistent.
       def digest
-        @digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{string}")
+        @digest ||= Stitching.digest.call(digest_base(string))
       end
 
       # @return [String] a digest of the normalized document string. Slower but more consistent.
       def normalized_digest
-        @normalized_digest ||= Stitching.digest.call("#{Stitching::VERSION}/#{normalized_string}")
+        @normalized_digest ||= Stitching.digest.call(digest_base(normalized_string))
       end
 
       # @return [GraphQL::Language::Nodes::OperationDefinition] The selected root operation for the request.
@@ -120,6 +124,17 @@ module GraphQL
       # @return [Boolean] true if operation type is a subscription
       def subscription?
         @query.subscription?
+      end
+
+      # @return [Boolean] true if authorized to access field on type
+      def authorized?(type_name, field_name)
+        or_scopes = @supergraph.authorizations_by_type_and_field.dig(type_name, field_name)
+        return true unless or_scopes&.any?
+        return false unless @claims&.any?
+
+        or_scopes.any? do |and_scopes|
+          and_scopes.all? { |scope| @claims.include?(scope) }
+        end
       end
 
       # @return [Hash<String, Any>] provided variables hash filled in with default values from definitions
@@ -219,6 +234,13 @@ module GraphQL
           result.to_h.merge!(stitched_result.to_h)
           result
         }
+      end
+
+      def digest_base(content)
+        base = String.new(Stitching::VERSION)
+        base << "/" << content
+        @claims.each { |claim| base << "/" << claim } if @claims
+        base
       end
     end
   end

@@ -145,6 +145,29 @@ describe "GraphQL::Stitching::Request" do
     end
   end
 
+  def test_digests_include_claims
+    query = "{ widget { id } }"
+    request1 = GraphQL::Stitching::Request.new(@supergraph, query)
+    request2 = GraphQL::Stitching::Request.new(@supergraph, query)
+    assert_equal request1.digest, request2.digest
+    assert_equal request1.normalized_digest, request2.normalized_digest
+
+    request3 = GraphQL::Stitching::Request.new(@supergraph, query, claims: ["a"])
+    request4 = GraphQL::Stitching::Request.new(@supergraph, query, claims: ["a"])
+    assert_equal request3.digest, request4.digest
+    assert_equal request3.normalized_digest, request4.normalized_digest
+
+    request5 = GraphQL::Stitching::Request.new(@supergraph, query, claims: ["a", "b"])
+    request6 = GraphQL::Stitching::Request.new(@supergraph, query, claims: ["b", "a"])
+    assert_equal request5.digest, request6.digest
+    assert_equal request5.normalized_digest, request6.normalized_digest
+
+    assert request1.digest != request3.digest
+    assert request3.digest != request5.digest
+    assert request1.normalized_digest != request3.normalized_digest
+    assert request3.normalized_digest != request5.normalized_digest
+  end
+
   def test_prepare_variables_collects_variable_defaults
     query = %|
       query($a: String! = "defaultA", $b: String = "defaultB") {

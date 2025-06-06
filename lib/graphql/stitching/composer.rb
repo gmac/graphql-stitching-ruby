@@ -468,8 +468,6 @@ module GraphQL
           kwarg_values_by_name_location = directives_by_location.each_with_object({}) do |(location, directive), memo|
             directive.arguments.keyword_arguments.each do |key, value|
               key = key.to_s
-              next unless directive_class.arguments[key]
-
               memo[key] ||= {}
               memo[key][location] = value
             end

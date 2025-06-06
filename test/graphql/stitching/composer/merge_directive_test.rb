@@ -3,7 +3,6 @@
 require "test_helper"
 
 describe 'GraphQL::Stitching::Composer, merging directives' do
-
   def test_merges_directive_definitions
     a = %|
       """a"""
@@ -77,5 +76,26 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     assert supergraph.schema.directives.key?("source")
     assert_equal ["source"], supergraph.schema.query.get_field("testA").directives.map(&:graphql_name)
     assert_equal ["source"], supergraph.schema.query.get_field("testB").directives.map(&:graphql_name)
+  end
+
+  def test_merges_camel_case_directive_values
+    a = %|
+      directive @fizzbuzz(sfooBar: String!) on OBJECT
+      type Test @fizzbuzz(sfooBar: "A") { field: String }
+      type Query { test: Test }
+    |
+
+    b = %|
+      directive @fizzbuzz(sfooBar: String!) on OBJECT
+      type Test @fizzbuzz(sfooBar: "B") { field: String }
+      type Query { test: Test }
+    |
+
+    supergraph = compose_definitions({ "a" => a, "b" => b }, {
+      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+    })
+
+    directives = supergraph.schema.get_type("Test").directives
+    assert_equal "A/B", directives.first.arguments.keyword_arguments[:sfoo_bar]
   end
 end

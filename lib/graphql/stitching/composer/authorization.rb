@@ -3,6 +3,25 @@
 module GraphQL::Stitching
   class Composer
     module Authorization
+      class << self
+        def print_scopes(or_scopes)
+          or_scopes.map do |and_scopes|
+            and_scopes = and_scopes.map { "`#{_1}`" }
+            if and_scopes.length > 2
+              "#{and_scopes[0..-1].join(",")}, and #{and_scopes.last}"
+            else
+              and_scopes.join(" and ")
+            end
+          end
+
+          or_scopes.join("; or ")
+        end
+
+        def print_description(scopes)
+          "Required authorization scopes: #{print_scopes(scopes)}."
+        end
+      end
+
       private
       
       def merge_authorization_scopes(*scopes)

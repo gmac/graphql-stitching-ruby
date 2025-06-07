@@ -174,7 +174,7 @@ module GraphQL
         select_root_field_locations(schema)
         expand_abstract_resolvers(schema, schemas)
         apply_supergraph_directives(schema, @resolver_map, @field_map)
-        apply_authorization_directives(schema, @authorizations_by_type_and_field)
+        apply_authorization_directives(schema)
 
         if (visibility_def = schema.directives[GraphQL::Stitching.visibility_directive])
           visibility_def.get_argument("profiles").default_value(@visibility_profiles.to_a.sort)
@@ -536,6 +536,7 @@ module GraphQL
         @formatter.merge_descriptions(strings_by_location, Formatter::Info.new(
           type_name: type_name,
           field_name: field_name,
+          field_scopes: field_name ? @authorizations_by_type_and_field.dig(type_name, field_name) : nil,
           argument_name: argument_name,
           enum_value: enum_value,
         ))
@@ -761,11 +762,11 @@ module GraphQL
         schema_directives.each_value { |directive_class| schema.directive(directive_class) }
       end
 
-      def apply_authorization_directives(schema, authorizations_by_type_and_field)
-        return if authorizations_by_type_and_field.empty?
+      def apply_authorization_directives(schema)
+        return if @authorizations_by_type_and_field.empty?
 
         schema.types.each_value do |type|
-          authorizations_by_field = authorizations_by_type_and_field[type.graphql_name]
+          authorizations_by_field = @authorizations_by_type_and_field[type.graphql_name]
           next if authorizations_by_field.nil? || !type.kind.fields?
 
           type.fields.each_value do |field|

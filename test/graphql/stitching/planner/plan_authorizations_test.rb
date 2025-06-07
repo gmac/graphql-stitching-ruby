@@ -260,7 +260,7 @@ describe "GraphQL::Stitching::Planner, authorizations" do
         variables: {},
         path: [],
       }],
-      claims: ["orders", "customers"],
+      claims: ["customers", "orders"],
       errors: [],
     }
 

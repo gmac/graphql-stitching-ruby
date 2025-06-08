@@ -64,18 +64,6 @@ describe 'GraphQL::Stitching::Composer, merging root objects' do
     assert_equal ["b", "a"], delegation_map["Mutation"]["f"]
   end
 
-  def test_prioritizes_root_field_location_selector_choice
-    a = "type Query { f:String } type Mutation { f:String }"
-    b = "type Query { f:String } type Mutation { f:String }"
-
-    delegation_map = compose_definitions({ "a" => a, "b" => b }, {
-      root_field_location_selector: ->(_locations, _info) { "a" }
-    }).fields
-
-    assert_equal ["a", "b"], delegation_map["Query"]["f"]
-    assert_equal ["a", "b"], delegation_map["Mutation"]["f"]
-  end
-
   def test_prioritizes_root_entrypoints_locations
     a = "type Query { f:String } type Mutation { f:String }"
     b = "type Query { f:String } type Mutation { f:String }"

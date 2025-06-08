@@ -9,7 +9,7 @@ describe 'GraphQL::Stitching::Composer, merging scalars' do
     b = %{"""b""" scalar URL type Query { url:URL }}
 
     info = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", info.schema.get_type("URL").description
@@ -29,7 +29,7 @@ describe 'GraphQL::Stitching::Composer, merging scalars' do
     GRAPHQL
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.get_type("Thing").directives.first.arguments.keyword_arguments[:arg]

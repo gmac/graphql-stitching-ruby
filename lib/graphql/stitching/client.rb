@@ -7,6 +7,8 @@ module GraphQL
     # Client is an out-of-the-box helper that assembles all 
     # stitching components into a workflow that executes requests.
     class Client
+      include Formatter
+
       class << self
         def from_definition(schema, executables:)
           new(supergraph: Supergraph.from_definition(schema, executables: executables))
@@ -30,6 +32,7 @@ module GraphQL
         elsif supergraph
           supergraph
         else
+          composer_options = { formatter: self }.merge!(composer_options)
           composer = Composer.new(**composer_options)
           composer.perform(locations)
         end
@@ -50,16 +53,16 @@ module GraphQL
 
         if validate
           validation_errors = request.validate
-          return error_result(request, validation_errors) unless validation_errors.empty?
+          return error_result(request, validation_errors.map(&:to_h)) unless validation_errors.empty?
         end
 
         load_plan(request)
         request.execute
       rescue GraphQL::ParseError, GraphQL::ExecutionError => e
-        error_result(request, [e])
+        error_result(request, [e.to_h])
       rescue StandardError => e
-        custom_message = @on_error.call(request, e) if @on_error
-        error_result(request, [{ "message" => custom_message || "An unexpected error occured." }])
+        @on_error.call(request, e) if @on_error
+        error_result(request, [build_graphql_error(request, e)])
       end
 
       def on_cache_read(&block)
@@ -77,33 +80,33 @@ module GraphQL
         @on_error = block
       end
 
+      def read_cached_plan(request)
+        if @on_cache_read && (plan_json = @on_cache_read.call(request))
+          Plan.from_json(JSON.parse(plan_json))
+        end
+      end
+
+      def write_cached_plan(request, plan)
+        @on_cache_write.call(request, JSON.generate(plan.as_json)) if @on_cache_write
+      end
+
       private
 
       def load_plan(request)
-        if @on_cache_read && plan_json = @on_cache_read.call(request)
-          plan = Plan.from_json(JSON.parse(plan_json))
+        plan = read_cached_plan(request)
 
-          # only use plans referencing current resolver versions
-          if plan.ops.all? { |op| !op.resolver || @supergraph.resolvers_by_version[op.resolver] }
-            return request.plan(plan)
-          end
+        # only use plans referencing current resolver versions
+        if plan && plan.ops.all? { |op| !op.resolver || @supergraph.resolvers_by_version[op.resolver] }
+          return request.plan(plan)
         end
 
-        plan = request.plan
-
-        if @on_cache_write
-          @on_cache_write.call(request, JSON.generate(plan.as_json))
+        request.plan.tap do |plan|
+          write_cached_plan(request, plan)
         end
-
-        plan
       end
 
-      def error_result(request, errors)
-        public_errors = errors.map! do |e|
-          e.is_a?(Hash) ? e : e.to_h
-        end
-
-        GraphQL::Query::Result.new(query: request, values: { "errors" => public_errors })
+      def error_result(request, graphql_errors)
+        GraphQL::Query::Result.new(query: request, values: { "errors" => graphql_errors })
       end
     end
   end

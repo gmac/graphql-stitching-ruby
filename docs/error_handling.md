@@ -4,20 +4,28 @@ Failed stitching requests can be tricky to debug because it's not always obvious
 
 ### Supergraph errors
 
-When exceptions happen while executing requests within the stitching layer, they will be rescued by the stitching client and trigger an `on_error` hook. You should add your stack's error reporting here and return a formatted error message to appear in [GraphQL errors](https://spec.graphql.org/June2018/#sec-Errors) for the request.
+When exceptions happen while executing requests within the stitching layer, they will be rescued by the stitching client and trigger an `on_error` hook. You can add your stack's error reporting here:
 
 ```ruby
 client = GraphQL::Stitching::Client.new(locations: { ... })
 client.on_error do |request, err|
   # log the error
   Bugsnag.notify(err)
+end
+```
 
-  # return a formatted message for the public response
-  "Whoops, please contact support abount request '#{request.context[:request_id]}'"
+To modify the format of returned error messages that appear in [GraphQL errors](https://spec.graphql.org/June2018/#sec-Errors), extend `Client` and define your own `build_graphql_error` method:
+
+```ruby
+class MyClient < GraphQL::Stitching::Client
+  def build_graphql_error(request, err)
+    graphql_error = super(request, err)
+    graphql_error["message"] << " Contact support about Request ID #{request.context[:request_id]}"
+    graphql_error
+  end
 end
 
-# Result:
-# { "errors" => [{ "message" => "Whoops, please contact support abount request '12345'" }] }
+client = MyClient.new(locations: { ... })
 ```
 
 ### Subgraph errors

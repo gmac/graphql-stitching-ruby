@@ -21,12 +21,6 @@ module GraphQL
       end
 
       # @api private
-      BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
-      
-      # @api private
-      VISIBILITY_PROFILES_MERGER = ->(values_by_location, _info) { values_by_location.values.reduce(:&) }
-
-      # @api private
       COMPOSITION_VALIDATORS = [
         ValidateInterfaces,
         ValidateTypeResolvers,
@@ -52,22 +46,14 @@ module GraphQL
         mutation_name: "Mutation",
         subscription_name: "Subscription",
         visibility_profiles: [],
-        description_merger: nil,
-        deprecation_merger: nil,
-        default_value_merger: nil,
-        directive_kwarg_merger: nil,
-        root_field_location_selector: nil,
-        root_entrypoints: nil
+        root_entrypoints: nil,
+        formatter: nil
       )
         @query_name = query_name
         @mutation_name = mutation_name
         @subscription_name = subscription_name
-        @description_merger = description_merger || BASIC_VALUE_MERGER
-        @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
-        @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
-        @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
-        @root_field_location_selector = root_field_location_selector
         @root_entrypoints = root_entrypoints || {}
+        @formatter = formatter || Formatter::Default
         
         @field_map = {}
         @resolver_map = {}
@@ -424,12 +410,12 @@ module GraphQL
           end
 
           unless default_values_by_location.empty?
-            kwargs[:default_value] = @default_value_merger.call(default_values_by_location, {
+            kwargs[:default_value] = @formatter.merge_default_values(default_values_by_location, Formatter::Info.new(
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
               directive_name: directive_name,
-            }.tap(&:compact!))
+            ))
           end
 
           type = merge_value_types(type_name, value_types, argument_name: argument_name, field_name: field_name)
@@ -458,7 +444,7 @@ module GraphQL
         end
 
         directives_by_name_location.each do |directive_name, directives_by_location|
-          kwarg_merger = @directive_kwarg_merger
+          kwarg_formatter = @formatter
           directive_class = @schema_directives[directive_name]
           next unless directive_class
 
@@ -481,19 +467,19 @@ module GraphQL
 
             if (profiles = kwarg_values_by_name_location["profiles"])
               @visibility_profiles.merge(profiles.each_value.reduce(&:|))
-              kwarg_merger = VISIBILITY_PROFILES_MERGER
+              kwarg_formatter = Formatter::Default
             end
           end
 
           kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
-            memo[kwarg_name.to_sym] = kwarg_merger.call(kwarg_values_by_location, {
+            memo[kwarg_name.to_sym] = kwarg_formatter.merge_kwargs(kwarg_values_by_location, Formatter::Info.new(
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
               enum_value: enum_value,
               directive_name: directive_name,
               kwarg_name: kwarg_name,
-            }.tap(&:compact!))
+            ))
           end
 
           owner.directive(directive_class, **kwargs)
@@ -537,24 +523,24 @@ module GraphQL
       # @!visibility private
       def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.description }
-        @description_merger.call(strings_by_location, {
+        @formatter.merge_descriptions(strings_by_location, Formatter::Info.new(
           type_name: type_name,
           field_name: field_name,
           argument_name: argument_name,
           enum_value: enum_value,
-        }.tap(&:compact!))
+        ))
       end
 
       # @!scope class
       # @!visibility private
       def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.deprecation_reason }
-        @deprecation_merger.call(strings_by_location, {
+        @formatter.merge_deprecations(strings_by_location, Formatter::Info.new(
           type_name: type_name,
           field_name: field_name,
           argument_name: argument_name,
           enum_value: enum_value,
-        }.tap(&:compact!))
+        ))
       end
 
       # @!scope class
@@ -629,15 +615,7 @@ module GraphQL
             next unless root_field_locations.length > 1
 
             root_field_path = "#{root_type.graphql_name}.#{root_field_name}"
-            target_location = if @root_field_location_selector && @root_entrypoints.empty?
-              Warning.warn("Composer option `root_field_location_selector` is deprecated and will be removed.")
-              @root_field_location_selector.call(root_field_locations, {
-                type_name: root_type.graphql_name,
-                field_name: root_field_name,
-              })
-            else
-              @root_entrypoints[root_field_path] || root_field_locations.last
-            end
+            target_location = @root_entrypoints[root_field_path] || root_field_locations.last
 
             unless root_field_locations.include?(target_location)
               raise CompositionError, "Invalid `root_entrypoints` configuration: `#{root_field_path}` has no `#{target_location}` location."

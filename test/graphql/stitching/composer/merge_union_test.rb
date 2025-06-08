@@ -18,7 +18,7 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
     b = %{type B { b:Int } """b""" union Thing = B type Query { thing:Thing }}
 
     info = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", info.schema.get_type("Thing").description
@@ -40,7 +40,7 @@ describe 'GraphQL::Stitching::Composer, merging unions' do
     GRAPHQL
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.get_type("Thing").directives.first.arguments.keyword_arguments[:arg]

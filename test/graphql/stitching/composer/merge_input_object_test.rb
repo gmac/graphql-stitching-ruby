@@ -9,7 +9,7 @@ describe 'GraphQL::Stitching::Composer, merging input objects' do
     b = %{"""b""" input Test { field:String } type Query { get(test:Test):String }}
 
     info = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", info.schema.types["Test"].description
@@ -29,7 +29,7 @@ describe 'GraphQL::Stitching::Composer, merging input objects' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].directives.first.arguments.keyword_arguments[:arg]

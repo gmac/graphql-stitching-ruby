@@ -19,7 +19,7 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     directive_definition = supergraph.schema.directives["fizzbuzz"]
@@ -43,7 +43,7 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     directives = supergraph.schema.types["Test"].directives
@@ -67,7 +67,7 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert !supergraph.schema.directives.key?("stitch")
@@ -92,7 +92,7 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     directives = supergraph.schema.get_type("Test").directives

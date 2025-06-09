@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../schemas/example"
+require_relative "../../../schemas/example"
 
 describe "GraphQL::Stitching::Client" do
   def setup_client
@@ -297,7 +297,7 @@ describe "GraphQL::Stitching::Client" do
     assert_equal context[:key], write_context
   end
 
-  def test_invalid_query
+  def test_query_with_static_validation_errors
     client = GraphQL::Stitching::Client.new(locations: {
       products: {
         schema: Schemas::Example::Products,
@@ -314,12 +314,14 @@ describe "GraphQL::Stitching::Client" do
     assert_equal expected_errors, result["errors"].map { _1.slice("message", "path") }
   end
 
-  def test_errors_are_handled_by_default
+  def test_stitching_errors_are_handled
+    called = false
     client = GraphQL::Stitching::Client.new(locations: {
       products: {
         schema: Schemas::Example::Products,
       }
     })
+    client.on_error { called = true }
 
     result = client.execute('query { invalidSelection }', validate: false)
 
@@ -327,31 +329,7 @@ describe "GraphQL::Stitching::Client" do
       "message" => "An unexpected error occured.",
     }]
 
-    assert_nil result["data"]
-    assert_equal expected_errors, result["errors"]
-  end
-
-  def test_errors_trigger_hooks_that_may_return_a_custom_message
-    client = GraphQL::Stitching::Client.new(locations: {
-      products: {
-        schema: Schemas::Example::Products,
-      }
-    })
-
-    client.on_error do |req, _err|
-      "An error occured. Request id: #{req.context[:request_id]}"
-    end
-
-    result = client.execute(
-      query: "query { invalidSelection }",
-      context: { request_id: "R2d2c3P0" },
-      validate: false
-    )
-
-    expected_errors = [{
-      "message" => "An error occured. Request id: R2d2c3P0",
-    }]
-
+    assert called
     assert_nil result["data"]
     assert_equal expected_errors, result["errors"]
   end

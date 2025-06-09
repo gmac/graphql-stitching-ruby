@@ -9,7 +9,7 @@ describe 'GraphQL::Stitching::Composer, merging enums' do
     b = %|"""b""" enum Status { """b""" YES } type Query { status:Status }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.types["Status"].description
@@ -30,7 +30,7 @@ describe 'GraphQL::Stitching::Composer, merging enums' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.types["Status"].directives.first.arguments.keyword_arguments[:arg]

@@ -7,7 +7,6 @@ Gem.path.each do |path|
   # ignore warnings from auto-generated GraphQL lib code.
   Warning.ignore(/.*mismatched indentations.*/)
   Warning.ignore(/.*lib\/graphql\/language\/nodes.rb:.*/)
-  Warning.ignore(/Composer option `[^`]+` is deprecated.*/)
 end
 
 require 'bundler/setup'
@@ -78,6 +77,19 @@ class SortedSelectionMatcher < Matcher
     end
 
     node.merge(selections: selections)
+  end
+end
+
+class TestFormatter
+  include GraphQL::Stitching::Formatter
+
+  def merge_values(values_by_location, _info)
+    vals = values_by_location.each_value.reject(&:nil?)
+    vals.empty? ? nil : vals.join("/")
+  end
+
+  def merge_default_values(values_by_location, _info)
+    values_by_location.values.max
   end
 end
 

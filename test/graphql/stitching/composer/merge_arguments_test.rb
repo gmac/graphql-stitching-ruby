@@ -90,7 +90,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = %|input Test { """b""" arg:String } type Query { test("""b""" arg:Test):String }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      description_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].arguments["arg"].description
@@ -102,7 +102,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     b = %|input Test { arg:String @deprecated(reason:"b") } type Query { test(arg:Test @deprecated(reason:"b")):String }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      deprecation_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     assert_equal "a/b", supergraph.schema.types["Test"].arguments["arg"].deprecation_reason
@@ -121,7 +121,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     |
 
     supergraph = compose_definitions({ "a" => a, "b" => b }, {
-      directive_kwarg_merger: ->(str_by_location, _info) { str_by_location.values.join("/") }
+      formatter: TestFormatter.new,
     })
 
     directive = supergraph.schema.types["Query"].fields["test"].arguments["arg"].directives.first
@@ -170,7 +170,7 @@ describe 'GraphQL::Stitching::Composer, merging object and field arguments' do
     c = %|type Query { test(arg:Int = 2):String }|
 
     supergraph = compose_definitions({ "a" => a, "b" => b, "c" => c }, {
-      default_value_merger: ->(values_by_location, _info) { values_by_location.values.max }
+      formatter: TestFormatter.new,
     })
     assert_equal 2, supergraph.schema.types["Query"].fields["test"].arguments["arg"].default_value
   end

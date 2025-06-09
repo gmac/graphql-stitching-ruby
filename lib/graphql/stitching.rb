@@ -71,6 +71,7 @@ module GraphQL
   end
 end
 
+require_relative "stitching/formatter"
 require_relative "stitching/directives"
 require_relative "stitching/supergraph"
 require_relative "stitching/client"

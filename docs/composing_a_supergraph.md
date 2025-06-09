@@ -42,11 +42,7 @@ client = GraphQL::Stitching::Client.new(
     mutation_name: "Mutation",
     subscription_name: "Subscription",
     visibility_profiles: nil, # ["public", "private", ...]
-    description_merger: ->(values_by_location, info) { values_by_location.values.join("\n") },
-    deprecation_merger: ->(values_by_location, info) { values_by_location.values.first },
-    default_value_merger: ->(values_by_location, info) { values_by_location.values.first },
-    directive_kwarg_merger: ->(values_by_location, info) { values_by_location.values.last },
-    root_entrypoints: {},
+    root_entrypoints: { "Query.ping" => "pings" },
   },
   locations: {
     # ...
@@ -62,47 +58,49 @@ client = GraphQL::Stitching::Client.new(
 
 - **`visibility_profiles:`**, an array of [visibility profiles](./visibility.md) that the supergraph responds to.
 
-- **`description_merger:`**, a [value merger function](#value-merger-functions) for merging element description strings from across locations.
-
-- **`deprecation_merger:`**, a [value merger function](#value-merger-functions) for merging element deprecation strings from across locations.
-
-- **`default_value_merger:`**, a [value merger function](#value-merger-functions) for merging argument default values from across locations.
-
-- **`directive_kwarg_merger:`**, a [value merger function](#value-merger-functions) for merging directive keyword arguments from across locations.
-
 - **`root_entrypoints:`**, a hash of root field names mapped to their entrypoint locations, see [overlapping root fields](#overlapping-root-fields) below.
 
-#### Value merger functions
+### Value mergers
 
-Static data values such as element descriptions and directive arguments must also merge across locations. By default, the first non-null value encountered for a given element attribute is used. A value merger function may customize this process by selecting a different value or computing a new one:
+Static data values such as element descriptions and directive arguments must also merge across locations. By default, the first non-null value encountered for a given element property is used. Value merger methods can be customized by defining them on your own `Client` class:
 
 ```ruby
-join_values_merger = ->(values_by_location, info) { values_by_location.values.compact.join("\n") }
+class MyClient < GraphQL::Stitching::Client
+  def merge_descriptions(values_by_location, info)
+    # return a merged element description string from across locations...
+    values_by_location.each_value.join("\n")
+  end
 
-client = GraphQL::Stitching::Client.new(
-  composer_options: {
-    description_merger: join_values_merger,
-    deprecation_merger: join_values_merger,
-    default_value_merger: join_values_merger,
-    directive_kwarg_merger: join_values_merger,
-  },
-)
+  def merge_deprecations(values_by_location, info)
+    # return a merged element deprecation string from across locations...
+  end
+
+  def merge_default_values(values_by_location, info)
+    # return a merged argument default value from across locations...
+  end
+
+  def merge_kwargs(values_by_location, info)
+    # return a merged directive keyword argument from across locations...
+  end
+end
+
+client = MyClient.new(locations: ...)
 ```
 
-A merger function receives `values_by_location` and `info` arguments; these provide possible values keyed by location and info about where in the schema these values were encountered:
+All merge functions receive `values_by_location` and `info` arguments; these provide possible values keyed by location and info about where in the schema these values were encountered. For example:
 
 ```ruby
 values_by_location = {
-  "users" => "A fabulous data type.",
-  "products" => "An excellent data type.",
+  "users" => "A fabulous data type description.",
+  "products" => "An excellent data type description.",
 }
 
-info = {
+info = GraphQL::Stitching::Formatter::Info.new(
   type_name: "Product",
   # field_name: ...,
   # argument_name: ...,
   # directive_name: ...,
-}
+)
 ```
 
 ### Cached supergraphs

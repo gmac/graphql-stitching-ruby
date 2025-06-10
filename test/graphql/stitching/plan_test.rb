@@ -25,7 +25,16 @@ describe "GraphQL::Stitching::Plan" do
       resolver: @resolver.version,
     )
 
-    @plan = GraphQL::Stitching::Plan.new(ops: [@op])
+    @error = GraphQL::Stitching::Plan::Error.new(
+      code: "unauthorized",
+      path: ["product"],
+    )
+
+    @plan = GraphQL::Stitching::Plan.new(
+      ops: [@op],
+      claims: ["superuser"],
+      errors: [@error],
+    )
 
     @serialized = {
       "ops" => [{
@@ -38,6 +47,11 @@ describe "GraphQL::Stitching::Plan" do
         "path" => ["storefronts"],
         "if_type" => "Storefront",
         "resolver" => @resolver.version,
+      }],
+      "claims" => ["superuser"],
+      "errors" => [{ 
+        "code" => "unauthorized", 
+        "path" => ["product"],
       }],
     }
   end

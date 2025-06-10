@@ -20,6 +20,12 @@ module GraphQL::Stitching
       argument :profiles, [String, null: false], required: true
     end
 
+    class Authorization < GraphQL::Schema::Directive
+      graphql_name "authorization"
+      locations(FIELD_DEFINITION, OBJECT, INTERFACE, ENUM, SCALAR)
+      argument :scopes, [[String, null: false], null: false], required: true
+    end
+
     class SupergraphKey < GraphQL::Schema::Directive
       graphql_name "key"
       locations OBJECT, INTERFACE, UNION

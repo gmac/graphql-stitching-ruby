@@ -21,13 +21,15 @@ module GraphQL
       attr_reader :memoized_schema_types
       attr_reader :memoized_introspection_types
       attr_reader :locations_by_type_and_field
+      attr_reader :authorizations_by_type_and_field
 
-      def initialize(schema:, fields: {}, resolvers: {}, visibility_profiles: [], executables: {})
+      def initialize(schema:, fields: {}, resolvers: {}, executables: {}, authorizations: {}, visibility_profiles: [])
         @schema = schema
         @resolvers = resolvers
         @resolvers_by_version = nil
         @fields_by_type_and_location = nil
         @locations_by_type = nil
+        @authorizations_by_type_and_field = authorizations
         @memoized_introspection_types = @schema.introspection_system.types
         @memoized_schema_types = @schema.types
         @memoized_schema_fields = {}

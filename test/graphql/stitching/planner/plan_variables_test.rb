@@ -83,6 +83,29 @@ describe "GraphQL::Stitching::Planner, variables" do
     assert_equal expected_vars, plan.ops[1].variables
   end
 
+  def test_extracts_variables_from_list_arguments
+    query = %|
+      query($id: ID, $childIds: [ID!]) {
+        widget(ids: [$id], input: { name: "test", children: [$childIds] }) {
+          id
+        }
+      }
+    |
+
+    supergraph = compose_definitions({
+      "widgets" => %|
+        input MakeWidgetInput { name: String children: [[ID!]] }
+        type Widget { id: ID! }
+        type Query { widget(ids: [ID!], input: MakeWidgetInput): Widget }
+      |,
+    })
+
+    plan = GraphQL::Stitching::Request.new(supergraph, query).plan
+
+    assert_equal 1, plan.ops.length
+    assert_equal({ "id" => "ID", "childIds" => "[ID!]" }, plan.ops[0].variables)
+  end
+
   def test_extracts_variables_for_input_object_fragments
     mutation = %|
       mutation($newWidget: MakeWidgetInput!, $newSprocket: MakeSprocketInput!, $lang: String) {
@@ -117,6 +140,22 @@ describe "GraphQL::Stitching::Planner, variables" do
     assert_equal expected_vars, plan.ops[0].variables
   end
 
+  def test_extracts_variables_from_inline_fragment_directives
+    query = %|
+      query($wid: ID!, $show: Boolean!) {
+        thing(id: $wid) { ...on Widget @dir(show: $show) { id name } }
+      }
+    |
+
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
+
+    assert_equal 1, plan.ops.length
+
+    expected_vars = { "wid" => "ID!", "show" => "Boolean!" }
+    assert_equal expected_vars, plan.ops[0].variables
+    assert_equal %|{ thing(id: $wid) { ... on Widget @dir(show: $show) { id name } _export___typename: __typename } }|, plan.ops[0].selections
+  end
+
   def test_extracts_variables_from_fragment_spreads
     query = %|
       query($wid: ID!, $lang: String) {
@@ -131,5 +170,53 @@ describe "GraphQL::Stitching::Planner, variables" do
 
     expected_vars = { "wid" => "ID!", "lang" => "String" }
     assert_equal expected_vars, plan.ops[0].variables
+  end
+
+  def test_extracts_variables_from_fragment_spread_directives
+    query = %|
+      query($wid: ID!, $show: Boolean!) {
+        thing(id: $wid) { ...WidgetAttrs @dir(show: $show) }
+      }
+      fragment WidgetAttrs on Widget { id name }
+    |
+
+    plan = GraphQL::Stitching::Request.new(@supergraph, query).plan
+
+    assert_equal 1, plan.ops.length
+
+    expected_vars = { "wid" => "ID!", "show" => "Boolean!" }
+    assert_equal expected_vars, plan.ops[0].variables
+    assert_equal %|{ thing(id: $wid) { ... on Widget @dir(show: $show) { id name } _export___typename: __typename } }|, plan.ops[0].selections
+  end
+
+  def test_merges_variables_from_coalesced_steps
+    alpha = %|
+      type Test { id: ID! a(lang: String): String x(unit: String): Int }
+      type Query { testA(id: ID!): Test! @stitch(key: "id") }
+    |
+
+    bravo = %|
+      type Test { id: ID! b: String }
+      type Namespace { test: Test }
+      type Query {
+        namespace: Namespace!
+        testB(id: ID!): Test! @stitch(key: "id")
+      }
+    |
+
+    query = %|
+      query($lang: String, $unit: String) {
+        namespace {
+          test { a(lang: $lang) }
+          test { x(unit: $unit) }
+        }
+      }
+    |
+
+    supergraph = compose_definitions({ "alpha" => alpha, "bravo" => bravo })
+    plan = GraphQL::Stitching::Request.new(supergraph, query).plan
+
+    assert_equal 2, plan.ops.length
+    assert_equal({ "lang" => "String", "unit" => "String" }, plan.ops[1].variables)
   end
 end

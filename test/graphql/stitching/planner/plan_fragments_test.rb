@@ -156,5 +156,6 @@ describe "GraphQL::Stitching::Planner, fragments" do
     assert_equal "bravo", third.location
     assert_equal ["namespace", "test", "nest"], third.path
     assert_equal "{ b }", third.selections
+    assert_equal second.step, third.after
   end
 end

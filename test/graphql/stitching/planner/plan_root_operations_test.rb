@@ -127,6 +127,27 @@ describe "GraphQL::Stitching::Planner, root operations" do
     }
   end
 
+  def test_plans_mutation_typename_on_supergraph
+    document = %|
+      mutation {
+        __typename
+      }
+    |
+
+    plan = GraphQL::Stitching::Request.new(@supergraph, document).plan
+
+    assert_equal 1, plan.ops.length
+    assert_keys plan.ops[0].as_json, {
+      after: 0,
+      location: "__super",
+      operation_type: "mutation",
+      selections: %|{ __typename }|,
+      path: [],
+      if_type: nil,
+      resolver: nil,
+    }
+  end
+
   def test_raises_for_subscription_operations_with_multiple_fields
     document = %|
       subscription {

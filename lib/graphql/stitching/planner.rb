@@ -91,7 +91,7 @@ module GraphQL
         path.each { entrypoint << "/" << _1 }
 
         step = @steps_by_entrypoint[entrypoint]
-        next_index = step ? parent_index : @planning_index += 1
+        next_index = step ? step.index : @planning_index += 1
 
         unless selections.empty?
           selections = extract_locale_selections(location, parent_type, next_index, selections, path, variables)
@@ -110,6 +110,7 @@ module GraphQL
             resolver: resolver,
           )
         else
+          step.variables.merge!(variables)
           step.selections.concat(selections)
           step
         end
@@ -142,7 +143,8 @@ module GraphQL
           # A.2) Partition mutation fields by consecutive location for serial execution.
           partitions = []
           each_field_in_scope(parent_type, @request.operation.selections) do |node|
-            next_location = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name].first
+            locations = @supergraph.locations_by_type_and_field[parent_type.graphql_name][node.name] || SUPERGRAPH_LOCATIONS
+            next_location = locations.first
 
             if partitions.none? || partitions.last.location != next_location
               partitions << ScopePartition.new(location: next_location, selections: [])
@@ -256,7 +258,8 @@ module GraphQL
             fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
             next unless @supergraph.locations_by_type[fragment_type.graphql_name].include?(current_location)
 
-            is_same_scope = fragment_type == parent_type
+            extract_node_directive_variables(node, locale_variables)
+            is_same_scope = fragment_type == parent_type && node.directives.empty?
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, parent_index, node.selections, path, locale_variables, selection_set)
 
@@ -269,14 +272,17 @@ module GraphQL
             fragment = @request.fragment_definitions[node.name]
             next unless @supergraph.locations_by_type[fragment.type.name].include?(current_location)
 
+            extract_node_directive_variables(node, locale_variables)
+            extract_node_directive_variables(fragment, locale_variables)
             requires_typename = true
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            is_same_scope = fragment_type == parent_type
+            directives = [*fragment.directives, *node.directives]
+            is_same_scope = fragment_type == parent_type && directives.empty?
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, parent_index, fragment.selections, path, locale_variables, selection_set)
 
             unless is_same_scope
-              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, selections: selection_set)
+              locale_selections << GraphQL::Language::Nodes::InlineFragment.new(type: fragment.type, directives: directives, selections: selection_set)
             end
 
           else
@@ -362,13 +368,30 @@ module GraphQL
             extract_node_variables(argument.value, variable_definitions)
           when GraphQL::Language::Nodes::VariableIdentifier
             variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
+          when Array
+            extract_value_variables(argument.value, variable_definitions)
           end
         end
 
         if node_with_args.respond_to?(:directives)
-          node_with_args.directives.each do |directive|
-            extract_node_variables(directive, variable_definitions)
-          end
+          extract_node_directive_variables(node_with_args, variable_definitions)
+        end
+      end
+
+      def extract_value_variables(value, variable_definitions)
+        case value
+        when GraphQL::Language::Nodes::InputObject
+          extract_node_variables(value, variable_definitions)
+        when GraphQL::Language::Nodes::VariableIdentifier
+          variable_definitions[value.name] ||= @request.variable_definitions[value.name]
+        when Array
+          value.each { extract_value_variables(_1, variable_definitions) }
+        end
+      end
+
+      def extract_node_directive_variables(node_with_directives, variable_definitions)
+        node_with_directives.directives.each do |directive|
+          extract_node_variables(directive, variable_definitions)
         end
       end
 

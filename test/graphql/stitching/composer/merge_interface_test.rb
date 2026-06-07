@@ -48,8 +48,8 @@ describe 'GraphQL::Stitching::Composer, merging interfaces' do
   def test_merges_inherited_interface_memberships
     skip unless minimum_graphql_version?("2.0.3")
 
-    a = %{interface A { id:ID } interface AA implements A { id:ID } type C implements AA { id:ID } type Query { c:C }}
-    b = %{interface B { id:ID } interface BB implements B { id:ID } type C implements BB { id:ID } type Query { c:C }}
+    a = %{interface A { id:ID } interface AA implements A { id:ID } type C implements AA & A { id:ID } type Query { c:C }}
+    b = %{interface B { id:ID } interface BB implements B { id:ID } type C implements BB & B { id:ID } type Query { c:C }}
 
     supergraph = compose_definitions({ "a" => a, "b" => b })
 

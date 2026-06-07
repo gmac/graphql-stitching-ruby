@@ -240,7 +240,8 @@ module GraphQL
             end
 
             # B.3) Collect all variable definitions used within the filtered selection.
-            extract_node_variables(node, locale_variables)
+            extract_node_argument_variables(node, locale_variables)
+            extract_node_directive_variables(node, locale_variables)
             schema_fields = @supergraph.memoized_schema_fields(parent_type.graphql_name)
             field_type = schema_fields[node.name].type.unwrap
 
@@ -276,7 +277,7 @@ module GraphQL
             extract_node_directive_variables(fragment, locale_variables)
             requires_typename = true
             fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
-            directives = [*fragment.directives, *node.directives]
+            directives = fragment.directives.empty? && node.directives.empty? ? EMPTY_ARRAY : fragment.directives + node.directives
             is_same_scope = fragment_type == parent_type && directives.empty?
             selection_set = is_same_scope ? locale_selections : []
             extract_locale_selections(current_location, fragment_type, parent_index, fragment.selections, path, locale_variables, selection_set)
@@ -361,37 +362,28 @@ module GraphQL
 
       # B.3) Collect all variable definitions used within the filtered selection.
       # These specify which request variables to pass along with each step.
-      def extract_node_variables(node_with_args, variable_definitions)
-        node_with_args.arguments.each do |argument|
-          case argument.value
-          when GraphQL::Language::Nodes::InputObject
-            extract_node_variables(argument.value, variable_definitions)
-          when GraphQL::Language::Nodes::VariableIdentifier
-            variable_definitions[argument.value.name] ||= @request.variable_definitions[argument.value.name]
-          when Array
-            extract_value_variables(argument.value, variable_definitions)
-          end
-        end
+      def extract_node_argument_variables(node, variable_definitions)
+        arguments = node.arguments
+        return if arguments.empty?
 
-        if node_with_args.respond_to?(:directives)
-          extract_node_directive_variables(node_with_args, variable_definitions)
-        end
+        arguments.each { |argument| extract_value_variables(argument.value, variable_definitions) }
+      end
+
+      def extract_node_directive_variables(node, variable_definitions)
+        directives = node.directives
+        return if directives.empty?
+
+        directives.each { |directive| extract_node_argument_variables(directive, variable_definitions) }
       end
 
       def extract_value_variables(value, variable_definitions)
         case value
         when GraphQL::Language::Nodes::InputObject
-          extract_node_variables(value, variable_definitions)
+          extract_node_argument_variables(value, variable_definitions)
         when GraphQL::Language::Nodes::VariableIdentifier
           variable_definitions[value.name] ||= @request.variable_definitions[value.name]
         when Array
           value.each { extract_value_variables(_1, variable_definitions) }
-        end
-      end
-
-      def extract_node_directive_variables(node_with_directives, variable_definitions)
-        node_with_directives.directives.each do |directive|
-          extract_node_variables(directive, variable_definitions)
         end
       end
 

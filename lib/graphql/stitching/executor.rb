@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "executor/path_access"
 require_relative "executor/root_source"
 require_relative "executor/type_resolver_source"
 require_relative "executor/shaper"

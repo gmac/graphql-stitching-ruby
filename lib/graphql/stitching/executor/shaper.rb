@@ -11,6 +11,7 @@ module GraphQL::Stitching
         @request = request
         @supergraph = request.supergraph
         @root_type = nil
+        @possible_type_names_by_type = nil
       end
 
       def perform!(raw)
@@ -24,6 +25,8 @@ module GraphQL::Stitching
         return nil if raw_object.nil?
 
         typename ||= raw_object[TypeResolver::TYPENAME_EXPORT_NODE.alias]
+        typename ||= parent_type.graphql_name unless parent_type.kind.abstract?
+
         raw_object.reject! { |key, _v| TypeResolver.export_key?(key) }
 
         selections.each do |node|
@@ -84,36 +87,37 @@ module GraphQL::Stitching
 
         next_node_type = Util.unwrap_non_null(current_node_type).of_type
         named_type = next_node_type.unwrap
-        contains_null = false
+
+        if Util.is_leaf_type?(named_type)
+          return nil if next_node_type.non_null? && raw_list.include?(nil)
+
+          return raw_list
+        end
 
         resolved_list = raw_list.map! do |raw_list_element|
           result = if next_node_type.list?
             resolve_list_scope(raw_list_element, next_node_type, selections)
-          elsif Util.is_leaf_type?(named_type)
-            raw_list_element
           else
             resolve_object_scope(raw_list_element, named_type, selections)
           end
 
-          if result.nil?
-            contains_null = true
-            return nil if current_node_type.non_null?
-          end
+          return nil if result.nil? && next_node_type.non_null?
 
           result
         end
-
-        return nil if contains_null && next_node_type.non_null?
 
         resolved_list
       end
 
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
+        return false unless typename && type.kind.abstract?
 
-        type.kind.abstract? && @request.query.possible_types(type).any? do |t|
-          t.graphql_name == typename
-        end
+        possible_type_names(type).include?(typename)
+      end
+
+      def possible_type_names(type)
+        (@possible_type_names_by_type ||= {})[type.graphql_name] ||= @request.query.possible_types(type).map(&:graphql_name)
       end
     end
   end

@@ -137,6 +137,22 @@ describe "GraphQL::Stitching::Executor::Shaper, null bubbling" do
     assert_nil GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
+  def test_bubbles_null_for_required_scalar_list_elements
+    schema_sdl = "type Query { test: [String!] }"
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test }|,
+    )
+    raw = {
+      "test" => ["yes", nil]
+    }
+    expected = {
+      "test" => nil
+    }
+
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
+  end
+
   def test_basic_nested_list_structure
     schema_sdl = "type Test { req: String! opt: String } type Query { test: [[Test]] }"
     request = GraphQL::Stitching::Request.new(
@@ -153,6 +169,28 @@ describe "GraphQL::Stitching::Executor::Shaper, null bubbling" do
       "test" => [
         [{ "req" => "yes", "opt" => nil }],
         [{ "req" => "yes", "opt" => "yes" }],
+      ]
+    }
+
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
+  end
+
+  def test_preserves_nullable_scalar_elements_in_required_nested_lists
+    schema_sdl = "type Query { test: [[String]!] }"
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      %|{ test }|,
+    )
+    raw = {
+      "test" => [
+        ["yes", nil],
+        ["also yes"],
+      ]
+    }
+    expected = {
+      "test" => [
+        ["yes", nil],
+        ["also yes"],
       ]
     }
 
@@ -236,6 +274,35 @@ describe "GraphQL::Stitching::Executor::Shaper, null bubbling" do
     }
 
     assert_nil GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
+  end
+
+  def test_bubble_through_concrete_inline_fragment_without_exported_typename
+    schema_sdl = "type Test { req: String! opt: String } type Query { test: Test }"
+    query = %|
+      query {
+        test {
+          ... on Test {
+            req
+            opt
+          }
+        }
+      }
+    |
+    request = GraphQL::Stitching::Request.new(
+      supergraph_from_schema(schema_sdl),
+      query,
+    )
+    raw = {
+      "test" => {
+        "req" => nil,
+        "opt" => "yes"
+      }
+    }
+    expected = {
+      "test" => nil
+    }
+
+    assert_equal expected, GraphQL::Stitching::Executor::Shaper.new(request).perform!(raw)
   end
 
   def test_bubble_through_inline_fragment

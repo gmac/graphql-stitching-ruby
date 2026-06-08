@@ -53,6 +53,27 @@ describe 'GraphQL::Stitching::Composer, merging directives' do
     assert_equal "a/b", directives.find { _1.graphql_name == "fizz" }.arguments.keyword_arguments[:arg]
   end
 
+  def test_preserves_repeatable_directives_assigned_to_an_element
+    skip unless minimum_graphql_version?("2.0.15")
+
+    a = %|
+      directive @tag(name: String!) repeatable on OBJECT
+      type Test @tag(name: "a1") @tag(name: "a2") { field: String }
+      type Query { test:Test }
+    |
+
+    b = %|
+      directive @tag(name: String!) repeatable on OBJECT
+      type Test @tag(name: "a2") @tag(name: "b1") { field: String }
+      type Query { test:Test }
+    |
+
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+
+    directives = supergraph.schema.types["Test"].directives.select { _1.graphql_name == "tag" }
+    assert_equal ["a1", "a2", "b1"], directives.map { _1.arguments.keyword_arguments[:name] }
+  end
+
   def test_omits_stitching_directives_and_includes_supergraph_directives
     a = %|
       directive @stitch(key: String!) repeatable on FIELD_DEFINITION

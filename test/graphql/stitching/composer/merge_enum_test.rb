@@ -55,6 +55,15 @@ describe 'GraphQL::Stitching::Composer, merging enums' do
     assert_equal ["NO", "YES"], supergraph.schema.types["Status"].values.keys.sort
   end
 
+  def test_merges_enum_values_using_intersection_with_repeated_input_usage
+    a = %|enum Status { YES NO } type Query { status1(a:Status, b:Status):Status }|
+    b = %|enum Status { YES NO MAYBE } type Query { status2(s:Status):Status }|
+
+    supergraph = compose_definitions({ "a" => a, "b" => b })
+
+    assert_equal ["NO", "YES"], supergraph.schema.types["Status"].values.keys.sort
+  end
+
   def test_merges_enum_values_using_intersection_when_input_via_object
     a = %|enum Status { YES NO } input MyStatus { status:Status } type Query { status1(s:MyStatus):Status }|
     b = %|enum Status { YES NO MAYBE } type Query { status:Status }|

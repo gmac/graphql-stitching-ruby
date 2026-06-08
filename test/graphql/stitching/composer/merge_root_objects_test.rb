@@ -54,6 +54,15 @@ describe 'GraphQL::Stitching::Composer, merging root objects' do
     end
   end
 
+  def test_errors_when_root_type_name_is_used_by_other_schema_type
+    a = "type RootQ { a:String } schema { query:RootQ }"
+    b = "type RootQ { b:String } type Query { root:RootQ }"
+
+    assert_error('Root type name "RootQ" from a schema is used by non-root type in b schema.', CompositionError) do
+      compose_definitions({ "a" => a, "b" => b })
+    end
+  end
+
   def test_prioritizes_last_root_field_location_by_default
     a = "type Query { f:String } type Mutation { f:String }"
     b = "type Query { f:String } type Mutation { f:String }"

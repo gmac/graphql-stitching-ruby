@@ -117,6 +117,13 @@ module GraphQL
         schema_directives.merge!(GraphQL::Schema.default_directives)
         @schema_directives = schema_directives
 
+        root_type_names_by_location = schemas.each_with_object({}) do |(location, schema), memo|
+          memo[location] = {}
+          memo[location][schema.query.graphql_name] = :query if schema.query
+          memo[location][schema.mutation.graphql_name] = :mutation if schema.mutation
+          memo[location][schema.subscription.graphql_name] = :subscription if schema.subscription
+        end
+
         # "Typename" => "location" => subgraph_type
         subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           schema.types.each do |type_name, subgraph_type|
@@ -128,6 +135,16 @@ module GraphQL
               raise CompositionError, "Mutation name \"#{@mutation_name}\" is used by non-mutation type in #{location} schema."
             elsif type_name == @subscription_name && subgraph_type != schema.subscription
               raise CompositionError, "Subscription name \"#{@subscription_name}\" is used by non-subscription type in #{location} schema."
+            end
+
+            root_type_names_by_location.each do |other_location, root_types|
+              next if other_location == location
+              root_kind = root_types[type_name]
+              next unless root_kind
+
+              unless subgraph_type == schema.public_send(root_kind)
+                raise CompositionError, "Root type name \"#{type_name}\" from #{other_location} schema is used by non-root type in #{location} schema."
+              end
             end
 
             type_name = @query_name if subgraph_type == schema.query
@@ -484,11 +501,12 @@ module GraphQL
         directives_by_name_location = members_by_location.each_with_object({}) do |(location, subgraph_member), memo|
           subgraph_member.directives.each do |directive|
             memo[directive.graphql_name] ||= {}
-            memo[directive.graphql_name][location] = directive
+            memo[directive.graphql_name][location] ||= []
+            memo[directive.graphql_name][location] << directive
           end
         end
 
-        directives_by_name_location.each do |directive_name, directives_by_location|
+        directives_by_name_location.each do |directive_name, directive_sets_by_location|
           kwarg_merger = @directive_kwarg_merger
           directive_class = @schema_directives&.[](directive_name)
           next unless directive_class
@@ -496,39 +514,67 @@ module GraphQL
           # handled by deprecation_reason merger...
           next if directive_class.graphql_name == "deprecated"
 
-          kwarg_values_by_name_location = directives_by_location.each_with_object({}) do |(location, directive), memo|
-            directive.arguments.keyword_arguments.each do |key, value|
-              key = key.to_s
-              memo[key] ||= {}
-              memo[key][location] = value
-            end
-          end
+          if directive_class.repeatable?
+            seen_kwargs = Set.new
+            directive_sets_by_location.each_value do |directives|
+              directives.each do |directive|
+                kwargs = directive.arguments.keyword_arguments
+                next unless seen_kwargs.add?(kwargs)
 
-          if directive_class.graphql_name == GraphQL::Stitching.visibility_directive
-            unless GraphQL::Stitching.supports_visibility?
-              raise CompositionError, "Using `@#{GraphQL::Stitching.visibility_directive}` directive " \
-                "for schema visibility controls requires GraphQL Ruby v#{GraphQL::Stitching::MIN_VISIBILITY_VERSION} or later."
+                owner.directive(directive_class, **kwargs)
+              end
             end
-
-            if (profiles = kwarg_values_by_name_location["profiles"])
-              @visibility_profiles.merge(profiles.each_value.reduce(&:|))
-              kwarg_merger = VISIBILITY_PROFILES_MERGER
-            end
-          end
-
-          kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
-            memo[kwarg_name.to_sym] = kwarg_merger.call(kwarg_values_by_location, {
+          else
+            directives_by_location = directive_sets_by_location.transform_values(&:first)
+            apply_merged_directive(
+              directive_class,
+              directives_by_location,
+              owner,
+              kwarg_merger,
               type_name: type_name,
               field_name: field_name,
               argument_name: argument_name,
               enum_value: enum_value,
-              directive_name: directive_name,
-              kwarg_name: kwarg_name,
-            }.tap(&:compact!))
+            )
+          end
+        end
+      end
+
+      # @!scope class
+      # @!visibility private
+      def apply_merged_directive(directive_class, directives_by_location, owner, kwarg_merger, type_name:, field_name: nil, argument_name: nil, enum_value: nil)
+        kwarg_values_by_name_location = directives_by_location.each_with_object({}) do |(location, directive), memo|
+          directive.arguments.keyword_arguments.each do |key, value|
+            key = key.to_s
+            memo[key] ||= {}
+            memo[key][location] = value
+          end
+        end
+
+        if directive_class.graphql_name == GraphQL::Stitching.visibility_directive
+          unless GraphQL::Stitching.supports_visibility?
+            raise CompositionError, "Using `@#{GraphQL::Stitching.visibility_directive}` directive " \
+              "for schema visibility controls requires GraphQL Ruby v#{GraphQL::Stitching::MIN_VISIBILITY_VERSION} or later."
           end
 
-          owner.directive(directive_class, **kwargs)
+          if (profiles = kwarg_values_by_name_location["profiles"])
+            @visibility_profiles.merge(profiles.each_value.reduce(&:|))
+            kwarg_merger = VISIBILITY_PROFILES_MERGER
+          end
         end
+
+        kwargs = kwarg_values_by_name_location.each_with_object({}) do |(kwarg_name, kwarg_values_by_location), memo|
+          memo[kwarg_name.to_sym] = kwarg_merger.call(kwarg_values_by_location, {
+            type_name: type_name,
+            field_name: field_name,
+            argument_name: argument_name,
+            enum_value: enum_value,
+            directive_name: directive_class.graphql_name,
+            kwarg_name: kwarg_name,
+          }.tap(&:compact!))
+        end
+
+        owner.directive(directive_class, **kwargs)
       end
 
       #: (TypeName type_name, Array[untyped] subgraph_types, ?field_name: FieldName?, ?argument_name: String?) -> untyped
@@ -744,8 +790,8 @@ module GraphQL
 
       #: (Array[singleton(GraphQL::Schema)] schemas) -> Hash[TypeName, Array[Symbol]]
       def build_enum_usage_map(schemas)
-        reads = []
-        writes = []
+        reads = Set.new
+        writes = Set.new
 
         schemas.each do |schema|
           schema.types.each_value do |type|
@@ -754,28 +800,28 @@ module GraphQL
             if type.kind.object? || type.kind.interface?
               type.fields.each_value do |field|
                 field_type = field.type.unwrap
-                reads << field_type.graphql_name if field_type.kind.enum?
+                reads.add(field_type.graphql_name) if field_type.kind.enum?
 
                 field.arguments.each_value do |argument|
                   argument_type = argument.type.unwrap
-                  writes << argument_type.graphql_name if argument_type.kind.enum?
+                  writes.add(argument_type.graphql_name) if argument_type.kind.enum?
                 end
               end
 
             elsif type.kind.input_object?
               type.arguments.each_value do |argument|
                 argument_type = argument.type.unwrap
-                writes << argument_type.graphql_name if argument_type.kind.enum?
+                writes.add(argument_type.graphql_name) if argument_type.kind.enum?
               end
             end
           end
         end
 
-        usage = reads.tap(&:uniq!).each_with_object({}) do |enum_name, memo|
+        usage = reads.each_with_object({}) do |enum_name, memo|
           memo[enum_name] ||= []
           memo[enum_name] << :read
         end
-        writes.tap(&:uniq!).each_with_object(usage) do |enum_name, memo|
+        writes.each_with_object(usage) do |enum_name, memo|
           memo[enum_name] ||= []
           memo[enum_name] << :write
         end

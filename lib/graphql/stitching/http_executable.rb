@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require "net/http"
 require "uri"
@@ -6,20 +7,15 @@ require "json"
 
 module GraphQL
   module Stitching
-    # HttpExecutable provides an out-of-the-box convenience for sending 
-    # HTTP post requests to a remote location, or a base class 
-    # for other implementations with GraphQL multipart uploads.
     class HttpExecutable
-      # Builds a new executable for proxying subgraph requests via HTTP.
-      # @param url [String] the url of the remote location to proxy.
-      # @param headers [Hash] headers to include in upstream requests.
-      # @param upload_types [Array<String>, nil] a list of scalar names that represent file uploads. These types extract into multipart forms.
+      #: (url: String, ?headers: Hash[String, String], ?upload_types: Array[TypeName]?) -> void
       def initialize(url:, headers: {}, upload_types: nil)
-        @url = url
-        @headers = { "Content-Type" => "application/json" }.merge!(headers)
-        @upload_types = upload_types
+        @url = url #: String
+        @headers = { "Content-Type" => "application/json" }.merge!(headers) #: Hash[String, String]
+        @upload_types = upload_types #: Array[TypeName]?
       end
 
+      #: (Request request, String document, Variables variables) -> JsonMap
       def call(request, document, variables)
         form_data = extract_multipart_form(request, document, variables)
 
@@ -29,13 +25,10 @@ module GraphQL
           send(request, document, variables)
         end
 
-        JSON.parse(response.body)
+        JSON.parse(response.body.to_s)
       end
 
-      # Sends a POST request to the remote location.
-      # @param request [Request] the original supergraph request.
-      # @param document [String] the location-specific subgraph document to send.
-      # @param variables [Hash] a hash of variables specific to the subgraph document.
+      #: (Request _request, String document, Variables variables) -> Net::HTTPResponse
       def send(_request, document, variables)
         Net::HTTP.post(
           URI(@url),
@@ -44,9 +37,7 @@ module GraphQL
         )
       end
 
-      # Sends a POST request to the remote location with multipart form data.
-      # @param request [Request] the original supergraph request.
-      # @param form_data [Hash] a rendered multipart form with an "operations", "map", and file sections.
+      #: (Request _request, MultipartForm form_data) -> Net::HTTPResponse
       def send_multipart_form(_request, form_data)
         uri = URI(@url)
         req = Net::HTTP::Post.new(uri)
@@ -62,11 +53,10 @@ module GraphQL
 
       # Extracts multipart upload forms per the spec:
       # https://github.com/jaydenseric/graphql-multipart-request-spec
-      # @param request [Request] the original supergraph request.
-      # @param document [String] the location-specific subgraph document to send.
-      # @param variables [Hash] a hash of variables specific to the subgraph document.
+      #: (Request request, String document, Variables variables) -> MultipartForm?
       def extract_multipart_form(request, document, variables)
-        return unless @upload_types && request.variable_definitions.any? && variables&.any?
+        upload_types = @upload_types
+        return unless upload_types && request.variable_definitions.any? && variables.any?
 
         files_by_path = {}
 
@@ -85,8 +75,8 @@ module GraphQL
         variables_copy = variables.dup
 
         files_by_path.each_key do |path|
-          orig = variables
-          copy = variables_copy
+          orig = variables #: untyped
+          copy = variables_copy #: untyped
           path.each_with_index do |key, i|
             if i == path.length - 1
               file_index = files.index(copy[key]).to_s
@@ -115,9 +105,14 @@ module GraphQL
 
       private
 
+      #: (untyped ast_node, untyped value, FilesByPath files_by_path, VariablePath path, Request request) -> void
       def extract_ast_node(ast_node, value, files_by_path, path, request)
         return unless value
 
+        upload_types = @upload_types
+        return unless upload_types
+
+        ast_node = ast_node #: untyped
         ast_node = ast_node.of_type while ast_node.is_a?(GraphQL::Language::Nodes::NonNullType)
 
         if ast_node.is_a?(GraphQL::Language::Nodes::ListType)
@@ -128,7 +123,7 @@ module GraphQL
               path.pop
             end
           end
-        elsif @upload_types.include?(ast_node.name)
+        elsif upload_types.include?(ast_node.name)
           files_by_path[path.dup] = value
         else
           type_def = request.query.get_type(ast_node.name)
@@ -136,8 +131,12 @@ module GraphQL
         end
       end
 
+      #: (untyped parent_type, untyped value, FilesByPath files_by_path, VariablePath path) -> void
       def extract_type_node(parent_type, value, files_by_path, path)
         return unless value
+
+        upload_types = @upload_types
+        return unless upload_types
 
         parent_type = Util.unwrap_non_null(parent_type)
 
@@ -159,7 +158,7 @@ module GraphQL
               path.pop
             end
           end
-        elsif @upload_types.include?(parent_type.graphql_name)
+        elsif upload_types.include?(parent_type.graphql_name)
           files_by_path[path.dup] = value
         end
       end

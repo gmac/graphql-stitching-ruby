@@ -1,15 +1,13 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Request
-    # Faster implementation of an AST visitor for prerendering
-    # @skip and @include conditional directives into a document.
-    # This avoids unnecessary planning steps, and prepares result shaping.
-    # @api private
     class SkipInclude
       class << self
-        def render(document, variables)
-          changed = false
+        #: (DocumentNode document, Variables variables) { (DocumentNode) -> void } -> DocumentNode
+        def render(document, variables, &block)
+          changed = false #: bool
           definitions = document.definitions.map do |original_definition|
             definition = render_node(original_definition, variables)
             changed ||= definition.object_id != original_definition.object_id
@@ -19,14 +17,15 @@ module GraphQL::Stitching
           return document unless changed
 
           document = document.merge(definitions: definitions)
-          yield(document) if block_given?
+          block.call(document) if block
           document
         end
 
         private
 
+        #: ((SelectionSetNode) parent_node, Variables variables) -> SelectionSetNode
         def render_node(parent_node, variables)
-          changed = false
+          changed = false #: bool
           filtered_selections = parent_node.selections.filter_map do |original_node|
             node = prune_node(original_node, variables)
             if node.nil?
@@ -50,10 +49,11 @@ module GraphQL::Stitching
           end
         end
 
+        #: (SelectionSetNode node, Variables variables) -> SelectionSetNode?
         def prune_node(node, variables)
           return node if node.directives.empty?
 
-          delete_node = false
+          delete_node = false #: bool
           filtered_directives = node.directives.reject do |directive|
             if directive.name == "skip"
               delete_node = assess_condition(directive.arguments.first, variables)
@@ -73,6 +73,7 @@ module GraphQL::Stitching
           end
         end
 
+        #: (untyped arg, Variables variables) -> bool
         def assess_condition(arg, variables)
           if arg.value.is_a?(GraphQL::Language::Nodes::VariableIdentifier)
             variables[arg.value.name] || variables[arg.value.name.to_sym]

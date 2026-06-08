@@ -1,29 +1,37 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class TypeResolver
-    # Defines a single resolver argument structure
-    # @api private
     class Argument
+      #: String
       attr_reader :name
+
+      #: ArgumentValue
       attr_reader :value
+
+      #: TypeName?
       attr_reader :type_name
 
+      #: (name: String, value: ArgumentValue, ?list: bool, ?type_name: TypeName?) -> void
       def initialize(name:, value:, list: false, type_name: nil)
         @name = name
         @value = value
-        @list = list
+        @list = list #: bool
         @type_name = type_name
       end
 
+      #: -> bool
       def list?
         @list
       end
 
+      #: -> bool
       def key?
         value.key?
       end
 
+      #: (Key key) -> bool
       def verify_key(key)
         if key?
           value.verify_key(self, key)
@@ -33,6 +41,7 @@ module GraphQL::Stitching
         end
       end
 
+      #: (untyped other) -> bool
       def ==(other)
         self.class == other.class &&
           @name == other.name &&
@@ -41,93 +50,106 @@ module GraphQL::Stitching
           @list == other.list?
       end
 
+      #: (Data origin_obj) -> untyped
       def build(origin_obj)
         value.build(origin_obj)
       end
 
+      #: -> String
       def print
         "#{name}: #{value.print}"
       end
 
+      #: -> String
       def to_definition
         print.gsub(%|"|, "'")
       end
 
       alias_method :to_s, :to_definition
 
+      #: -> String
       def to_type_definition
         "#{name}: #{to_type_signature}"
       end
 
+      #: -> String
       def to_type_signature
         # need to derive nullability...
         list? ? "[#{@type_name}!]!" : "#{@type_name}!"
       end
     end
 
-    # An abstract argument input value
-    # @api private
     class ArgumentValue
+      #: untyped
       attr_reader :value
 
+      #: (untyped value) -> void
       def initialize(value)
         @value = value
       end
 
+      #: -> bool
       def key?
         false
       end
 
+      #: (Argument arg, Key key) -> void
       def verify_key(arg, key)
         nil
       end
 
+      #: (untyped other) -> bool
       def ==(other)
         self.class == other.class && value == other.value
       end
 
+      #: (Data origin_obj) -> untyped
       def build(origin_obj)
         value
       end
 
+      #: -> String
       def print
         value
       end
     end
 
-    # An object input value
-    # @api private
     class ObjectArgumentValue < ArgumentValue
+      #: -> bool
       def key?
         value.any?(&:key?)
       end
 
+      #: (Argument arg, Key key) -> void
       def verify_key(arg, key)
         value.each { _1.verify_key(key) }
       end
 
+      #: (Data origin_obj) -> Variables
       def build(origin_obj)
         value.each_with_object({}) do |arg, memo|
           memo[arg.name] = arg.build(origin_obj)
         end
       end
 
+      #: -> String
       def print
         "{#{value.map(&:print).join(", ")}}"
       end
     end
 
-    # A key input value
-    # @api private
     class KeyArgumentValue < ArgumentValue
+      #: (String | Array[String] value) -> void
       def initialize(value)
         super(Array(value))
       end
 
+      #: -> bool
       def key?
         true
       end
 
+      #: (Argument arg, Key key) -> void
       def verify_key(arg, key)
         key_field = value.reduce(TypeResolver::KeyField.new("", inner: key)) do |field, ns|
           if ns == TYPENAME
@@ -144,37 +166,31 @@ module GraphQL::Stitching
         end
       end
 
+      #: (Data origin_obj) -> untyped
       def build(origin_obj)
         value.each_with_index.reduce(origin_obj) do |obj, (ns, idx)|
           obj[idx.zero? ? TypeResolver.export_key(ns) : ns]
         end
       end
 
+      #: -> String
       def print
         "$.#{value.join(".")}"
       end
     end
 
-    # A typed enum input value
-    # @api private
     class EnumArgumentValue < ArgumentValue
     end
 
-    # A primitive input value literal
-    # @api private
     class LiteralArgumentValue < ArgumentValue
+      #: -> String
       def print
         JSON.generate(value)
       end
     end
 
-    # Parser for building argument templates into resolver structures
-    # @api private
     module ArgumentsParser
-      # Parses an argument template string into resolver arguments via schema casting.
-      # @param template [String] the template string to parse.
-      # @param field_def [GraphQL::Schema::FieldDefinition] a field definition providing arguments schema.
-      # @return [[GraphQL::Stitching::TypeResolver::Argument]] an array of resolver arguments.
+      #: (String template, GraphQL::Schema::Field field_def) -> Array[Argument]
       def parse_arguments_with_field(template, field_def)
         ast = parse_arg_defs(template)
         args = build_argument_set(ast, field_def.arguments)
@@ -182,10 +198,10 @@ module GraphQL::Stitching
           next unless arg.key?
 
           if field_def.type.list? && !arg.list?
-            raise CompositionError, "Cannot use repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
+            Kernel.raise CompositionError, "Cannot use repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
               "in non-list argument `#{arg.name}`."
           elsif !field_def.type.list? && arg.list?
-            raise CompositionError, "Cannot use non-repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
+            Kernel.raise CompositionError, "Cannot use non-repeatable key for `#{field_def.owner.graphql_name}.#{field_def.graphql_name}` " \
               "in list argument `#{arg.name}`."
           end
         end
@@ -193,10 +209,7 @@ module GraphQL::Stitching
         args
       end
 
-      # Parses an argument template string into resolver arguments via SDL casting.
-      # @param template [String] the template string to parse.
-      # @param type_defs [String] the type definition string declaring argument types.
-      # @return [[GraphQL::Stitching::TypeResolver::Argument]] an array of resolver arguments.
+      #: (String template, String type_defs) -> Array[Argument]
       def parse_arguments_with_type_defs(template, type_defs)
         type_map = parse_type_defs(type_defs)
         parse_arg_defs(template).map { build_argument(_1, type_struct: type_map[_1.name]) }
@@ -204,6 +217,7 @@ module GraphQL::Stitching
 
       private
 
+      #: (String template) -> Array[GraphQL::Language::Nodes::Argument]
       def parse_arg_defs(template)
         template = template
           .gsub("'", %|"|) # 'sfoo' -> "sfoo"
@@ -218,6 +232,7 @@ module GraphQL::Stitching
           .arguments
       end
 
+      #: (String template) -> ResolverArgumentTypeMap
       def parse_type_defs(template)
         GraphQL.parse("type T { #{template} }")
           .definitions.first
@@ -226,11 +241,12 @@ module GraphQL::Stitching
           end
       end
 
+      #: (Array[GraphQL::Language::Nodes::Argument] nodes, untyped argument_defs) -> Array[Argument]
       def build_argument_set(nodes, argument_defs)
         if argument_defs
           argument_defs.each_value do |argument_def|
             if argument_def.type.non_null? && !nodes.find { _1.name == argument_def.graphql_name }
-              raise CompositionError, "Required argument `#{argument_def.graphql_name}` has no input."
+              Kernel.raise CompositionError, "Required argument `#{argument_def.graphql_name}` has no input."
             end
           end
         end
@@ -238,7 +254,7 @@ module GraphQL::Stitching
         nodes.map do |node|
           argument_def = if argument_defs
             arg = argument_defs[node.name]
-            raise CompositionError, "Input `#{node.name}` is not a valid argument." unless arg
+            Kernel.raise CompositionError, "Input `#{node.name}` is not a valid argument." unless arg
             arg
           end
 
@@ -246,6 +262,7 @@ module GraphQL::Stitching
         end
       end
 
+      #: (GraphQL::Language::Nodes::Argument node, ?argument_def: GraphQL::Schema::Argument?, ?type_struct: Array[Util::TypeStructure]?) -> Argument
       def build_argument(node, argument_def: nil, type_struct: nil)
         value = if node.value.is_a?(GraphQL::Language::Nodes::InputObject)
           build_object_value(node.value, argument_def ? argument_def.type.unwrap : nil)
@@ -266,12 +283,13 @@ module GraphQL::Stitching
         )
       end
 
+      #: (GraphQL::Language::Nodes::InputObject node, untyped object_def) -> ObjectArgumentValue
       def build_object_value(node, object_def)
         if object_def
           if !object_def.kind.input_object? && !object_def.kind.scalar?
-            raise CompositionError, "Objects can only be built into input object and scalar positions."
+            Kernel.raise CompositionError, "Objects can only be built into input object and scalar positions."
           elsif object_def.kind.scalar? && GraphQL::Schema::BUILT_IN_TYPES[object_def.graphql_name]
-            raise CompositionError, "Objects can only be built into custom scalar types."
+            Kernel.raise CompositionError, "Objects can only be built into custom scalar types."
           elsif object_def.kind.scalar?
             object_def = nil
           end

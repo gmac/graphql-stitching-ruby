@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require_relative "composer/base_validator"
 require_relative "composer/validate_interfaces"
@@ -7,11 +8,7 @@ require_relative "composer/type_resolver_config"
 
 module GraphQL
   module Stitching
-    # Composer receives many individual `GraphQL::Schema` instances 
-    # representing various graph locations and merges them into one 
-    # combined Supergraph that is validated for integrity.
     class Composer
-      # @api private
       NO_DEFAULT_VALUE = begin
         t = Class.new(GraphQL::Schema::Object) do
           field(:f, String) { _1.argument(:a, String) }
@@ -20,33 +17,42 @@ module GraphQL
         t.get_field("f").get_argument("a").default_value
       end
 
-      # @api private
       BASIC_VALUE_MERGER = ->(values_by_location, _info) { values_by_location.values.find { !_1.nil? } }
-      
-      # @api private
+
       VISIBILITY_PROFILES_MERGER = ->(values_by_location, _info) { values_by_location.values.reduce(:&) }
 
-      # @api private
       COMPOSITION_VALIDATORS = [
         ValidateInterfaces,
         ValidateTypeResolvers,
       ].freeze
 
-      # @return [String] name of the Query type in the composed schema.
+      #: TypeName
       attr_reader :query_name
 
-      # @return [String] name of the Mutation type in the composed schema.
+      #: TypeName
       attr_reader :mutation_name
 
-      # @return [String] name of the Subscription type in the composed schema.
+      #: TypeName
       attr_reader :subscription_name
 
-      # @api private
+      #: Hash[TypeName, Hash[Location, untyped]]?
       attr_reader :subgraph_types_by_name_and_location
 
-      # @api private
+      #: Hash[String, untyped]?
       attr_reader :schema_directives
 
+      #: (
+      #|   ?query_name: TypeName,
+      #|   ?mutation_name: TypeName,
+      #|   ?subscription_name: TypeName,
+      #|   ?visibility_profiles: Array[String],
+      #|   ?description_merger: untyped,
+      #|   ?deprecation_merger: untyped,
+      #|   ?default_value_merger: untyped,
+      #|   ?directive_kwarg_merger: untyped,
+      #|   ?root_field_location_selector: untyped,
+      #|   ?root_entrypoints: Hash[String, Location]?
+      #| ) -> void
       def initialize(
         query_name: "Query",
         mutation_name: "Mutation",
@@ -62,23 +68,24 @@ module GraphQL
         @query_name = query_name
         @mutation_name = mutation_name
         @subscription_name = subscription_name
-        @description_merger = description_merger || BASIC_VALUE_MERGER
-        @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER
-        @default_value_merger = default_value_merger || BASIC_VALUE_MERGER
-        @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER
-        @root_field_location_selector = root_field_location_selector
-        @root_entrypoints = root_entrypoints || {}
+        @description_merger = description_merger || BASIC_VALUE_MERGER #: untyped
+        @deprecation_merger = deprecation_merger || BASIC_VALUE_MERGER #: untyped
+        @default_value_merger = default_value_merger || BASIC_VALUE_MERGER #: untyped
+        @directive_kwarg_merger = directive_kwarg_merger || BASIC_VALUE_MERGER #: untyped
+        @root_field_location_selector = root_field_location_selector #: untyped
+        @root_entrypoints = root_entrypoints || {} #: Hash[String, Location]
         
-        @field_map = {}
-        @resolver_map = {}
-        @resolver_configs = {}
-        @mapped_type_names = {}
-        @visibility_profiles = Set.new(visibility_profiles)
-        @subgraph_directives_by_name_and_location = nil
-        @subgraph_types_by_name_and_location = nil
-        @schema_directives = nil
+        @field_map = {} #: LocationsByTypeAndField
+        @resolver_map = {} #: TypeResolverMap
+        @resolver_configs = {} #: Hash[String, Array[TypeResolverConfig]]
+        @mapped_type_names = {} #: Hash[TypeName, TypeName]
+        @visibility_profiles = Set.new(visibility_profiles) #: Set[String]
+        @subgraph_directives_by_name_and_location = nil #: Hash[String, Hash[Location, untyped]]?
+        @subgraph_types_by_name_and_location = nil #: Hash[TypeName, Hash[Location, untyped]]?
+        @schema_directives = nil #: Hash[String, untyped]?
       end
 
+      #: (Hash[Location | Symbol, Hash[Symbol, untyped]] locations_input) -> Supergraph
       def perform(locations_input)
         if @subgraph_types_by_name_and_location
           raise CompositionError, "Composer may only perform once per instance."
@@ -94,24 +101,24 @@ module GraphQL
         ]
 
         # "directive_name" => "location" => subgraph_directive
-        @subgraph_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
+        subgraph_directives_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           (schema.directives.keys - schema.default_directives.keys - directives_to_omit).each do |directive_name|
             memo[directive_name] ||= {}
             memo[directive_name][location] = schema.directives[directive_name]
           end
         end
+        @subgraph_directives_by_name_and_location = subgraph_directives_by_name_and_location
 
         # "directive_name" => merged_directive
-        @schema_directives = @subgraph_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
+        schema_directives = subgraph_directives_by_name_and_location.each_with_object({}) do |(directive_name, directives_by_location), memo|
           memo[directive_name] = build_directive(directive_name, directives_by_location)
         end
 
-        @schema_directives.merge!(GraphQL::Schema.default_directives)
+        schema_directives.merge!(GraphQL::Schema.default_directives)
+        @schema_directives = schema_directives
 
         # "Typename" => "location" => subgraph_type
-        @subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
-          raise CompositionError, "Location keys must be strings" unless location.is_a?(String)
-
+        subgraph_types_by_name_and_location = schemas.each_with_object({}) do |(location, schema), memo|
           schema.types.each do |type_name, subgraph_type|
             next if subgraph_type.introspection?
 
@@ -132,11 +139,12 @@ module GraphQL
             memo[type_name][location] = subgraph_type
           end
         end
+        @subgraph_types_by_name_and_location = subgraph_types_by_name_and_location
 
         enum_usage = build_enum_usage_map(schemas.values)
 
         # "Typename" => merged_type
-        schema_types = @subgraph_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
+        schema_types = subgraph_types_by_name_and_location.each_with_object({}) do |(type_name, types_by_location), memo|
           kinds = types_by_location.values.map { _1.kind.name }.tap(&:uniq!)
 
           if kinds.length > 1
@@ -171,7 +179,7 @@ module GraphQL
           query schema_types[builder.query_name]
           mutation schema_types[builder.mutation_name]
           subscription schema_types[builder.subscription_name]
-          directives builder.schema_directives.values
+          directives schema_directives.values
 
           object_types.each do |t|
             t.interfaces.each { _1.orphan_types(t) }
@@ -197,8 +205,7 @@ module GraphQL
         supergraph
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (Hash[Location | Symbol, Hash[Symbol, untyped]] locations_input) -> [Hash[Location, singleton(GraphQL::Schema)], Hash[Location, Executable]]
       def prepare_locations_input(locations_input)
         schemas = {}
         executables = {}
@@ -212,32 +219,41 @@ module GraphQL
             raise CompositionError, "The schema for `#{location}` location must be a GraphQL::Schema class."
           end
 
+          location = location.to_s
           @resolver_configs.merge!(TypeResolverConfig.extract_directive_assignments(schema, location, input[:stitch]))
           @resolver_configs.merge!(TypeResolverConfig.extract_federation_entities(schema, location))
 
-          schemas[location.to_s] = schema
-          executables[location.to_s] = input[:executable] || schema
+          schemas[location] = schema
+          executables[location] = input[:executable] || schema
         end
 
         return schemas, executables
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (String directive_name, Hash[Location, untyped] directives_by_location) -> untyped
       def build_directive(directive_name, directives_by_location)
         builder = self
 
         Class.new(GraphQL::Schema::Directive) do
           graphql_name(directive_name)
-          description(builder.merge_descriptions(directive_name, directives_by_location))
+          description(builder.merged_description(directive_name, directives_by_location))
           repeatable(directives_by_location.values.any?(&:repeatable?))
-          locations(*directives_by_location.values.flat_map(&:locations).tap(&:uniq!))
+          builder.apply_directive_locations(self, directives_by_location)
           builder.build_merged_arguments(directive_name, directives_by_location, self, directive_name: directive_name)
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (Hash[Location, untyped] directives_by_location) -> Array[untyped]
+      def merged_directive_locations(directives_by_location)
+        directives_by_location.values.flat_map(&:locations).tap(&:uniq!)
+      end
+
+      #: (untyped directive_class, Hash[Location, untyped] directives_by_location) -> void
+      def apply_directive_locations(directive_class, directives_by_location)
+        directive_class.locations(*merged_directive_locations(directives_by_location))
+      end
+
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> untyped
       def build_scalar_type(type_name, types_by_location)
         built_in_type = GraphQL::Schema::BUILT_IN_TYPES[type_name]
         return built_in_type if built_in_type
@@ -246,13 +262,12 @@ module GraphQL
 
         Class.new(GraphQL::Stitching::Supergraph::ScalarType) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+          description(builder.merged_description(type_name, types_by_location))
           builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location, Hash[TypeName, Array[Symbol]] enum_usage) -> untyped
       def build_enum_type(type_name, types_by_location, enum_usage)
         builder = self
 
@@ -273,7 +288,7 @@ module GraphQL
 
         Class.new(GraphQL::Stitching::Supergraph::EnumType) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+          description(builder.merged_description(type_name, types_by_location))
           builder.build_merged_directives(type_name, types_by_location, self)
 
           enum_values_by_name_location.each do |value_name, enum_values_by_location|
@@ -288,14 +303,13 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> untyped
       def build_object_type(type_name, types_by_location)
         builder = self
 
         Class.new(GraphQL::Stitching::Supergraph::ObjectType) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+          description(builder.merged_description(type_name, types_by_location))
 
           interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
           interface_names.tap(&:uniq!).each do |interface_name|
@@ -307,74 +321,80 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> untyped
       def build_interface_type(type_name, types_by_location)
         builder = self
 
-        Module.new do
-          include GraphQL::Stitching::Supergraph::InterfaceType
-          graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+        interface_type = Module.new #: untyped
+        interface_type.include GraphQL::Stitching::Supergraph::InterfaceType
+        interface_type.graphql_name(type_name)
+        interface_type.description(builder.merged_description(type_name, types_by_location))
 
-          interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
-          interface_names.tap(&:uniq!).each do |interface_name|
-            implements(builder.build_type_binding(interface_name))
-          end
-
-          builder.build_merged_fields(type_name, types_by_location, self)
-          builder.build_merged_directives(type_name, types_by_location, self)
+        interface_names = types_by_location.values.flat_map { _1.interfaces.map(&:graphql_name) }
+        interface_names.tap(&:uniq!).each do |interface_name|
+          interface_type.implements(builder.build_type_binding(interface_name))
         end
+
+        builder.build_merged_fields(type_name, types_by_location, interface_type)
+        builder.build_merged_directives(type_name, types_by_location, interface_type)
+
+        interface_type
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> untyped
       def build_union_type(type_name, types_by_location)
         builder = self
 
         Class.new(GraphQL::Stitching::Supergraph::UnionType) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+          description(builder.merged_description(type_name, types_by_location))
 
           possible_names = types_by_location.values.flat_map { _1.possible_types.map(&:graphql_name) }.tap(&:uniq!)
-          possible_types(*possible_names.map { builder.build_type_binding(_1) })
+          builder.apply_possible_types(self, possible_names)
           builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> untyped
       def build_input_object_type(type_name, types_by_location)
         builder = self
 
         Class.new(GraphQL::Stitching::Supergraph::InputObjectType) do
           graphql_name(type_name)
-          description(builder.merge_descriptions(type_name, types_by_location))
+          description(builder.merged_description(type_name, types_by_location))
           builder.build_merged_arguments(type_name, types_by_location, self)
           builder.build_merged_directives(type_name, types_by_location, self)
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name) -> GraphQL::Schema::LateBoundType
       def build_type_binding(type_name)
         GraphQL::Schema::LateBoundType.new(@mapped_type_names.fetch(type_name, type_name))
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (Array[TypeName] possible_names) -> Array[GraphQL::Schema::LateBoundType]
+      def possible_type_bindings(possible_names)
+        possible_names.map { build_type_binding(_1) }
+      end
+
+      #: (untyped union_type, Array[TypeName] possible_names) -> void
+      def apply_possible_types(union_type, possible_names)
+        union_type.possible_types(*possible_type_bindings(possible_names))
+      end
+
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location, untyped owner) -> void
       def build_merged_fields(type_name, types_by_location, owner)
         # "field_name" => "location" => field
-        fields_by_name_location = types_by_location.each_with_object({}) do |(location, subgraph_type), memo|
-          @field_map[type_name] ||= {}
-          subgraph_type.fields.each do |field_name, subgraph_field|
-            @field_map[type_name][subgraph_field.name] ||= []
-            @field_map[type_name][subgraph_field.name] << location
+          field_locations_by_name = @field_map[type_name] ||= {}
+          fields_by_name_location = types_by_location.each_with_object({}) do |(location, subgraph_type), memo|
+            subgraph_type.fields.each do |field_name, subgraph_field|
+              field_locations_by_name[subgraph_field.name] ||= []
+              field_locations_by_name.fetch(subgraph_field.name) << location
 
-            memo[field_name] ||= {}
-            memo[field_name][location] = subgraph_field
+              memo[field_name] ||= {}
+              memo[field_name][location] = subgraph_field
+            end
           end
-        end
 
         fields_by_name_location.each do |field_name, fields_by_location|
           value_types = fields_by_location.values.map(&:type)
@@ -395,8 +415,13 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (
+      #|   TypeName type_name,
+      #|   Hash[Location, untyped] members_by_location,
+      #|   untyped owner,
+      #|   ?field_name: FieldName?,
+      #|   ?directive_name: String?
+      #| ) -> void
       def build_merged_arguments(type_name, members_by_location, owner, field_name: nil, directive_name: nil)
         # "argument_name" => "location" => argument
         args_by_name_location = members_by_location.each_with_object({}) do |(location, subgraph_member), memo|
@@ -447,8 +472,14 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (
+      #|   TypeName type_name,
+      #|   Hash[Location, untyped] members_by_location,
+      #|   untyped owner,
+      #|   ?field_name: FieldName?,
+      #|   ?argument_name: String?,
+      #|   ?enum_value: String?
+      #| ) -> void
       def build_merged_directives(type_name, members_by_location, owner, field_name: nil, argument_name: nil, enum_value: nil)
         directives_by_name_location = members_by_location.each_with_object({}) do |(location, subgraph_member), memo|
           subgraph_member.directives.each do |directive|
@@ -459,7 +490,7 @@ module GraphQL
 
         directives_by_name_location.each do |directive_name, directives_by_location|
           kwarg_merger = @directive_kwarg_merger
-          directive_class = @schema_directives[directive_name]
+          directive_class = @schema_directives&.[](directive_name)
           next unless directive_class
 
           # handled by deprecation_reason merger...
@@ -500,31 +531,34 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Array[untyped] subgraph_types, ?field_name: FieldName?, ?argument_name: String?) -> untyped
       def merge_value_types(type_name, subgraph_types, field_name: nil, argument_name: nil)
         path = [type_name, field_name, argument_name].tap(&:compact!).join(".")
         alt_structures = subgraph_types.map { Util.flatten_type_structure(_1) }
-        basis_structure = alt_structures.shift
+        basis_structure = alt_structures.fetch(0)
+        alt_structures = alt_structures.drop(1)
 
         alt_structures.each do |alt_structure|
           if alt_structure.length != basis_structure.length
             raise CompositionError, "Cannot compose mixed list structures at `#{path}`."
           end
 
-          if alt_structure.last.name != basis_structure.last.name
+          if alt_structure.fetch(-1).name != basis_structure.fetch(-1).name
             raise CompositionError, "Cannot compose mixed types at `#{path}`."
           end
         end
 
+        type_name = basis_structure.fetch(-1).name
+        raise CompositionError, "Cannot compose unnamed type at `#{path}`." unless type_name
+
         type = GraphQL::Schema::BUILT_IN_TYPES.fetch(
-          basis_structure.last.name,
-          build_type_binding(basis_structure.last.name)
+          type_name,
+          build_type_binding(type_name)
         )
 
         basis_structure.reverse!.each_with_index do |basis, index|
           rev_index = basis_structure.length - index - 1
-          non_null = alt_structures.each_with_object([basis.non_null?]) { |s, m| m << s[rev_index].non_null? }
+          non_null = alt_structures.each_with_object([basis.non_null?]) { |s, m| m << s.fetch(rev_index).non_null? }
 
           type = type.to_list_type if basis.list?
           type = type.to_non_null_type if argument_name ? non_null.any? : non_null.all?
@@ -533,8 +567,7 @@ module GraphQL
         type
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] members_by_location, ?field_name: FieldName?, ?argument_name: String?, ?enum_value: String?) -> String?
       def merge_descriptions(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.description }
         @description_merger.call(strings_by_location, {
@@ -545,8 +578,18 @@ module GraphQL
         }.tap(&:compact!))
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] members_by_location, ?field_name: FieldName?, ?argument_name: String?, ?enum_value: String?) -> String
+      def merged_description(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
+        merge_descriptions(
+          type_name,
+          members_by_location,
+          field_name: field_name,
+          argument_name: argument_name,
+          enum_value: enum_value,
+        ).to_s
+      end
+
+      #: (TypeName type_name, Hash[Location, untyped] members_by_location, ?field_name: FieldName?, ?argument_name: String?, ?enum_value: String?) -> String?
       def merge_deprecations(type_name, members_by_location, field_name: nil, argument_name: nil, enum_value: nil)
         strings_by_location = members_by_location.each_with_object({}) { |(l, m), memo| memo[l] = m.deprecation_reason }
         @deprecation_merger.call(strings_by_location, {
@@ -557,8 +600,7 @@ module GraphQL
         }.tap(&:compact!))
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (TypeName type_name, Hash[Location, untyped] types_by_location) -> void
       def extract_resolvers(type_name, types_by_location)
         types_by_location.each do |location, subgraph_type|
           subgraph_type.fields.each do |field_name, subgraph_field|
@@ -583,9 +625,12 @@ module GraphQL
                 resolver_type.graphql_name
               end
 
+              subgraph_types_by_name_and_location = @subgraph_types_by_name_and_location
+              raise CompositionError, "Composer has no subgraph types." unless subgraph_types_by_name_and_location
+
               key = TypeResolver.parse_key_with_types(
                 config.key,
-                @subgraph_types_by_name_and_location[resolver_type_name],
+                subgraph_types_by_name_and_location.fetch(resolver_type_name),
               )
 
               arguments_format = config.arguments || begin
@@ -607,11 +652,11 @@ module GraphQL
               arguments.each { _1.verify_key(key) }
 
               @resolver_map[resolver_type_name] ||= []
-              @resolver_map[resolver_type_name] << TypeResolver.new(
+              @resolver_map.fetch(resolver_type_name) << TypeResolver.new(
                 location: location,
                 type_name: resolver_type_name,
                 field: subgraph_field.name,
-                list: resolver_structure.first.list?,
+                list: resolver_structure.fetch(0).list?,
                 key: key,
                 arguments: arguments,
               )
@@ -620,12 +665,11 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (singleton(GraphQL::Schema) schema) -> void
       def select_root_field_locations(schema)
         [schema.query, schema.mutation, schema.subscription].tap(&:compact!).each do |root_type|
           root_type.fields.each do |root_field_name, root_field|
-            root_field_locations = @field_map[root_type.graphql_name][root_field_name]
+            root_field_locations = @field_map.fetch(root_type.graphql_name).fetch(root_field_name)
             next unless root_field_locations.length > 1
 
             root_field_path = "#{root_type.graphql_name}.#{root_field_name}"
@@ -649,26 +693,56 @@ module GraphQL
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (singleton(GraphQL::Schema) composed_schema, Hash[Location, singleton(GraphQL::Schema)] schemas_by_location) -> void
       def expand_abstract_resolvers(composed_schema, schemas_by_location)
         @resolver_map.keys.each do |type_name|
           next unless composed_schema.get_type(type_name).kind.abstract?
 
-          @resolver_map[type_name].each do |resolver|
-            abstract_type = @subgraph_types_by_name_and_location[type_name][resolver.location]
-            expanded_types = Util.expand_abstract_type(schemas_by_location[resolver.location], abstract_type)
+          @resolver_map.fetch(type_name).each do |resolver|
+            subgraph_types_by_name_and_location = @subgraph_types_by_name_and_location
+            raise CompositionError, "Composer has no subgraph types." unless subgraph_types_by_name_and_location
 
-            expanded_types.select { @subgraph_types_by_name_and_location[_1.graphql_name].length > 1 }.each do |impl_type|
+            abstract_type = subgraph_types_by_name_and_location.fetch(type_name).fetch(resolver.location)
+            expanded_types = expand_abstract_type(schemas_by_location.fetch(resolver.location), abstract_type)
+
+            expanded_types.select { subgraph_types_by_name_and_location.fetch(_1.graphql_name).length > 1 }.each do |impl_type|
               @resolver_map[impl_type.graphql_name] ||= []
-              @resolver_map[impl_type.graphql_name].push(resolver)
+              @resolver_map.fetch(impl_type.graphql_name).push(resolver)
             end
           end
         end
       end
 
-      # @!scope class
-      # @!visibility private
+      #: (singleton(GraphQL::Schema) schema, untyped parent_type) -> Array[CompositeType]
+      def expand_abstract_type(schema, parent_type)
+        return EMPTY_ARRAY unless parent_type.kind.abstract?
+        return parent_type.possible_types if parent_type.kind.union?
+
+        child_interfaces_by_parent = Hash.new { |hash, key| hash[key] = [] }
+        schema.types.each_value do |schema_type|
+          type = schema_type #: untyped
+          next unless type <= GraphQL::Schema::Interface && type != parent_type
+
+          type.public_send(:interfaces).each do |interface_type|
+            child_interfaces_by_parent[interface_type] << type
+          end
+        end
+
+        result = schema.possible_types(parent_type)
+        pending = child_interfaces_by_parent[parent_type].dup
+
+        until pending.empty?
+          type = pending.shift
+          next if result.include?(type)
+
+          result << type
+          pending.concat(child_interfaces_by_parent[type])
+        end
+
+        result
+      end
+
+      #: (Array[singleton(GraphQL::Schema)] schemas) -> Hash[TypeName, Array[Symbol]]
       def build_enum_usage_map(schemas)
         reads = []
         writes = []
@@ -707,6 +781,7 @@ module GraphQL
         end
       end
 
+      #: (singleton(GraphQL::Schema) schema, TypeResolverMap resolvers_by_type_name, LocationsByTypeAndField locations_by_type_and_field) -> void
       def apply_supergraph_directives(schema, resolvers_by_type_name, locations_by_type_and_field)
         schema_directives = {}
         schema.types.each do |type_name, type|
@@ -714,8 +789,11 @@ module GraphQL
             # Apply key directives for each unique type/key/location
             # (this allows keys to be composite selections and/or omitted from the supergraph schema)
             keys_for_type = resolvers_for_type.each_with_object({}) do |resolver, memo|
-              memo[resolver.key.to_definition] ||= Set.new
-              memo[resolver.key.to_definition].merge(resolver.key.locations)
+              resolver_key = resolver.key
+              raise CompositionError, "Missing key for resolver on `#{type_name}`." unless resolver_key
+
+              memo[resolver_key.to_definition] ||= Set.new
+              memo[resolver_key.to_definition].merge(resolver_key.locations)
             end
   
             keys_for_type.each do |key, locations|
@@ -727,11 +805,14 @@ module GraphQL
   
             # Apply resolver directives for each unique query resolver
             resolvers_for_type.each do |resolver|
+              resolver_key = resolver.key
+              raise CompositionError, "Missing key for resolver on `#{type_name}`." unless resolver_key
+
               params = {
                 location: resolver.location,
                 field: resolver.field,
                 list: resolver.list? || nil,
-                key: resolver.key.to_definition,
+                key: resolver_key.to_definition,
                 arguments: resolver.arguments.map(&:to_definition).join(", "),
                 argument_types: resolver.arguments.map(&:to_type_definition).join(", "),
                 type_name: (resolver.type_name if resolver.type_name != type_name),

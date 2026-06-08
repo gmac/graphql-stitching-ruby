@@ -39,3 +39,17 @@ jobs:
         gem install bundler -v 2.4.22
         bundle install --jobs 4 --retry 3
         bundle exec rake test
+
+  typecheck:
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: Gemfile
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.3
+        bundler-cache: true
+    - name: Run typecheck
+      run: bundle exec rake typecheck

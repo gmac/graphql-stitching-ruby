@@ -1,9 +1,10 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Composer
     class ValidateTypeResolvers < BaseValidator
-
+      #: (Supergraph supergraph, Composer composer) -> void
       def perform(supergraph, composer)
         root_types = [
           supergraph.schema.query,
@@ -18,7 +19,10 @@ module GraphQL::Stitching
           next if type.graphql_name.start_with?("__")
 
           # multiple subschemas implement the type
-          subgraph_types_by_location = composer.subgraph_types_by_name_and_location[type_name]
+          subgraph_types_by_name_and_location = composer.subgraph_types_by_name_and_location
+          raise CompositionError, "Composer has no subgraph types." unless subgraph_types_by_name_and_location
+
+          subgraph_types_by_location = subgraph_types_by_name_and_location.fetch(type_name)
           next unless subgraph_types_by_location.length > 1
 
           resolvers = supergraph.resolvers[type_name]
@@ -32,26 +36,30 @@ module GraphQL::Stitching
 
       private
 
+      #: (Supergraph supergraph, singleton(GraphQL::Schema::Object) type, Hash[Location, untyped] subgraph_types_by_location, Array[TypeResolver] resolvers) -> void
       def validate_as_resolver(supergraph, type, subgraph_types_by_location, resolvers)
         # abstract resolvers are expanded with their concrete implementations, which each get validated. Ignore the abstract itself.
         return if type.kind.abstract?
 
         # only one resolver allowed per type/location/key
         resolvers_by_location_and_key = resolvers.each_with_object({}) do |resolver, memo|
-          if memo.dig(resolver.location, resolver.key.to_definition)
-            raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{resolver.key}` "\
+          key = resolver.key
+          next unless key
+
+          if memo.dig(resolver.location, key.to_definition)
+            raise ValidationError, "Multiple resolver queries for `#{type.graphql_name}.#{key}` "\
               "found in #{resolver.location}. Limit one resolver query per type and key in each location. "\
               "Abstract resolvers provide all possible types."
           end
           memo[resolver.location] ||= {}
-          memo[resolver.location][resolver.key.to_definition] = resolver
+          memo.fetch(resolver.location)[key.to_definition] = resolver
         end
 
-        resolver_keys = resolvers.map(&:key)
+        resolver_keys = resolvers.filter_map(&:key)
         resolver_key_strs = resolver_keys.map(&:to_definition).to_set
 
         # All non-key fields must be resolvable in at least one resolver location
-        supergraph.locations_by_type_and_field[type.graphql_name].each do |field_name, locations|
+        supergraph.locations_by_type_and_field.fetch(type.graphql_name).each do |field_name, locations|
           next if resolver_key_strs.include?(field_name)
 
           if locations.none? { resolvers_by_location_and_key[_1] }
@@ -61,7 +69,7 @@ module GraphQL::Stitching
         end
 
         # All locations of a merged type must include at least one resolver key
-        supergraph.fields_by_type_and_location[type.graphql_name].each do |location, field_names|
+        supergraph.fields_by_type_and_location.fetch(type.graphql_name).each do |location, field_names|
           has_resolver_key = resolver_keys.any? { _1.locations.include?(location) }
           has_primitive_match = resolver_keys.any? { field_names.include?(_1.primitive_name) }
           unless has_resolver_key || has_primitive_match
@@ -81,6 +89,7 @@ module GraphQL::Stitching
         end
       end
 
+      #: (Supergraph supergraph, singleton(GraphQL::Schema::Object) type, Hash[Location, untyped] subgraph_types_by_location) -> void
       def validate_as_shared(supergraph, type, subgraph_types_by_location)
         expected_fields = begin
           type.fields.keys.sort

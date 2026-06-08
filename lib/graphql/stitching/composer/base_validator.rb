@@ -1,9 +1,11 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Composer
     class BaseValidator
-      def perform(ctx, composer)
+      #: (Supergraph supergraph, Composer composer) -> void
+      def perform(supergraph, composer)
         raise "not implemented"
       end
     end

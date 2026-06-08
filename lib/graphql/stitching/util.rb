@@ -1,48 +1,54 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL
   module Stitching
-    # General utilities to aid with stitching.
     class Util
       class TypeStructure
+        #: TypeName?
         attr_reader :name
-      
+
+        #: (list: bool, null: bool, name: TypeName?) -> void
         def initialize(list:, null:, name:)
-          @list = list
-          @null = null
+          @list = list #: bool
+          @null = null #: bool
           @name = name
         end
 
+        #: -> bool
         def list?
           @list
         end
-        
+
+        #: -> bool
         def null?
           @null
         end
 
+        #: -> bool
         def non_null?
           !@null
         end
 
+        #: (untyped other) -> bool
         def ==(other)
           @list == other.list? && @null == other.null? && @name == other.name
         end
       end
 
       class << self
-        # specifies if a type is a primitive leaf value
+        #: (untyped type) -> bool
         def is_leaf_type?(type)
           type.kind.scalar? || type.kind.enum?
         end
 
-        # strips non-null wrappers from a type
+        #: (untyped type) -> untyped
         def unwrap_non_null(type)
           type = type.of_type while type.non_null?
           type
         end
 
-        # builds a single-dimensional representation of a wrapped type structure
+        #: (untyped type) -> Array[TypeStructure]
         def flatten_type_structure(type)
           structure = []
 
@@ -65,49 +71,38 @@ module GraphQL
           structure
         end
 
-        # builds a single-dimensional representation of a wrapped type structure from AST
+        #: (
+        #|   GraphQL::Language::Nodes::WrapperType | GraphQL::Language::Nodes::TypeName ast,
+        #|   ?structure: Array[TypeStructure]
+        #| ) -> Array[TypeStructure]
         def flatten_ast_type_structure(ast, structure: [])
-          null = true
+          nullable = true #: bool
+          current_ast = ast #: untyped
 
-          while ast.is_a?(GraphQL::Language::Nodes::NonNullType)
-            ast = ast.of_type
-            null = false
+          while current_ast.is_a?(GraphQL::Language::Nodes::NonNullType)
+            current_ast = current_ast.of_type
+            nullable = false
           end
 
-          if ast.is_a?(GraphQL::Language::Nodes::ListType)
+          if current_ast.is_a?(GraphQL::Language::Nodes::ListType)
             structure << TypeStructure.new(
               list: true,
-              null: null,
+              null: nullable,
               name: nil,
             )
 
-            flatten_ast_type_structure(ast.of_type, structure: structure)
+            flatten_ast_type_structure(current_ast.of_type, structure: structure)
           else
             structure << TypeStructure.new(
               list: false,
-              null: null,
-              name: ast.name,
+              null: nullable,
+              name: current_ast.name,
             )
           end
 
           structure
         end
 
-        # expands interfaces and unions to an array of their memberships
-        # like `schema.possible_types`, but includes child interfaces
-        def expand_abstract_type(schema, parent_type)
-          return [] unless parent_type.kind.abstract?
-          return parent_type.possible_types if parent_type.kind.union?
-
-          result = []
-          schema.types.each_value do |type|
-            next unless type <= GraphQL::Schema::Interface && type != parent_type
-            next unless type.interfaces.include?(parent_type)
-            result << type
-            result.push(*expand_abstract_type(schema, type)) if type.kind.interface?
-          end
-          result.tap(&:uniq!)
-        end
       end
     end
   end

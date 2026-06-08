@@ -1,12 +1,14 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Composer
     class TypeResolverConfig
-      ENTITY_TYPENAME = "_Entity"
-      ENTITIES_QUERY = "_entities"
+      ENTITY_TYPENAME = "_Entity".freeze #: TypeName
+      ENTITIES_QUERY = "_entities".freeze #: FieldName
 
       class << self
+        #: (singleton(GraphQL::Schema) schema, Location location, untyped assignments) -> Hash[String, Array[TypeResolverConfig]]
         def extract_directive_assignments(schema, location, assignments)
           return EMPTY_OBJECT unless assignments && !assignments.empty?
 
@@ -23,6 +25,7 @@ module GraphQL::Stitching
           end
         end
 
+        #: (singleton(GraphQL::Schema) schema, Location location) -> Hash[String, Array[TypeResolverConfig]]
         def extract_federation_entities(schema, location)
           return EMPTY_OBJECT unless federation_entities_schema?(schema)
 
@@ -44,6 +47,7 @@ module GraphQL::Stitching
           end
         end
 
+        #: (Hash[Symbol, untyped] kwargs) -> TypeResolverConfig
         def from_kwargs(kwargs)
           new(
             key: kwargs[:key],
@@ -54,6 +58,7 @@ module GraphQL::Stitching
 
         private
 
+        #: (singleton(GraphQL::Schema) schema) -> bool
         def federation_entities_schema?(schema)
           entity_type = schema.get_type(ENTITY_TYPENAME)
           entities_query = schema.query.get_field(ENTITIES_QUERY)
@@ -66,12 +71,20 @@ module GraphQL::Stitching
         end
       end
 
-      attr_reader :key, :type_name, :arguments
+      #: String
+      attr_reader :key
 
+      #: TypeName?
+      attr_reader :type_name
+
+      #: String?
+      attr_reader :arguments
+
+      #: (key: String, type_name: TypeName?, ?arguments: String?) -> void
       def initialize(key:, type_name:, arguments: nil)
-        @key = key
-        @type_name = type_name
-        @arguments = arguments
+        @key = key #: String
+        @type_name = type_name #: TypeName?
+        @arguments = arguments #: String?
       end
     end
   end

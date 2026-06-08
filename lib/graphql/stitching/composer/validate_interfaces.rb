@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Composer
@@ -6,6 +7,7 @@ module GraphQL::Stitching
       # For each composed interface, check the interface against each possible type
       # to assure that intersecting fields have compatible types, structures, and nullability.
       # Verifies compatibility of types that inherit interface contracts through merging.
+      #: (Supergraph supergraph, Composer composer) -> void
       def perform(supergraph, composer)
         supergraph.schema.types.each do |type_name, interface_type|
           next unless interface_type.kind.interface?
@@ -14,12 +16,12 @@ module GraphQL::Stitching
             interface_type.fields.each do |field_name, interface_field|
               # graphql-ruby will dynamically apply interface fields on a type implementation,
               # so check the delegation map to assure that all materialized fields have resolver locations.
-              unless supergraph.locations_by_type_and_field[possible_type.graphql_name][field_name]&.any?
+              unless supergraph.locations_by_type_and_field.fetch(possible_type.graphql_name).fetch(field_name, EMPTY_ARRAY).any?
                 raise ValidationError, "Type #{possible_type.graphql_name} does not implement a `#{field_name}` field in any location, "\
                   "which is required by interface #{interface_type.graphql_name}."
               end
 
-              intersecting_field = possible_type.fields[field_name]
+              intersecting_field = possible_type.fields.fetch(field_name)
               interface_type_structure = Util.flatten_type_structure(interface_field.type)
               possible_type_structure = Util.flatten_type_structure(intersecting_field.type)
 
@@ -29,7 +31,7 @@ module GraphQL::Stitching
               end
 
               interface_type_structure.each_with_index do |interface_struct, index|
-                possible_struct = possible_type_structure[index]
+                possible_struct = possible_type_structure.fetch(index)
 
                 if possible_struct.name != interface_struct.name
                   raise ValidationError, "Incompatible named types between field #{possible_type.graphql_name}.#{field_name} of type "\
@@ -45,7 +47,6 @@ module GraphQL::Stitching
           end
         end
       end
-
     end
   end
 end

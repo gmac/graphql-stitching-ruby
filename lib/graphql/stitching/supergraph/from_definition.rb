@@ -1,14 +1,17 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Supergraph
     class << self
+      #: (Location | Symbol location, untyped executable) -> bool
       def validate_executable!(location, executable)
         return true if executable.is_a?(Class) && executable <= GraphQL::Schema
         return true if executable && executable.respond_to?(:call)
         raise StitchingError, "Invalid executable provided for location `#{location}`."
       end
 
+      #: (String | singleton(GraphQL::Schema) schema, executables: Hash[Location | Symbol, Executable]) -> Supergraph
       def from_definition(schema, executables:)
         if schema.is_a?(String)
           schema = if GraphQL::Stitching.supports_visibility?
@@ -18,9 +21,9 @@ module GraphQL::Stitching
           end
         end
 
-        field_map = {}
-        resolver_map = {}
-        possible_locations = {}
+        field_map = {} #: LocationsByTypeAndField
+        resolver_map = {} #: TypeResolverMap
+        possible_locations = {} #: Hash[Location, bool]
         visibility_definition = schema.directives[GraphQL::Stitching.visibility_directive]
         visibility_profiles = visibility_definition&.get_argument("profiles")&.default_value || EMPTY_ARRAY
 
@@ -46,7 +49,7 @@ module GraphQL::Stitching
 
             kwargs = d.arguments.keyword_arguments
             resolver_map[type_name] ||= []
-            resolver_map[type_name] << TypeResolver.new(
+            resolver_map.fetch(type_name) << TypeResolver.new(
               location: kwargs[:location],
               type_name: kwargs.fetch(:type_name, type_name),
               field: kwargs[:field],
@@ -60,16 +63,16 @@ module GraphQL::Stitching
 
           type.fields.each do |field_name, field|
             # Collection locations for each field definition
-            field.directives.each do |d|
-              next unless d.graphql_name == Directives::SupergraphSource.graphql_name
-              
-              location = d.arguments.keyword_arguments[:location]
-              field_map[type_name] ||= {}
-              field_map[type_name][field_name] ||= []
-              field_map[type_name][field_name] << location
-              possible_locations[location] = true
+              field.directives.each do |d|
+                next unless d.graphql_name == Directives::SupergraphSource.graphql_name
+                
+                location = d.arguments.keyword_arguments[:location]
+                field_map[type_name] ||= {}
+                field_map.fetch(type_name)[field_name] ||= []
+                field_map.fetch(type_name).fetch(field_name) << location
+                possible_locations[location] = true
+              end
             end
-          end
         end
 
         executables = possible_locations.each_key.each_with_object({}) do |location, memo|

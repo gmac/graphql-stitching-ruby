@@ -1,0 +1,6 @@
+--dir
+lib
+--dir
+sorbet/rbi
+--parser=prism
+--enable-experimental-rbs-comments

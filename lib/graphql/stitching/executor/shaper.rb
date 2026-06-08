@@ -1,19 +1,18 @@
-# typed: false
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Executor
-    # Shapes the final results payload to the request selection and schema definition.
-    # This eliminates unrequested export selections and applies null bubbling.
-    # @api private
     class Shaper
+      #: (Request request) -> void
       def initialize(request)
-        @request = request
-        @supergraph = request.supergraph
-        @root_type = nil
-        @possible_type_names_by_type = nil
+        @request = request #: Request
+        @supergraph = request.supergraph #: Supergraph
+        @root_type = nil #: CompositeType?
+        @possible_type_names_by_type = nil #: Hash[TypeName, Array[TypeName]]?
       end
 
+      #: (Data raw) -> Data?
       def perform!(raw)
         @root_type = @request.query.root_type_for_operation(@request.operation.operation_type)
         resolve_object_scope(raw, @root_type, @request.operation.selections, @root_type.graphql_name)
@@ -21,6 +20,7 @@ module GraphQL::Stitching
 
       private
 
+      #: (Data? raw_object, CompositeType parent_type, Array[SelectionNode] selections, ?TypeName? typename) -> Data?
       def resolve_object_scope(raw_object, parent_type, selections, typename = nil)
         return nil if raw_object.nil?
 
@@ -46,7 +46,7 @@ module GraphQL::Stitching
               next
             end
 
-            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name)[node.name].type
+            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name).fetch(node.name).type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?
@@ -60,15 +60,15 @@ module GraphQL::Stitching
             return nil if node_type.non_null? && raw_object[field_name].nil?
 
           when GraphQL::Language::Nodes::InlineFragment
-            fragment_type = node.type ? @supergraph.memoized_schema_types[node.type.name] : parent_type
+            fragment_type = node.type ? @supergraph.memoized_schema_types.fetch(node.type.name) : parent_type
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, node.selections, typename)
             return nil if result.nil?
 
           when GraphQL::Language::Nodes::FragmentSpread
-            fragment = @request.fragment_definitions[node.name]
-            fragment_type = @supergraph.memoized_schema_types[fragment.type.name]
+            fragment = @request.fragment_definitions.fetch(node.name)
+            fragment_type = @supergraph.memoized_schema_types.fetch(fragment.type.name)
             next unless typename_in_type?(typename, fragment_type)
 
             result = resolve_object_scope(raw_object, fragment_type, fragment.selections, typename)
@@ -82,6 +82,7 @@ module GraphQL::Stitching
         raw_object
       end
 
+      #: (Array[untyped]? raw_list, GraphQL::Schema::Wrapper current_node_type, Array[SelectionNode] selections) -> untyped
       def resolve_list_scope(raw_list, current_node_type, selections)
         return nil if raw_list.nil?
 
@@ -109,6 +110,7 @@ module GraphQL::Stitching
         resolved_list
       end
 
+      #: (TypeName? typename, CompositeType type) -> bool
       def typename_in_type?(typename, type)
         return true if type.graphql_name == typename
         return false unless typename && type.kind.abstract?
@@ -116,6 +118,7 @@ module GraphQL::Stitching
         possible_type_names(type).include?(typename)
       end
 
+      #: (CompositeType type) -> Array[TypeName]
       def possible_type_names(type)
         (@possible_type_names_by_type ||= {})[type.graphql_name] ||= @request.query.possible_types(type).map(&:graphql_name)
       end

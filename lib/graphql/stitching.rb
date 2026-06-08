@@ -1,39 +1,42 @@
 # frozen_string_literal: true
+# typed: true
 
 require "graphql"
 
 module GraphQL
   module Stitching
-    # scope name of query operations.
-    QUERY_OP = "query"
-    
-    # scope name of mutation operations.
-    MUTATION_OP = "mutation"
-    
-    # scope name of subscription operations.
-    SUBSCRIPTION_OP = "subscription"
-    
-    # introspection typename field.
-    TYPENAME = "__typename"
+    QUERY_OP = "query".freeze #: String
 
-    # @api private
-    EMPTY_OBJECT = {}.freeze
+    MUTATION_OP = "mutation".freeze #: String
 
-    # @api private
-    EMPTY_ARRAY = [].freeze
+    SUBSCRIPTION_OP = "subscription".freeze #: String
+
+    TYPENAME = "__typename".freeze #: String
+
+    EMPTY_OBJECT = {}.freeze #: Hash[untyped, untyped]
+
+    EMPTY_ARRAY = [].freeze #: Array[untyped]
 
     class StitchingError < StandardError; end
     class CompositionError < StitchingError; end
     class ValidationError < CompositionError; end
     class DocumentError < StandardError
+      #: (String element) -> void
       def initialize(element)
         super("Invalid #{element} encountered in document")
       end
     end
 
+    MIN_VISIBILITY_VERSION = "2.5.3".freeze #: String
+
     class << self
-      # Proc used to compute digests; uses SHA2 by default.
-      # @returns [Proc] proc used to compute digests.
+      # @rbs!
+      #   @digest: ^(String) -> String
+      #   @stitch_directive: String
+      #   @visibility_directive: String
+      #   @supports_visibility: bool
+
+      #: ?{ (String) -> String } -> ^(String) -> String
       def digest(&block)
         if block_given?
           @digest = block
@@ -42,25 +45,23 @@ module GraphQL
         end
       end
 
-      # Name of the directive used to mark type resolvers.
-      # @returns [String] name of the type resolver directive.
+      #: -> String
       def stitch_directive
-        @stitch_directive ||= "stitch"
+        @stitch_directive ||= "stitch".freeze
       end
 
+      #: String
       attr_writer :stitch_directive
 
-      # Name of the directive used to denote member visibilities.
-      # @returns [String] name of the visibility directive.
+      #: -> String
       def visibility_directive
-        @visibility_directive ||= "visibility"
+        @visibility_directive ||= "visibility".freeze
       end
 
+      #: String
       attr_writer :visibility_directive
 
-      MIN_VISIBILITY_VERSION = "2.5.3"
-
-      # @returns Boolean true if GraphQL::Schema::Visibility is fully supported
+      #: -> bool
       def supports_visibility?
         return @supports_visibility if defined?(@supports_visibility)
 

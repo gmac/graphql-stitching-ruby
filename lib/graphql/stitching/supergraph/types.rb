@@ -1,13 +1,16 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Supergraph
     module Visibility
+      #: (GraphQL::Query::Context ctx) -> bool
       def visible?(ctx)
         profile = ctx[:visibility_profile]
         return true if profile.nil?
 
-        directive = directives.find { _1.graphql_name == GraphQL::Stitching.visibility_directive }
+        owner = self #: untyped
+        directive = owner.directives.find { _1.graphql_name == GraphQL::Stitching.visibility_directive }
         return true if directive.nil?
 
         profiles = directive.arguments.keyword_arguments[:profiles]
@@ -16,7 +19,7 @@ module GraphQL::Stitching
         profiles.include?(profile)
       end
     end
-    
+
     class ArgumentType < GraphQL::Schema::Argument
       include Visibility
     end
@@ -35,7 +38,8 @@ module GraphQL::Stitching
       include GraphQL::Schema::Interface
       field_class(FieldType)
 
-      definition_methods do
+      interface_type = self #: untyped
+      interface_type.definition_methods do
         include Visibility
       end
     end
@@ -53,7 +57,7 @@ module GraphQL::Stitching
       extend Visibility
       enum_value_class(EnumValueType)
     end
-    
+
     class ScalarType < GraphQL::Schema::Scalar
       extend Visibility
     end

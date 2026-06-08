@@ -35,7 +35,9 @@ module GraphQL::Stitching
             field_name = node.alias || node.name
             raw_value = raw_object.delete(field_name)
 
-            if @request.query.get_field(parent_type, node.name).introspection?
+            schema_field = @supergraph.memoized_schema_fields(parent_type.graphql_name).fetch(node.name)
+
+            if schema_field.introspection?
               next if TypeResolver.export_key?(field_name)
 
               raw_object[field_name] = if node.name == TYPENAME && parent_type == @root_type
@@ -46,7 +48,7 @@ module GraphQL::Stitching
               next
             end
 
-            node_type = @supergraph.memoized_schema_fields(parent_type.graphql_name).fetch(node.name).type
+            node_type = schema_field.type
             named_type = node_type.unwrap
 
             raw_object[field_name] = if node_type.list?

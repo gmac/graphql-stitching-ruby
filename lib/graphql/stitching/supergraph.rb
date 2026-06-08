@@ -2,12 +2,13 @@
 # typed: true
 
 require_relative "supergraph/types"
+require_relative "supergraph/index"
 require_relative "supergraph/from_definition"
 
 module GraphQL
   module Stitching
-    # Supergraph is the singuar representation of a stitched graph. 
-    # It provides the combined GraphQL schema and delegation maps 
+    # Supergraph is the singuar representation of a stitched graph.
+    # It provides the combined GraphQL schema and delegation maps
     # used to route selections across subgraph locations.
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
@@ -49,22 +50,19 @@ module GraphQL
         @schema = schema
         @resolvers = resolvers
         @resolvers_by_version = nil
-        @fields_by_type_and_location = nil
-        @locations_by_type = nil
         @memoized_introspection_types = @schema.introspection_system.types
         @memoized_schema_types = @schema.types
         @memoized_schema_fields = {}
         @possible_keys_by_type = {}
         @possible_keys_by_type_and_location = {}
-
-        # add introspection types into the fields mapping
-        @locations_by_type_and_field = @memoized_introspection_types.each_with_object(fields) do |(type_name, type), memo|
-          next unless type.kind.fields?
-
-          memo[type_name] = type.fields.each_key.each_with_object({}) do |field_name, m|
-            m[field_name] = [SUPERGRAPH_LOCATION]
-          end
-        end.freeze
+        index = Index.new(
+          schema: @schema,
+          fields: fields,
+          supergraph_location: SUPERGRAPH_LOCATION,
+        )
+        @locations_by_type_and_field = index.locations_by_type_and_field
+        @fields_by_type_and_location = index.fields_by_type_and_location
+        @locations_by_type = index.locations_by_type
 
         # validate and normalize executable references
         @executables = executables.each_with_object({ SUPERGRAPH_LOCATION => @schema }) do |(location, executable), memo|
@@ -83,7 +81,7 @@ module GraphQL
 
       #: (?visibility_profile: String?) -> String
       def to_definition(visibility_profile: nil)
-        @schema.to_definition(context: { 
+        @schema.to_definition(context: {
           visibility_profile: visibility_profile,
         }.tap(&:compact!))
       end
@@ -97,7 +95,13 @@ module GraphQL
 
       #: -> LocationsByTypeAndField
       def fields
-        @locations_by_type_and_field.reject { |k, _v| memoized_introspection_types[k] }
+        @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
+          next if memoized_introspection_types[type_name]
+
+          memo[type_name] = fields.reject do |field_name, locations|
+            locations == [SUPERGRAPH_LOCATION] && @schema.introspection_system.entry_point(name: field_name)
+          end
+        end
       end
 
       #: -> Array[Location]
@@ -108,7 +112,8 @@ module GraphQL
       #: (TypeName type_name) -> Hash[FieldName, GraphQL::Schema::Field]
       def memoized_schema_fields(type_name)
         @memoized_schema_fields[type_name] ||= begin
-          fields = @memoized_schema_types[type_name].fields
+          type = @memoized_schema_types[type_name]
+          fields = type.kind.fields? ? type.fields.dup : {}
           @schema.introspection_system.dynamic_fields.each do |field|
             fields[field.name] ||= field # adds __typename
           end
@@ -119,7 +124,7 @@ module GraphQL
             end
           end
 
-          fields
+          fields.freeze
         end
       end
 
@@ -146,21 +151,12 @@ module GraphQL
       # inverts fields map to provide fields for a type/location
       #: -> FieldsByTypeAndLocation
       def fields_by_type_and_location
-        @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
-          memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
-            locations.each do |location|
-              memo[location] ||= []
-              memo[location] << field_name
-            end
-          end
-        end
+        @fields_by_type_and_location
       end
 
       #: -> LocationsByType
       def locations_by_type
-        @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
-          memo[type_name] = fields.values.tap(&:flatten!).tap(&:uniq!)
-        end
+        @locations_by_type
       end
 
       # collects all possible resolver keys for a given type
@@ -229,7 +225,7 @@ module GraphQL
 
         #: Integer
         attr_accessor :cost
-      
+
         #: (location: Location, key: TypeResolver::Key, ?resolver: TypeResolver?, ?cost: Integer) -> void
         def initialize(location:, key:, resolver: nil, cost: 0)
           @location = location

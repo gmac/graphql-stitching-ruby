@@ -3,40 +3,39 @@
 module GraphQL::Stitching
   class Executor
     class TypeResolverSource < GraphQL::Dataloader::Source
+      include PathAccess
+
       def initialize(executor, location)
         @executor = executor
         @location = location
-        @variables = {}
       end
 
       def fetch(ops)
         origin_sets_by_operation = ops.each_with_object({}.compare_by_identity) do |op, memo|
-          origin_set = op.path.reduce([@executor.data]) do |set, path_segment|
-            set.flat_map { |obj| obj && obj[path_segment] }.tap(&:compact!)
-          end
+          origin_set = path_objects(@executor.data, op.path)
 
           if op.if_type
             # operations planned around unused fragment conditions should not trigger requests
-            origin_set.select! { _1[TypeResolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
+            origin_set.select! { |origin_obj| origin_obj[TypeResolver::TYPENAME_EXPORT_NODE.alias] == op.if_type }
           end
 
           memo[op] = origin_set unless origin_set.empty?
         end
 
         unless origin_sets_by_operation.empty?
-          query_document, variable_names = build_document(
+          query_document, variable_names, generated_variables = build_document(
             origin_sets_by_operation,
             @executor.request.operation_name,
             @executor.request.operation_directives,
           )
-          variables = @variables.merge!(@executor.request.variables.slice(*variable_names))
+          variables = generated_variables.merge(@executor.request.variables.slice(*variable_names))
           raw_result = @executor.request.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
           @executor.query_count += 1
 
           merge_results!(origin_sets_by_operation, raw_result.dig("data"))
 
           errors = raw_result.dig("errors")
-          @executor.errors.concat(extract_errors!(origin_sets_by_operation, errors)) if errors&.any?
+          @executor.errors.concat(extract_errors!(origin_sets_by_operation, errors)) if errors && !errors.empty?
         end
 
         ops.map { origin_sets_by_operation[_1] ? _1.step : nil }
@@ -51,6 +50,7 @@ module GraphQL::Stitching
       # }"
       def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
+        generated_variables = {}
         fields_buffer = String.new
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
@@ -65,7 +65,7 @@ module GraphQL::Stitching
               fields_buffer << "," unless i.zero?
               if arg.key?
                 variable_name = "_#{batch_index}_key_#{i}".freeze
-                @variables[variable_name] = origin_set.map { arg.build(_1) }
+                generated_variables[variable_name] = origin_set.map { arg.build(_1) }
                 variable_defs[variable_name] = arg.to_type_signature
                 fields_buffer << arg.name << ":$" << variable_name
               else
@@ -83,7 +83,7 @@ module GraphQL::Stitching
                 fields_buffer << "," unless i.zero?
                 if arg.key?
                   variable_name = "_#{batch_index}_#{index}_key_#{i}".freeze
-                  @variables[variable_name] = arg.build(origin_obj)
+                  generated_variables[variable_name] = arg.build(origin_obj)
                   variable_defs[variable_name] = arg.to_type_signature
                   fields_buffer << arg.name << ":$" << variable_name
                 else
@@ -120,9 +120,11 @@ module GraphQL::Stitching
 
         doc_buffer << "{ " << fields_buffer << " }"
 
-        return doc_buffer, variable_defs.keys.tap do |names|
-          names.reject! { @variables.key?(_1) }
+        variable_names = variable_defs.keys.tap do |names|
+          names.reject! { generated_variables.key?(_1) }
         end
+
+        return doc_buffer, variable_names, generated_variables
       end
 
       def merge_results!(origin_sets_by_operation, raw_result)
@@ -145,85 +147,57 @@ module GraphQL::Stitching
       end
 
       # https://spec.graphql.org/June2018/#sec-Errors
-      def extract_errors!(origin_sets_by_operation, errors)
+      def extract_errors!(origin_sets_by_operation, errors, origin_paths_by_operation = nil)
         ops = origin_sets_by_operation.keys
         origin_sets = origin_sets_by_operation.values
-        pathed_errors_by_op_index_and_object_id = Hash.new { |h, k| h[k] = {} }
+        origin_paths_by_operation ||= origin_sets_by_operation.each_with_object({}.compare_by_identity) do |(op, origin_set), memo|
+          memo[op] = paths_for_origin_set(op, origin_set)
+        end
 
-        errors_result = errors.each_with_object([]) do |err, memo|
-          err.delete("locations")
+        errors.each_with_object([]) do |err, memo|
           path = err["path"]
 
           if path && path.length > 0
             result_alias = /^_(\d+)(?:_(\d+))?_result$/.match(path.first.to_s)
 
             if result_alias
-              path = err["path"] = path[1..-1]
+              path = path[1..-1]
+              batch_index = result_alias[1].to_i
 
-              origin_obj = if result_alias[2]
-                origin_sets.dig(result_alias[1].to_i, result_alias[2].to_i)
-              elsif path[0].is_a?(Integer) || /\d+/.match?(path[0].to_s)
-                origin_sets.dig(result_alias[1].to_i, path.shift.to_i)
+              origin_index = if result_alias[2]
+                result_alias[2].to_i
+              elsif path[0].is_a?(Integer) || /\A\d+\z/.match?(path[0].to_s)
+                path.shift.to_i
               end
+              origin_obj = origin_sets.dig(batch_index, origin_index) if origin_index
 
               if origin_obj
-                pathed_errors_by_op_index = pathed_errors_by_op_index_and_object_id[result_alias[1].to_i]
-                by_object_id = pathed_errors_by_op_index[origin_obj.object_id] ||= []
-                by_object_id << err
-                next
+                op = ops[batch_index]
+                object_path = origin_paths_by_operation.dig(op, origin_index)
+
+                if object_path
+                  memo << sanitized_error(err, path: object_path + path)
+                  next
+                end
               end
+
+              memo << sanitized_error(err, path: path)
+              next
             end
           end
 
-          memo << err
+          memo << sanitized_error(err)
         end
-
-        unless pathed_errors_by_op_index_and_object_id.empty?
-          pathed_errors_by_op_index_and_object_id.each do |op_index, pathed_errors_by_object_id|
-            repath_errors!(pathed_errors_by_object_id, ops[op_index].path)
-            errors_result.push(*pathed_errors_by_object_id.each_value)
-          end
-        end
-
-        errors_result.tap(&:flatten!)
       end
 
       private
 
-      # traverse forward through origin data, expanding arrays to follow all paths
-      # any errors found for an origin object_id have their path prefixed by the object path
-      def repath_errors!(pathed_errors_by_object_id, forward_path, current_path=[], root=@executor.data)
-        current_path.push(forward_path.shift)
-        scope = root[current_path.last]
-
-        if !forward_path.empty? && scope.is_a?(Array)
-          scope.each_with_index do |element, index|
-            inner_elements = element.is_a?(Array) ? element.flatten : [element]
-            inner_elements.each do |inner_element|
-              current_path << index
-              repath_errors!(pathed_errors_by_object_id, forward_path, current_path, inner_element)
-              current_path.pop
-            end
-          end
-
-        elsif !forward_path.empty?
-          repath_errors!(pathed_errors_by_object_id, forward_path, current_path, scope)
-
-        elsif scope.is_a?(Array)
-          scope.each_with_index do |element, index|
-            inner_elements = element.is_a?(Array) ? element.flatten : [element]
-            inner_elements.each do |inner_element|
-              errors = pathed_errors_by_object_id[inner_element.object_id]
-              errors.each { _1["path"] = [*current_path, index, *_1["path"]] } if errors
-            end
-          end
-
-        else
-          errors = pathed_errors_by_object_id[scope.object_id]
-          errors.each { _1["path"] = [*current_path, *_1["path"]] } if errors
+      def paths_for_origin_set(op, origin_set)
+        paths_by_object_id = path_entries(@executor.data, op.path).each_with_object(Hash.new { |h, k| h[k] = [] }) do |(object, path), memo|
+          memo[object.object_id] << path
         end
 
-        forward_path.unshift(current_path.pop)
+        origin_set.map { |origin_obj| paths_by_object_id[origin_obj.object_id].shift }
       end
     end
   end

@@ -1,25 +1,22 @@
 # frozen_string_literal: true
+# typed: true
 
 require "json"
 
 module GraphQL
   module Stitching
-    # Client is an out-of-the-box helper that assembles all 
-    # stitching components into a workflow that executes requests.
     class Client
       class << self
+        #: (String | singleton(GraphQL::Schema) schema, executables: Hash[Location | Symbol, Executable]) -> Client
         def from_definition(schema, executables:)
           new(supergraph: Supergraph.from_definition(schema, executables: executables))
         end
       end
       
-      # @return [Supergraph] composed supergraph that services incoming requests.
+      #: Supergraph
       attr_reader :supergraph
 
-      # Builds a new client instance. Either `supergraph` or `locations` configuration is required.
-      # @param supergraph [Supergraph] optional, a pre-composed supergraph that bypasses composer setup.
-      # @param locations [Hash<Symbol, Hash<Symbol, untyped>>] optional, composer configurations for each graph location.
-      # @param composer_options [Hash] optional, composer options for configuring composition.
+      #: (?locations: untyped, ?supergraph: Supergraph?, ?composer_options: Hash[Symbol, untyped]) -> void
       def initialize(locations: nil, supergraph: nil, composer_options: {})
         @supergraph = if locations && supergraph
           raise ArgumentError, "Cannot provide both locations and a supergraph."
@@ -34,15 +31,26 @@ module GraphQL
           composer.perform(locations)
         end
 
-        @on_cache_read = nil
-        @on_cache_write = nil
-        @on_error = nil
+        @on_cache_read = nil #: CacheReadHandler?
+        @on_cache_write = nil #: CacheWriteHandler?
+        @on_error = nil #: ErrorHandler?
       end
 
+      #: (
+      #|   ?String | DocumentNode | nil raw_query,
+      #|   ?query: String | DocumentNode | nil,
+      #|   ?variables: Variables?,
+      #|   ?operation_name: String?,
+      #|   ?context: untyped,
+      #|   ?validate: bool
+      #| ) -> untyped
       def execute(raw_query = nil, query: nil, variables: nil, operation_name: nil, context: nil, validate: true)
+        source = raw_query || query
+        raise ArgumentError, "A query string or document is required." unless source
+
         request = Request.new(
           @supergraph,
-          raw_query || query, # << for parity with GraphQL Ruby Schema.execute
+          source,
           operation_name: operation_name,
           variables: variables,
           context: context,
@@ -62,23 +70,27 @@ module GraphQL
         error_result(request, [{ "message" => custom_message || "An unexpected error occured." }])
       end
 
+      #: ?{ (Request) -> String? } -> CacheReadHandler
       def on_cache_read(&block)
-        raise ArgumentError, "A cache read block is required." unless block_given?
+        raise ArgumentError, "A cache read block is required." unless block
         @on_cache_read = block
       end
 
+      #: ?{ (Request, String) -> void } -> CacheWriteHandler
       def on_cache_write(&block)
-        raise ArgumentError, "A cache write block is required." unless block_given?
+        raise ArgumentError, "A cache write block is required." unless block
         @on_cache_write = block
       end
 
+      #: ?{ (Request?, StandardError) -> String? } -> ErrorHandler
       def on_error(&block)
-        raise ArgumentError, "An error handler block is required." unless block_given?
+        raise ArgumentError, "An error handler block is required." unless block
         @on_error = block
       end
 
       private
 
+      #: (Request request) -> Plan
       def load_plan(request)
         if @on_cache_read && plan_json = @on_cache_read.call(request)
           plan = Plan.from_json(JSON.parse(plan_json))
@@ -98,6 +110,7 @@ module GraphQL
         plan
       end
 
+      #: (Request? request, Array[PublicErrorObject | PublicError] errors) -> GraphQL::Query::Result
       def error_result(request, errors)
         public_errors = errors.map! do |e|
           e.is_a?(Hash) ? e : e.to_h

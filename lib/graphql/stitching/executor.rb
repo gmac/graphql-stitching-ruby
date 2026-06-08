@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require "json"
 require_relative "executor/path_access"
@@ -8,41 +9,36 @@ require_relative "executor/shaper"
 
 module GraphQL
   module Stitching
-    # Executor handles executing upon a planned request.
-    # All planned steps are initiated, their results merged,
-    # and loaded keys are collected for batching subsequent steps.
-    # Final execution results are then shaped to match the request selection.
     class Executor
-      # @return [Request] the stitching request to execute.
+      #: Request
       attr_reader :request
 
-      # @return [Hash] an aggregate data payload to return.
+      #: Data
       attr_reader :data
 
-      # @return [Array<Hash>] aggregate GraphQL errors to return.
+      #: Array[GraphQLError]
       attr_reader :errors
 
-      # @return [Integer] tally of queries performed while executing.
+      #: Integer
       attr_accessor :query_count
 
-      # Builds a new executor.
-      # @param request [Request] the stitching request to execute.
-      # @param nonblocking [Boolean] specifies if the dataloader should use async concurrency.
+      #: (Request request, ?data: Data, ?errors: Array[GraphQLError], ?after: Integer, ?nonblocking: bool) -> void
       def initialize(request, data: {}, errors: [], after: Planner::ROOT_INDEX, nonblocking: false)
         @request = request
         @data = data
         @errors = errors
-        @after = after
+        @after = after #: Integer
         @query_count = 0
-        @exec_cycles = 0
-        @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking)
+        @exec_cycles = 0 #: Integer
+        @dataloader = GraphQL::Dataloader.new(nonblocking: nonblocking) #: GraphQL::Dataloader
       end
 
+      #: (?raw: bool) -> GraphQL::Query::Result
       def perform(raw: false)
         exec!([@after])
         result = {}
 
-        if @data && @data.length > 0
+        if @data.length > 0
           result["data"] = raw ? @data : Shaper.new(@request).perform!(@data)
         end
 
@@ -55,6 +51,7 @@ module GraphQL
 
       private
 
+      #: (Array[Integer] next_steps) -> void
       def exec!(next_steps)
         if @exec_cycles > @request.plan.ops.length
           # sanity check... if we've exceeded queue size, then something went wrong.
@@ -62,7 +59,7 @@ module GraphQL
         end
 
         @dataloader.append_job do
-          tasks = @request.plan
+          requests = @request.plan
             .ops
             .select { next_steps.include?(_1.after) }
             .group_by { [_1.location, _1.resolver.nil?] }
@@ -71,15 +68,16 @@ module GraphQL
               @dataloader.with(source_class, self, location).request_all(ops)
             end
 
-          tasks.each(&method(:exec_task))
+          requests.each(&method(:exec_request))
         end
 
         @exec_cycles += 1
         @dataloader.run
       end
 
-      def exec_task(task)
-        next_steps = task.load.tap(&:compact!)
+      #: (GraphQL::Dataloader::RequestAll request) -> void
+      def exec_request(request)
+        next_steps = request.load.tap(&:compact!)
         exec!(next_steps) unless next_steps.empty?
       end
     end

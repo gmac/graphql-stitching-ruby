@@ -16,6 +16,11 @@ namespace :benchmark do
   end
 end
 
+desc "Run Sorbet typecheck"
+task :typecheck do
+  sh "bundle exec srb tc"
+end
+
 desc "Run benchmarks"
 task benchmark: "benchmark:planner"
 

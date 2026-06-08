@@ -1,15 +1,18 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Executor
     class TypeResolverSource < GraphQL::Dataloader::Source
       include PathAccess
 
+      #: (Executor executor, Location location) -> void
       def initialize(executor, location)
-        @executor = executor
-        @location = location
+        @executor = executor #: Executor
+        @location = location #: Location
       end
 
+      #: (Array[Plan::Op] ops) -> Array[Integer?]
       def fetch(ops)
         origin_sets_by_operation = ops.each_with_object({}.compare_by_identity) do |op, memo|
           origin_set = path_objects(@executor.data, op.path)
@@ -28,7 +31,7 @@ module GraphQL::Stitching
             @executor.request.operation_name,
             @executor.request.operation_directives,
           )
-          variables = generated_variables.merge(@executor.request.variables.slice(*variable_names))
+          variables = generated_variables.merge(@executor.request.variables.select { |key, _value| variable_names.include?(key) })
           raw_result = @executor.request.supergraph.execute_at_location(@location, query_document, variables, @executor.request)
           @executor.query_count += 1
 
@@ -41,13 +44,7 @@ module GraphQL::Stitching
         ops.map { origin_sets_by_operation[_1] ? _1.step : nil }
       end
 
-      # Builds batched resolver queries
-      # "query MyOperation_2_3($var:VarType, $_0_key:[ID!]!, $_1_0_key:ID!, $_1_1_key:ID!, $_1_2_key:ID!) {
-      #   _0_result: list(keys: $_0_key) { resolverSelections... }
-      #   _1_0_result: item(key: $_1_0_key) { resolverSelections... }
-      #   _1_1_result: item(key: $_1_1_key) { resolverSelections... }
-      #   _1_2_result: item(key: $_1_2_key) { resolverSelections... }
-      # }"
+      #: (OriginSetsByOperation origin_sets_by_operation, ?String? operation_name, ?String? operation_directives) -> [String, Array[String], Variables]
       def build_document(origin_sets_by_operation, operation_name = nil, operation_directives = nil)
         variable_defs = {}
         generated_variables = {}
@@ -55,7 +52,7 @@ module GraphQL::Stitching
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
           variable_defs.merge!(op.variables)
-          resolver = @executor.request.supergraph.resolvers_by_version[op.resolver]
+          resolver = resolver_for_op(op)
           fields_buffer << " " unless batch_index.zero?
 
           if resolver.list?
@@ -127,11 +124,12 @@ module GraphQL::Stitching
         return doc_buffer, variable_names, generated_variables
       end
 
+      #: (OriginSetsByOperation origin_sets_by_operation, Data? raw_result) -> void
       def merge_results!(origin_sets_by_operation, raw_result)
         return unless raw_result
 
         origin_sets_by_operation.each_with_index do |(op, origin_set), batch_index|
-          results = if @executor.request.supergraph.resolvers_by_version[op.resolver].list?
+          results = if resolver_for_op(op).list?
             raw_result["_#{batch_index}_result"]
           else
             origin_set.map.with_index { |_, index| raw_result["_#{batch_index}_#{index}_result"] }
@@ -146,7 +144,7 @@ module GraphQL::Stitching
         end
       end
 
-      # https://spec.graphql.org/June2018/#sec-Errors
+      #: (OriginSetsByOperation origin_sets_by_operation, Array[GraphQLError] errors, ?OriginPathsByOperation? origin_paths_by_operation) -> Array[GraphQLError]
       def extract_errors!(origin_sets_by_operation, errors, origin_paths_by_operation = nil)
         ops = origin_sets_by_operation.keys
         origin_sets = origin_sets_by_operation.values
@@ -161,7 +159,7 @@ module GraphQL::Stitching
             result_alias = /^_(\d+)(?:_(\d+))?_result$/.match(path.first.to_s)
 
             if result_alias
-              path = path[1..-1]
+              path = path.drop(1)
               batch_index = result_alias[1].to_i
 
               origin_index = if result_alias[2]
@@ -172,7 +170,7 @@ module GraphQL::Stitching
               origin_obj = origin_sets.dig(batch_index, origin_index) if origin_index
 
               if origin_obj
-                op = ops[batch_index]
+                op = ops.fetch(batch_index)
                 object_path = origin_paths_by_operation.dig(op, origin_index)
 
                 if object_path
@@ -192,6 +190,15 @@ module GraphQL::Stitching
 
       private
 
+      #: (Plan::Op op) -> TypeResolver
+      def resolver_for_op(op)
+        resolver_version = op.resolver
+        raise StitchingError, "Missing resolver for planned operation #{op.step}." unless resolver_version
+
+        @executor.request.supergraph.resolvers_by_version.fetch(resolver_version)
+      end
+
+      #: (Plan::Op op, OriginSet origin_set) -> Array[ResponsePath?]
       def paths_for_origin_set(op, origin_set)
         paths_by_object_id = path_entries(@executor.data, op.path).each_with_object(Hash.new { |h, k| h[k] = [] }) do |(object, path), memo|
           memo[object.object_id] << path

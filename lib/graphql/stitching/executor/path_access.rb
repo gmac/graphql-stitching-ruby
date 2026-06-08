@@ -1,19 +1,20 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Executor
-    # Utilities for traversing aggregate executor data along planned paths.
     module PathAccess
       private
 
+      #: (untyped root, Array[String] path) -> OriginSet
       def path_objects(root, path)
         objects = []
         each_path_object(root, path) { |object| objects << object }
         objects
       end
 
+      #: (untyped scope, Array[String] path) { (Data) -> void } -> void
       def each_path_object(scope, path, &block)
-        return enum_for(:each_path_object, scope, path) unless block
         return if scope.nil?
 
         if path.empty?
@@ -21,11 +22,12 @@ module GraphQL::Stitching
         elsif scope.is_a?(Array)
           scope.each { |element| each_path_object(element, path, &block) }
         elsif scope.respond_to?(:[])
-          path_segment = path.first
-          each_path_object(scope[path_segment], path[1..-1], &block)
+          path_segment = path.fetch(0)
+          each_path_object(scope[path_segment], path.drop(1), &block)
         end
       end
 
+      #: (untyped scope) { (Data) -> void } -> void
       def each_leaf_object(scope, &block)
         return if scope.nil?
 
@@ -36,14 +38,15 @@ module GraphQL::Stitching
         end
       end
 
+      #: (untyped root, Array[String] path) -> Array[OriginEntry]
       def path_entries(root, path)
         entries = []
         each_path_entry(root, path) { |object, response_path| entries << [object, response_path] }
         entries
       end
 
+      #: (untyped scope, Array[String] path, ?ResponsePath response_path) { (Data, ResponsePath) -> void } -> void
       def each_path_entry(scope, path, response_path = [], &block)
-        return enum_for(:each_path_entry, scope, path, response_path) unless block
         return if scope.nil?
 
         if path.empty?
@@ -53,11 +56,12 @@ module GraphQL::Stitching
             each_path_entry(element, path, [*response_path, index], &block)
           end
         elsif scope.respond_to?(:[])
-          path_segment = path.first
-          each_path_entry(scope[path_segment], path[1..-1], [*response_path, path_segment], &block)
+          path_segment = path.fetch(0)
+          each_path_entry(scope[path_segment], path.drop(1), [*response_path, path_segment], &block)
         end
       end
 
+      #: (untyped scope, ResponsePath response_path) { (Data, ResponsePath) -> void } -> void
       def each_leaf_entry(scope, response_path, &block)
         return if scope.nil?
 
@@ -70,6 +74,7 @@ module GraphQL::Stitching
         end
       end
 
+      #: (GraphQLError error, ?path: ResponsePath?) -> GraphQLError
       def sanitized_error(error, path: nil)
         error.dup.tap do |formatted|
           formatted.delete("locations")

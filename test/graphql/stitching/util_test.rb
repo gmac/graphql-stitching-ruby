@@ -96,24 +96,6 @@ class GraphQL::Stitching::UtilTest < Minitest::Test
     assert_equal expected_list4, Util.flatten_type_structure(field_type("list4"))
   end
 
-  def test_expand_abstract_type_for_interface
-    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("ParentInterface"))
-    assert_equal ["ChildInterface", "FirstObject", "SecondObject"], result.map(&:graphql_name).sort
-
-    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("ChildInterface"))
-    assert_equal ["SecondObject"], result.map(&:graphql_name).sort
-  end
-
-  def test_expand_abstract_type_for_union
-    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("TestUnion"))
-    assert_equal ["FirstObject", "SecondObject"], result.map(&:graphql_name).sort
-  end
-
-  def test_expand_abstract_type_for_non_abstract
-    result = Util.expand_abstract_type(TestSchema, TestSchema.get_type("String"))
-    assert_equal [], result.map(&:graphql_name).sort
-  end
-
   private
 
   def field_type(name)

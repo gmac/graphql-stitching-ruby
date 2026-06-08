@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class TypeResolver
@@ -12,6 +13,7 @@ module GraphQL::Stitching
       GRAPHQL_RUBY_FIELD_ALIAS_KWARG = !GraphQL::Language::Nodes::Field.new(field_alias: "a").alias.nil?
 
       class << self
+        #: (field_name: FieldName, ?field_alias: String?, ?selections: Array[SelectionNode]) -> GraphQL::Language::Nodes::Field
         def build(field_name:, field_alias: nil, selections: GraphQL::Stitching::EMPTY_ARRAY)
           if GRAPHQL_RUBY_FIELD_ALIAS_KWARG
             GraphQL::Language::Nodes::Field.new(
@@ -20,37 +22,53 @@ module GraphQL::Stitching
               selections: selections,
             )
           else
-            GraphQL::Language::Nodes::Field.new(
-              alias: field_alias,
-              name: field_name,
-              selections: selections,
-            )
+            GraphQL::Language::Nodes::Field.new(**legacy_field_kwargs(field_alias, field_name, selections))
           end
+        end
+
+        private
+
+        #: (String? field_alias, FieldName field_name, Array[SelectionNode] selections) -> untyped
+        def legacy_field_kwargs(field_alias, field_name, selections)
+          {
+            alias: field_alias,
+            name: field_name,
+            selections: selections,
+          }
         end
       end
     end
 
     class KeyFieldSet < Array
+      # @rbs!
+      #   @to_definition: String?
+      #   @export_nodes: Array[GraphQL::Language::Nodes::Field]?
+
+      #: (Array[KeyField] fields) -> void
       def initialize(fields)
         super(fields.sort_by(&:name))
         @to_definition = nil
         @export_nodes = nil
       end
 
+      #: (untyped other) -> bool
       def ==(other)
         to_definition == other.to_definition
       end
 
+      #: -> FieldName?
       def primitive_name
-        length == 1 ? first.name : nil
+        length == 1 ? fetch(0).name : nil
       end
 
+      #: -> String
       def to_definition
         @to_definition ||= map(&:to_definition).join(" ").freeze
       end
 
       alias_method :to_s, :to_definition
 
+      #: -> Array[GraphQL::Language::Nodes::Field]
       def export_nodes
         @export_nodes ||= map(&:export_node)
       end
@@ -63,8 +81,10 @@ module GraphQL::Stitching
     )
 
     class Key < KeyFieldSet
+      #: Array[Location]
       attr_reader :locations
 
+      #: (Array[KeyField] fields, ?locations: Array[Location]) -> void
       def initialize(fields, locations: GraphQL::Stitching::EMPTY_ARRAY)
         super(fields)
         @locations = locations
@@ -73,6 +93,7 @@ module GraphQL::Stitching
         freeze
       end
 
+      #: -> Array[GraphQL::Language::Nodes::Field]
       def export_nodes
         @export_nodes ||= begin
           nodes = map(&:export_node)
@@ -83,27 +104,32 @@ module GraphQL::Stitching
     end
 
     class KeyField
-      # name of the key, may be a field alias
+      #: FieldName
       attr_reader :name
 
-      # inner key selections
+      #: KeyFieldSet
       attr_reader :inner
 
-      # optional information about location and typing, used during composition
+      #: TypeName?
       attr_accessor :type_name
+
+      #: bool?
       attr_accessor :list
       alias_method :list?, :list
 
+      #: (FieldName name, ?root: bool, ?inner: KeyFieldSet) -> void
       def initialize(name, root: false, inner: EMPTY_FIELD_SET)
         @name = name
         @inner = inner
-        @root = root
+        @root = root #: bool
       end
 
+      #: -> String
       def to_definition
         @inner.empty? ? @name : "#{@name} { #{@inner.to_definition} }"
       end
 
+      #: -> GraphQL::Language::Nodes::Field
       def export_node
         FieldNode.build(
           field_alias: @root ? "#{EXPORT_PREFIX}#{@name}" : nil,
@@ -114,20 +140,24 @@ module GraphQL::Stitching
     end
 
     module KeysParser
+      #: (String name) -> String
       def export_key(name)
         "#{EXPORT_PREFIX}#{name}"
       end
 
+      #: (String? name) -> bool
       def export_key?(name)
         return false unless name
 
         name.start_with?(EXPORT_PREFIX)
       end
 
+      #: (String template, ?Array[Location] locations) -> Key
       def parse_key(template, locations = GraphQL::Stitching::EMPTY_ARRAY)
         Key.new(parse_field_set(template), locations: locations)
       end
 
+      #: (String template, SubgraphTypesByLocation subgraph_types_by_location) -> Key
       def parse_key_with_types(template, subgraph_types_by_location)
         field_set = parse_field_set(template)
         locations = subgraph_types_by_location.filter_map do |location, subgraph_type|
@@ -137,15 +167,16 @@ module GraphQL::Stitching
         if locations.none?
           message = "Key `#{field_set.to_definition}` does not exist in any location."
           message += " Composite key selections may not be distributed." if field_set.length > 1
-          raise CompositionError, message
+          Kernel.raise CompositionError, message
         end
 
-        assign_field_set_info!(field_set, subgraph_types_by_location[locations.first])
+        assign_field_set_info!(field_set, subgraph_types_by_location.fetch(locations.fetch(0)))
         Key.new(field_set, locations: locations)
       end
 
       private
 
+      #: (String template) -> KeyFieldSet
       def parse_field_set(template)
         template = template.strip
         template = template[1..-2] if template.start_with?("{") && template.end_with?("}")
@@ -154,12 +185,16 @@ module GraphQL::Stitching
         build_field_set(ast, root: true)
       end
 
+      #: (Array[SelectionNode] selections, ?root: bool) -> KeyFieldSet
       def build_field_set(selections, root: false)
         return EMPTY_FIELD_SET if selections.empty?
 
         fields = selections.map do |node|
-          raise CompositionError, "Key selections must be fields." unless node.is_a?(GraphQL::Language::Nodes::Field)
-          raise CompositionError, "Key fields may not specify aliases." unless node.alias.nil?
+          unless node.is_a?(GraphQL::Language::Nodes::Field)
+            Kernel.raise CompositionError, "Key selections must be fields."
+          end
+
+          Kernel.raise CompositionError, "Key fields may not specify aliases." unless node.alias.nil?
 
           KeyField.new(node.name, inner: build_field_set(node.selections), root: root)
         end
@@ -167,6 +202,7 @@ module GraphQL::Stitching
         KeyFieldSet.new(fields)
       end
 
+      #: (KeyFieldSet field_set, untyped subgraph_type) -> bool
       def field_set_matches_type?(field_set, subgraph_type)
         subgraph_type = subgraph_type.unwrap
         field_set.all? do |field|
@@ -176,16 +212,18 @@ module GraphQL::Stitching
         end
       end
 
+      #: (KeyField field, untyped subgraph_type) -> bool
       def field_matches_type?(field, subgraph_type)
         return false if subgraph_type.nil?
 
         if field.inner.empty? && subgraph_type.kind.composite?
-          raise CompositionError, "Composite key fields must contain nested selections."
+          Kernel.raise CompositionError, "Composite key fields must contain nested selections."
         end
 
         field.inner.empty? || field_set_matches_type?(field.inner, subgraph_type)
       end
 
+      #: (KeyFieldSet field_set, untyped subgraph_type) -> void
       def assign_field_set_info!(field_set, subgraph_type)
         subgraph_type = subgraph_type.unwrap
         field_set.each do |field|
@@ -195,6 +233,7 @@ module GraphQL::Stitching
         end
       end
 
+      #: (KeyField field, untyped subgraph_type) -> void
       def assign_field_info!(field, subgraph_type)
         field.list = subgraph_type.list?
         field.type_name = subgraph_type.unwrap.graphql_name

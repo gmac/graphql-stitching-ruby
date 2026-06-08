@@ -1,0 +1,41 @@
+gem:
+  exclude:
+  - base64
+  - benchmark
+  - byebug
+  - coderay
+  - erubi
+  - fiber-storage
+  - io-console
+  - logger
+  - method_source
+  - minitest-stub-const
+  - netrc
+  - parallel
+  - prism
+  - pry
+  - pry-byebug
+  - rake
+  - rbi
+  - rbs
+  - reline
+  - require-hooks
+  - rexml
+  - rubydex
+  - sorbet
+  - sorbet-runtime
+  - sorbet-static
+  - sorbet-static-and-runtime
+  - spoom
+  - tapioca
+  - thor
+  - tsort
+  - warning
+  # doc: true
+  # workers: 5
+dsl:
+  # Add your `dsl` command parameters here:
+  #
+  # exclude:
+  # - SomeGeneratorName
+  # workers: 5

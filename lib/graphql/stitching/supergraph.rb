@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require_relative "supergraph/types"
 require_relative "supergraph/from_definition"
@@ -11,17 +12,39 @@ module GraphQL
     class Supergraph
       SUPERGRAPH_LOCATION = "__super"
 
-      # @return [GraphQL::Schema] the composed schema for the supergraph.
+      #: singleton(GraphQL::Schema)
       attr_reader :schema
 
-      # @return [Hash<String, Executable>] a map of executable resources by location.
+      #: Hash[Location, Executable]
       attr_reader :executables
 
+      #: TypeResolverMap
       attr_reader :resolvers
+
+      #: Hash[TypeName, CompositeType]
       attr_reader :memoized_schema_types
+
+      #: Hash[TypeName, GraphQL::Schema::Member]
       attr_reader :memoized_introspection_types
+
+      #: LocationsByTypeAndField
       attr_reader :locations_by_type_and_field
 
+      # @rbs!
+      #   @resolvers_by_version: Hash[String, TypeResolver]?
+      #   @fields_by_type_and_location: FieldsByTypeAndLocation?
+      #   @locations_by_type: LocationsByType?
+      #   @memoized_schema_fields: Hash[TypeName, Hash[FieldName, GraphQL::Schema::Field]]
+      #   @possible_keys_by_type: Hash[TypeName, Array[TypeResolver::Key]]
+      #   @possible_keys_by_type_and_location: Hash[TypeName, Hash[Location, Array[TypeResolver::Key]]]
+
+      #: (
+      #|   schema: singleton(GraphQL::Schema),
+      #|   ?fields: LocationsByTypeAndField,
+      #|   ?resolvers: TypeResolverMap,
+      #|   ?visibility_profiles: Array[String],
+      #|   ?executables: Hash[Location | Symbol, Executable]
+      #| ) -> void
       def initialize(schema:, fields: {}, resolvers: {}, visibility_profiles: [], executables: {})
         @schema = schema
         @resolvers = resolvers
@@ -58,26 +81,31 @@ module GraphQL
         end
       end
 
+      #: (?visibility_profile: String?) -> String
       def to_definition(visibility_profile: nil)
         @schema.to_definition(context: { 
           visibility_profile: visibility_profile,
         }.tap(&:compact!))
       end
 
+      #: -> Hash[String, TypeResolver]
       def resolvers_by_version
-        @resolvers_by_version ||= resolvers.values.tap(&:flatten!).each_with_object({}) do |resolver, memo|
+        @resolvers_by_version ||= resolvers.values.flatten.each_with_object({}) do |resolver, memo|
           memo[resolver.version] = resolver
         end
       end
 
+      #: -> LocationsByTypeAndField
       def fields
         @locations_by_type_and_field.reject { |k, _v| memoized_introspection_types[k] }
       end
 
+      #: -> Array[Location]
       def locations
         @executables.each_key.reject { _1 == SUPERGRAPH_LOCATION }
       end
 
+      #: (TypeName type_name) -> Hash[FieldName, GraphQL::Schema::Field]
       def memoized_schema_fields(type_name)
         @memoized_schema_fields[type_name] ||= begin
           fields = @memoized_schema_types[type_name].fields
@@ -95,6 +123,7 @@ module GraphQL
         end
       end
 
+      #: (Location location, String source, Variables variables, Request request) -> untyped
       def execute_at_location(location, source, variables, request)
         executable = executables[location]
 
@@ -115,7 +144,7 @@ module GraphQL
       end
 
       # inverts fields map to provide fields for a type/location
-      # "Type" => "location" => ["field1", "field2", ...]
+      #: -> FieldsByTypeAndLocation
       def fields_by_type_and_location
         @fields_by_type_and_location ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.each_with_object({}) do |(field_name, locations), memo|
@@ -127,7 +156,7 @@ module GraphQL
         end
       end
 
-      # "Type" => ["location1", "location2", ...]
+      #: -> LocationsByType
       def locations_by_type
         @locations_by_type ||= @locations_by_type_and_field.each_with_object({}) do |(type_name, fields), memo|
           memo[type_name] = fields.values.tap(&:flatten!).tap(&:uniq!)
@@ -135,32 +164,33 @@ module GraphQL
       end
 
       # collects all possible resolver keys for a given type
-      # ("Type") => [Key("id"), ...]
+      #: (TypeName type_name) -> Array[TypeResolver::Key]
       def possible_keys_for_type(type_name)
         @possible_keys_by_type[type_name] ||= begin
           if type_name == @schema.query.graphql_name
             GraphQL::Stitching::EMPTY_ARRAY
           else
-            @resolvers[type_name].map(&:key).uniq(&:to_definition)
+            (@resolvers[type_name] || GraphQL::Stitching::EMPTY_ARRAY).map(&:key).uniq(&:to_definition)
           end
         end
       end
 
       # collects possible resolver keys for a given type and location
-      # ("Type", "location") => [Key("id"), ...]
+      #: (TypeName type_name, Location location) -> Array[TypeResolver::Key]
       def possible_keys_for_type_and_location(type_name, location)
         possible_keys_by_type = @possible_keys_by_type_and_location[type_name] ||= {}
         possible_keys_by_type[location] ||= possible_keys_for_type(type_name).select do |key|
           next true if key.locations.include?(location)
 
           # Outbound-only locations without resolver queries may dynamically match primitive keys
-          location_fields = fields_by_type_and_location[type_name][location] || GraphQL::Stitching::EMPTY_ARRAY
+          location_fields = fields_by_type_and_location[type_name]&.[](location) || GraphQL::Stitching::EMPTY_ARRAY
           location_fields.include?(key.primitive_name)
         end
       end
 
       # For a given type, route from one origin location to one or more remote locations
       # used to connect a partial type across locations via resolver queries
+      #: (TypeName type_name, Location start_location, Enumerable[Location] goal_locations) -> TypeResolverRoutes
       def route_type_to_locations(type_name, start_location, goal_locations)
         key_count = possible_keys_for_type(type_name).length
 
@@ -177,7 +207,7 @@ module GraphQL
         else
           # types with a single key attribute must all be within a single hop of each other,
           # so can use a simple match to collect resolvers for the goal locations.
-          @resolvers[type_name].each_with_object({}) do |resolver, memo|
+          (@resolvers[type_name] || GraphQL::Stitching::EMPTY_ARRAY).each_with_object({}) do |resolver, memo|
             if goal_locations.include?(resolver.location)
               memo[resolver.location] = [resolver]
             end
@@ -188,9 +218,19 @@ module GraphQL
       private
 
       class PathNode
-        attr_reader :location, :key, :resolver
+        #: Location
+        attr_reader :location
+
+        #: TypeResolver::Key
+        attr_reader :key
+
+        #: TypeResolver?
+        attr_reader :resolver
+
+        #: Integer
         attr_accessor :cost
       
+        #: (location: Location, key: TypeResolver::Key, ?resolver: TypeResolver?, ?cost: Integer) -> void
         def initialize(location:, key:, resolver: nil, cost: 0)
           @location = location
           @key = key
@@ -201,21 +241,26 @@ module GraphQL
 
       # tunes A* search to favor paths with fewest joining locations, ie:
       # favor longer paths through target locations over shorter paths with additional locations.
+      #: (TypeName type_name, Location start_location, Enumerable[Location] goal_locations) -> TypeResolverRoutes
       def route_type_to_locations_via_search(type_name, start_location, goal_locations)
         results = {}
         costs = {}
 
-        paths = possible_keys_for_type_and_location(type_name, start_location).map do |possible_key|
-          [PathNode.new(location: start_location, key: possible_key)]
+        paths = [] #: Array[Array[PathNode]]
+        possible_keys_for_type_and_location(type_name, start_location).each do |possible_key|
+          paths << [PathNode.new(location: start_location, key: possible_key)]
         end
 
         while !paths.empty?
           path = paths.pop
-          current_location = path.last.location
-          current_key = path.last.key
-          current_cost = path.last.cost
+          next unless path
 
-          @resolvers[type_name].each do |resolver|
+          last_node = path.fetch(-1)
+          current_location = last_node.location
+          current_key = last_node.key
+          current_cost = last_node.cost
+
+          (@resolvers[type_name] || GraphQL::Stitching::EMPTY_ARRAY).each do |resolver|
             forward_location = resolver.location
             next if current_key != resolver.key
             next if path.any? { _1.location == forward_location }
@@ -237,10 +282,10 @@ module GraphQL
                 results[forward_location] = path.map(&:resolver)
               end
             else
-              path.last.cost += 1
+              path.fetch(-1).cost += 1
             end
 
-            forward_cost = path.last.cost
+            forward_cost = path.fetch(-1).cost
             costs[forward_location] = forward_cost if forward_cost < best_cost
 
             possible_keys_for_type_and_location(type_name, forward_location).each do |possible_key|
@@ -249,7 +294,7 @@ module GraphQL
           end
 
           paths.sort! do |a, b|
-            cost_diff = b.last.cost - a.last.cost
+            cost_diff = b.fetch(-1).cost - a.fetch(-1).cost
             cost_diff.zero? ? b.length - a.length : cost_diff
           end
         end

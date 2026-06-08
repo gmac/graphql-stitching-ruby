@@ -1,15 +1,18 @@
 # frozen_string_literal: true
+# typed: true
 
 module GraphQL::Stitching
   class Executor
     class RootSource < GraphQL::Dataloader::Source
       include PathAccess
 
+      #: (Executor executor, Location location) -> void
       def initialize(executor, location)
-        @executor = executor
-        @location = location
+        @executor = executor #: Executor
+        @location = location #: Location
       end
 
+      #: (Array[Plan::Op] ops) -> Array[Integer]
       def fetch(ops)
         ops.map do |op|
           origin_set = op.path.empty? ? [@executor.data] : path_objects(@executor.data, op.path)
@@ -19,12 +22,12 @@ module GraphQL::Stitching
             @executor.request.operation_name,
             @executor.request.operation_directives,
           )
-          query_variables = @executor.request.variables.slice(*op.variables.each_key)
+          query_variables = @executor.request.variables.select { |key, _value| op.variables.key?(key) }
           result = @executor.request.supergraph.execute_at_location(op.location, query_document, query_variables, @executor.request)
           @executor.query_count += 1
 
           errors = result["errors"]
-          origin_entries = nil
+          origin_entries = [] #: Array[OriginEntry]
 
           if errors && !errors.empty?
             origin_entries = op.path.empty? ? [[@executor.data, []]] : path_entries(@executor.data, op.path)
@@ -48,8 +51,7 @@ module GraphQL::Stitching
         end
       end
 
-      # Builds root source documents
-      # "query MyOperation_1($var:VarType) { rootSelections ... }"
+      #: (Plan::Op op, ?String? operation_name, ?String? operation_directives) -> String
       def build_document(op, operation_name = nil, operation_directives = nil)
         doc_buffer = String.new
         doc_buffer << op.operation_type
@@ -75,8 +77,7 @@ module GraphQL::Stitching
         doc_buffer
       end
 
-      # Format response errors without a document location (because it won't match the request doc),
-      # and prepend all concrete insertion paths for nested scopes into error paths.
+      #: (Array[GraphQLError] errors, Array[OriginEntry] origin_entries, ?ResponsePath fallback_path) -> Array[GraphQLError]
       def format_errors(errors, origin_entries, fallback_path = [])
         errors.flat_map do |err|
           path = err["path"]
